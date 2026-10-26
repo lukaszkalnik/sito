@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Sito app icon: a kitchen sieve that keeps the golden "best shot" while
+       the other photos fall through.
+       Edit this file, then run `node scripts/render-icon.mjs` and
+       `npx tauri icon src-tauri/icons/source/icon.png` to regenerate all sizes. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f5f5a"/>
+    </linearGradient>
+    <clipPath id="bowl">
+      <path d="M150 380 A320 300 0 0 0 790 380 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background tile -->
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="url(#bg)"/>
+
+  <!-- Photos falling through (grey) -->
+  <g fill="#cbd5e1" opacity="0.85">
+    <rect x="352" y="742" width="84" height="66" rx="12" transform="rotate(14 394 775)"/>
+    <rect x="500" y="800" width="72" height="56" rx="11" transform="rotate(-12 536 828)"/>
+    <rect x="424" y="868" width="60" height="46" rx="10" transform="rotate(8 454 891)"/>
+  </g>
+
+  <!-- Handle -->
+  <rect x="770" y="352" width="200" height="56" rx="28" fill="#f8fafc"/>
+
+  <!-- Bowl with mesh -->
+  <path d="M150 380 A320 300 0 0 0 790 380 Z" fill="#0b4743"/>
+  <g clip-path="url(#bowl)" stroke="#e2e8f0" stroke-width="16" opacity="0.85">
+    <line x1="100" y1="420" x2="420" y2="740"/>
+    <line x1="220" y1="380" x2="580" y2="740"/>
+    <line x1="360" y1="380" x2="720" y2="740"/>
+    <line x1="500" y1="380" x2="860" y2="740"/>
+    <line x1="640" y1="380" x2="900" y2="640"/>
+    <line x1="840" y1="420" x2="520" y2="740"/>
+    <line x1="720" y1="380" x2="360" y2="740"/>
+    <line x1="580" y1="380" x2="220" y2="740"/>
+    <line x1="440" y1="380" x2="100" y2="720"/>
+    <line x1="300" y1="380" x2="60" y2="620"/>
+  </g>
+  <path d="M150 380 A320 300 0 0 0 790 380" fill="none" stroke="#f8fafc" stroke-width="28"/>
+
+  <!-- The kept photo: golden tile with a tiny mountain and sun -->
+  <g transform="rotate(-8 470 330)">
+    <rect x="350" y="214" width="240" height="190" rx="26" fill="#fbbf24" stroke="#f8fafc" stroke-width="18"/>
+    <path d="M374 380 L446 292 L496 348 L528 318 L568 380 Z" fill="#b45309"/>
+    <circle cx="546" cy="262" r="22" fill="#fef3c7"/>
+  </g>
+
+  <!-- Rim (drawn last so the photo sits inside the bowl) -->
+  <ellipse cx="470" cy="380" rx="320" ry="64" fill="none" stroke="#f8fafc" stroke-width="32"/>
+</svg>
