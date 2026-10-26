@@ -1,0 +1,23 @@
+# Rust
+/target/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+ui/test-results/
+ui/playwright-report/
+
+# Tauri
+src-tauri/gen/schemas/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Local Claude Code settings
+.claude/settings.local.json
