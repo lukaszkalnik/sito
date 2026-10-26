@@ -7,7 +7,7 @@
 Slice 1 works, but only through `npm run tauri dev`, which needs the whole dev setup and a long compile on a low-memory PC. The user wants Sito to run like a regular desktop app: install once, then start it with one click. From this slice on, every later slice can be tested in the installed app.
 
 User decisions:
-- **Manual updates for now:** a new version is installed by downloading the new installer and running it, which upgrades in place. A built-in updater can become its own slice later. It needs a signing key, and the private repo complicates hosting the updates.
+- **Manual updates for now:** a new version is installed by downloading the new installer and running it, which upgrades in place. A built-in updater can become its own slice later. It needs an update-signing key, and can serve updates straight from the public GitHub releases.
 - **Icon:** Claude draws a simple flat sieve icon (round sieve with a mesh pattern, one accent color). Easy to replace later.
 
 Constraints found:
@@ -39,7 +39,7 @@ Constraints found:
 - **Version check:** on tags, fail early if the tag (e.g. `v0.1.0`) differs from the workspace version in `Cargo.toml`.
 - Windows and macOS build jobs via `tauri-action` into a **draft** release (as today).
 - **Windows smoke test**, same job, after the build: run the NSIS installer silently (`/S`), assert `sito.exe` exists in the per-user install folder (`%LOCALAPPDATA%\Sito`), start it, check it's still running after 10 s, stop it, run the uninstaller silently, assert the folder is gone.
-- **Publish job** (needs both builds): turns the draft into a published release (`gh release edit --draft=false`), so a release only appears once everything succeeded. The repo is private, so only you can see it.
+- **Publish job** (needs both builds): turns the draft into a published release (`gh release edit --draft=false`), so a release only appears once everything succeeded. The repo is public, so published releases and their installers are downloadable by anyone.
 - Commit `ci: build per-user Windows installer with smoke test`.
 
 ### 4. Release docs
