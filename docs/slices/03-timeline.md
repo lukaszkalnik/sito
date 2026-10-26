@@ -1,6 +1,6 @@
 # Slice 3 – Timeline
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (released as v0.2.0)
 
 ## Context
 

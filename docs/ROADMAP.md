@@ -14,7 +14,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 |---|---|---|
 | 1 | [Count photos](slices/01-count-photos.md) | ✅ |
 | 2 | [Installable app](slices/02-installable-app.md) | ✅ |
-| 3 | [Timeline](slices/03-timeline.md) | 🚧 |
+| 3 | [Timeline](slices/03-timeline.md) | 🧪 |
 | 4 | Thumbnails | ⬜ |
 | 5 | Time series | ⬜ |
 | 6 | Time-gap slider | ⬜ |
@@ -37,7 +37,7 @@ Sito runs like a regular desktop app: a Windows installer (per-user, no admin ri
 
 *Try:* download the installer from the GitHub release, install, start Sito from the Start menu with one click.
 
-### 🚧 3. Timeline
+### 🧪 3. Timeline
 All photos sorted by capture time (EXIF date and orientation, mtime fallback), shown as a virtualized list or grid with dates and placeholders instead of images. Only visible rows are rendered, so 10,000+ photos scroll smoothly. Newest first, grid with day headers. Plan: [slices/03-timeline.md](slices/03-timeline.md)
 
 *Try:* scroll through a large folder, check order and dates.
