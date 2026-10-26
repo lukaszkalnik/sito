@@ -12,7 +12,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 
 | # | Slice | Status |
 |---|---|---|
-| 1 | [Count photos](slices/01-count-photos.md) | 🧪 |
+| 1 | [Count photos](slices/01-count-photos.md) | ✅ |
 | 2 | Installable app | ⬜ |
 | 3 | Timeline | ⬜ |
 | 4 | Thumbnails | ⬜ |
@@ -27,7 +27,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 13 | Faces and eyes | ⬜ |
 | 14 | macOS polish | ⬜ |
 
-### 🧪 1. Count photos
+### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
 
 *Try:* pick your gallery folder, compare the count with Explorer.
