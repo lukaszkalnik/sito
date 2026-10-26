@@ -2,7 +2,7 @@
 
 Work is split into vertical slices. Each slice goes through all layers (core → Tauri → UI) and ends with something the user can try in the running app. Ship one slice at a time; the user tests it before the next one starts.
 
-Plan each slice in plan mode first, then implement. Keep the status emoji in the table and in the slice heading in sync.
+Plan each slice in plan mode first and save the approved plan as `docs/slices/NN-name.md` (Markdown), then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
 
 **Status:** ⬜ not started · 📝 planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
 
@@ -10,7 +10,7 @@ Plan each slice in plan mode first, then implement. Keep the status emoji in the
 
 | # | Slice | Status |
 |---|---|---|
-| 1 | Count photos | ⬜ |
+| 1 | [Count photos](slices/01-count-photos.md) | 🚧 |
 | 2 | Timeline grid | ⬜ |
 | 3 | Time series | ⬜ |
 | 4 | Time-gap slider | ⬜ |
@@ -23,8 +23,8 @@ Plan each slice in plan mode first, then implement. Keep the status emoji in the
 | 11 | Faces and eyes | ⬜ |
 | 12 | macOS polish | ⬜ |
 
-### ⬜ 1. Count photos
-Pick a folder → the app shows how many photos it found (recursive scan, JPEG/HEIC/PNG by extension, progress while scanning).
+### 🚧 1. Count photos
+Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
 *Try:* pick your gallery folder, compare the count with Explorer.
 
 ### ⬜ 2. Timeline grid

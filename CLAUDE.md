@@ -58,6 +58,7 @@ sito/
 │  ├─ src/i18n/pl.json
 │  └─ e2e/            # Playwright tests
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
+├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ fixtures/          # small test photos with known groups
 └─ .github/workflows/
 ```
@@ -96,7 +97,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 ## Roadmap
 
-The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Plan each slice in plan mode first, then implement, and update its status there.
+The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Plan each slice in plan mode first, save the approved plan as `docs/slices/NN-name.md`, then implement and update its status in both files.
 
 ## Commands
 
