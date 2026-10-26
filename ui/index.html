@@ -5,9 +5,44 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sito</title>
+    <style>
+      /* Shown until React mounts and replaces #root's content. Inline so it
+         renders before any script or stylesheet has loaded. */
+      html {
+        background: #fff;
+      }
+      .boot {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      }
+      .boot-spinner {
+        width: 48px;
+        height: 48px;
+        border: 5px solid rgba(20, 184, 166, 0.25);
+        border-top-color: #14b8a6;
+        border-radius: 50%;
+        animation: boot-spin 0.8s linear infinite;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        html {
+          background: #16171d;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot" data-testid="boot-spinner">
+        <div class="boot-spinner" role="progressbar" aria-busy="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
