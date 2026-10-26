@@ -1,0 +1,25 @@
+[package]
+name = "sito"
+description = "Sito desktop app: thin Tauri layer over sito-core."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[lib]
+name = "sito_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+sito-core = { path = "../crates/core" }
+tauri = { version = "2.12.5", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+log = "0.4"
+tauri-plugin-log = "2"
+
+[lints]
+workspace = true

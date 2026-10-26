@@ -1,0 +1,12 @@
+[package]
+name = "sito-core"
+description = "Core pipeline of Sito: scanning, grouping, analysis and scoring of photo series."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
