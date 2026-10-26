@@ -1,6 +1,7 @@
-//! Recursive scan of a folder tree for photos.
+//! Recursive search of a folder tree for photos.
 
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use walkdir::{DirEntry, WalkDir};
 
@@ -10,20 +11,31 @@ const NOMEDIA_MARKER: &str = ".nomedia";
 /// Number of walked entries between two progress reports.
 const PROGRESS_INTERVAL: u64 = 500;
 
-/// Intermediate state reported while a scan is running.
+/// Intermediate state reported while searching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct ScanProgress {
+pub struct SearchProgress {
     /// Files and folders visited so far.
     pub entries_seen: u64,
     /// Photos found so far.
     pub photos_found: u64,
 }
 
-/// Result of a finished scan.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct ScanSummary {
-    /// Number of photos found.
-    pub photos_found: u64,
+/// A photo file found by [`find_photos`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoundFile {
+    /// Full path of the file.
+    pub path: PathBuf,
+    /// File size in bytes.
+    pub size: u64,
+    /// Last modification time, if the file system reports one.
+    pub modified: Option<SystemTime>,
+}
+
+/// Result of a finished search.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SearchResult {
+    /// Photos found, in walk order.
+    pub photos: Vec<FoundFile>,
     /// Files and folders visited.
     pub entries_seen: u64,
     /// Entries that could not be read (e.g. permission denied).
@@ -58,12 +70,12 @@ pub fn is_photo(path: &Path) -> bool {
         .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg"))
 }
 
-/// Recursively counts the photos under `root`.
+/// Recursively finds the photos under `root`.
 ///
 /// Hidden folders (name starting with `.`) and folders containing a `.nomedia`
 /// file are skipped. Symbolic links are not followed. Entries that cannot be
-/// read are counted in [`ScanSummary::unreadable_entries`] and do not abort
-/// the scan.
+/// read are counted in [`SearchResult::unreadable_entries`] and do not abort
+/// the search.
 ///
 /// `on_progress` is called every few hundred entries and once at the end.
 ///
@@ -71,34 +83,41 @@ pub fn is_photo(path: &Path) -> bool {
 ///
 /// Returns an error if `root` does not exist, is not a folder, or cannot be
 /// inspected.
-pub fn scan(
+pub fn find_photos(
     root: &Path,
-    mut on_progress: impl FnMut(ScanProgress),
-) -> Result<ScanSummary, ScanError> {
+    mut on_progress: impl FnMut(SearchProgress),
+) -> Result<SearchResult, ScanError> {
     check_root(root)?;
 
-    let mut summary = ScanSummary::default();
+    let mut result = SearchResult::default();
     let walker = WalkDir::new(root)
         .follow_links(false)
         .into_iter()
         .filter_entry(|entry| entry.depth() == 0 || !is_skipped_dir(entry));
 
     for entry in walker {
-        summary.entries_seen += 1;
+        result.entries_seen += 1;
         match entry {
             Ok(entry) if entry.file_type().is_file() && is_photo(entry.path()) => {
-                summary.photos_found += 1;
+                match entry.metadata() {
+                    Ok(meta) => result.photos.push(FoundFile {
+                        modified: meta.modified().ok(),
+                        size: meta.len(),
+                        path: entry.into_path(),
+                    }),
+                    Err(_) => result.unreadable_entries += 1,
+                }
             }
             Ok(_) => {}
-            Err(_) => summary.unreadable_entries += 1,
+            Err(_) => result.unreadable_entries += 1,
         }
-        if summary.entries_seen % PROGRESS_INTERVAL == 0 {
-            on_progress(progress_of(&summary));
+        if result.entries_seen % PROGRESS_INTERVAL == 0 {
+            on_progress(progress_of(&result));
         }
     }
 
-    on_progress(progress_of(&summary));
-    Ok(summary)
+    on_progress(progress_of(&result));
+    Ok(result)
 }
 
 fn check_root(root: &Path) -> Result<(), ScanError> {
@@ -126,10 +145,10 @@ fn is_hidden(entry: &DirEntry) -> bool {
         .is_some_and(|name| name.starts_with('.'))
 }
 
-fn progress_of(summary: &ScanSummary) -> ScanProgress {
-    ScanProgress {
-        entries_seen: summary.entries_seen,
-        photos_found: summary.photos_found,
+fn progress_of(result: &SearchResult) -> SearchProgress {
+    SearchProgress {
+        entries_seen: result.entries_seen,
+        photos_found: result.photos.len() as u64,
     }
 }
 

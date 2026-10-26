@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod commands;
+mod state;
 
 /// Builds and runs the Tauri application.
 ///
@@ -11,6 +12,7 @@ mod commands;
 pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(state::AppState::default())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -21,6 +23,9 @@ pub fn run() -> tauri::Result<()> {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![commands::scan::start_scan])
+        .invoke_handler(tauri::generate_handler![
+            commands::scan::start_scan,
+            commands::scan::get_timeline
+        ])
         .run(tauri::generate_context!())
 }

@@ -24,3 +24,6 @@ tauri-plugin-dialog = "2"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+chrono = "0.4.45"

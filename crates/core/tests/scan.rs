@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-use sito_core::scan::{ScanError, ScanProgress, scan};
+use sito_core::scan::{ScanError, SearchProgress, find_photos};
 use tempfile::TempDir;
 
 fn touch(root: &Path, relative: &str) {
@@ -37,25 +37,51 @@ fn gallery() -> TempDir {
 }
 
 #[test]
-fn counts_jpegs_and_skips_hidden_and_nomedia_folders() {
+fn finds_jpegs_and_skips_hidden_and_nomedia_folders() {
     let dir = gallery();
 
-    let summary = scan(dir.path(), |_| {}).unwrap();
+    let result = find_photos(dir.path(), |_| {}).unwrap();
 
-    assert_eq!(summary.photos_found, 4);
-    assert_eq!(summary.unreadable_entries, 0);
+    let mut names: Vec<String> = result
+        .photos
+        .iter()
+        .map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            "IMG_0001.jpg",
+            "IMG_0002.JPG",
+            "IMG_0003.jpeg",
+            "IMG_0004.JPEG"
+        ]
+    );
+    assert_eq!(result.unreadable_entries, 0);
 }
 
 #[test]
-fn reports_final_progress_matching_summary() {
-    let dir = gallery();
-    let mut reports: Vec<ScanProgress> = Vec::new();
+fn records_size_and_modification_time() {
+    let dir = TempDir::new().unwrap();
+    fs::write(dir.path().join("IMG.jpg"), b"12345").unwrap();
 
-    let summary = scan(dir.path(), |p| reports.push(p)).unwrap();
+    let result = find_photos(dir.path(), |_| {}).unwrap();
+
+    let file = &result.photos[0];
+    assert_eq!(file.size, 5);
+    assert!(file.modified.is_some());
+}
+
+#[test]
+fn reports_final_progress_matching_result() {
+    let dir = gallery();
+    let mut reports: Vec<SearchProgress> = Vec::new();
+
+    let result = find_photos(dir.path(), |p| reports.push(p)).unwrap();
 
     let last = reports.last().expect("at least one progress report");
-    assert_eq!(last.photos_found, summary.photos_found);
-    assert_eq!(last.entries_seen, summary.entries_seen);
+    assert_eq!(last.photos_found, result.photos.len() as u64);
+    assert_eq!(last.entries_seen, result.entries_seen);
 }
 
 #[test]
@@ -64,11 +90,11 @@ fn reports_progress_periodically_on_large_trees() {
     for i in 0..1200 {
         touch(dir.path(), &format!("IMG_{i:04}.jpg"));
     }
-    let mut reports: Vec<ScanProgress> = Vec::new();
+    let mut reports: Vec<SearchProgress> = Vec::new();
 
-    let summary = scan(dir.path(), |p| reports.push(p)).unwrap();
+    let result = find_photos(dir.path(), |p| reports.push(p)).unwrap();
 
-    assert_eq!(summary.photos_found, 1200);
+    assert_eq!(result.photos.len(), 1200);
     assert!(reports.len() >= 3, "got {} reports", reports.len());
     assert!(
         reports
@@ -81,26 +107,26 @@ fn reports_progress_periodically_on_large_trees() {
 fn empty_folder_has_no_photos() {
     let dir = TempDir::new().unwrap();
 
-    let summary = scan(dir.path(), |_| {}).unwrap();
+    let result = find_photos(dir.path(), |_| {}).unwrap();
 
-    assert_eq!(summary.photos_found, 0);
+    assert_eq!(result.photos.len(), 0);
 }
 
 #[test]
-fn hidden_root_is_still_scanned() {
+fn hidden_root_is_still_searched() {
     let dir = TempDir::new().unwrap();
     touch(dir.path(), ".hidden-root/IMG_0001.jpg");
 
-    let summary = scan(&dir.path().join(".hidden-root"), |_| {}).unwrap();
+    let result = find_photos(&dir.path().join(".hidden-root"), |_| {}).unwrap();
 
-    assert_eq!(summary.photos_found, 1);
+    assert_eq!(result.photos.len(), 1);
 }
 
 #[test]
 fn missing_root_is_not_found() {
     let dir = TempDir::new().unwrap();
 
-    let err = scan(&dir.path().join("missing"), |_| {}).unwrap_err();
+    let err = find_photos(&dir.path().join("missing"), |_| {}).unwrap_err();
 
     assert!(matches!(err, ScanError::NotFound(_)), "got {err:?}");
 }
@@ -110,7 +136,7 @@ fn file_root_is_not_a_directory() {
     let dir = TempDir::new().unwrap();
     touch(dir.path(), "IMG_0001.jpg");
 
-    let err = scan(&dir.path().join("IMG_0001.jpg"), |_| {}).unwrap_err();
+    let err = find_photos(&dir.path().join("IMG_0001.jpg"), |_| {}).unwrap_err();
 
     assert!(matches!(err, ScanError::NotADirectory(_)), "got {err:?}");
 }

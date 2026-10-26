@@ -1,24 +1,42 @@
-//! Folder scan command: counts photos and streams progress to the UI.
+//! Folder scan commands: build the timeline and serve it to the UI.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use sito_core::scan::{self, ScanError, ScanProgress, ScanSummary};
+use sito_core::scan::ScanError;
+use sito_core::timeline::{self, Photo, TimeSource, Timeline, TimelineProgress};
+use tauri::State;
 use tauri::ipc::Channel;
+
+use crate::state::AppState;
 
 /// Progress update sent to the UI while a scan is running.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ScanProgressDto {
-    entries_seen: u64,
-    photos_found: u64,
+#[serde(
+    tag = "phase",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ScanProgressDto {
+    /// Searching folders for photos.
+    Searching {
+        /// Photos found so far.
+        found: u64,
+    },
+    /// Reading capture times.
+    Reading {
+        /// Photos read so far.
+        done: u64,
+        /// Photos to read in total.
+        total: u64,
+    },
 }
 
-impl From<ScanProgress> for ScanProgressDto {
-    fn from(p: ScanProgress) -> Self {
-        Self {
-            entries_seen: p.entries_seen,
-            photos_found: p.photos_found,
+impl From<TimelineProgress> for ScanProgressDto {
+    fn from(p: TimelineProgress) -> Self {
+        match p {
+            TimelineProgress::Searching { found } => Self::Searching { found },
+            TimelineProgress::Reading { done, total } => Self::Reading { done, total },
         }
     }
 }
@@ -27,17 +45,55 @@ impl From<ScanProgress> for ScanProgressDto {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanSummaryDto {
-    photos_found: u64,
-    entries_seen: u64,
+    photos_found: usize,
     unreadable_entries: u64,
+    without_exif_date: usize,
 }
 
-impl From<ScanSummary> for ScanSummaryDto {
-    fn from(s: ScanSummary) -> Self {
+impl From<&Timeline> for ScanSummaryDto {
+    fn from(t: &Timeline) -> Self {
         Self {
-            photos_found: s.photos_found,
-            entries_seen: s.entries_seen,
-            unreadable_entries: s.unreadable_entries,
+            photos_found: t.photos.len(),
+            unreadable_entries: t.unreadable_entries,
+            without_exif_date: t.without_exif_date(),
+        }
+    }
+}
+
+/// One photo on the timeline, as sent to the UI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TimelineEntryDto {
+    /// Position on the timeline; stable until the next scan.
+    id: usize,
+    /// File name.
+    name: String,
+    /// Folder of the file relative to the scanned folder (empty for the root).
+    relative_dir: String,
+    /// Capture time as local ISO 8601 without offset, e.g. `2024-06-01T12:00:05`.
+    taken_at: String,
+    /// `true` if the time comes from the file date instead of EXIF.
+    from_file_date: bool,
+}
+
+impl TimelineEntryDto {
+    fn new(id: usize, photo: &Photo, root: &Path) -> Self {
+        let relative_dir = photo
+            .path
+            .parent()
+            .and_then(|dir| dir.strip_prefix(root).ok())
+            .map(|dir| dir.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        Self {
+            id,
+            name: photo
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            relative_dir,
+            taken_at: photo.taken_at.format("%Y-%m-%dT%H:%M:%S").to_string(),
+            from_file_date: photo.time_source == TimeSource::FileModified,
         }
     }
 }
@@ -66,16 +122,18 @@ impl From<ScanError> for CommandError {
     }
 }
 
-/// Counts the photos under `path`, sending progress through `on_progress`.
+/// Builds the timeline of `path`, sending progress through `on_progress`, and
+/// keeps it for [`get_timeline`].
 ///
 /// The scan runs on a blocking thread so the UI stays responsive.
 #[tauri::command]
 pub async fn start_scan(
     path: PathBuf,
     on_progress: Channel<ScanProgressDto>,
+    state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, CommandError> {
     let result = tauri::async_runtime::spawn_blocking(move || {
-        scan::scan(&path, |progress| {
+        timeline::build_timeline(&path, |progress| {
             // A closed channel only means the UI stopped listening.
             let _ = on_progress.send(progress.into());
         })
@@ -83,7 +141,11 @@ pub async fn start_scan(
     .await;
 
     match result {
-        Ok(Ok(summary)) => Ok(summary.into()),
+        Ok(Ok(timeline)) => {
+            let summary = ScanSummaryDto::from(&timeline);
+            state.set_timeline(timeline);
+            Ok(summary)
+        }
         Ok(Err(err)) => {
             log::warn!("scan failed: {err}");
             Err(err.into())
@@ -95,38 +157,111 @@ pub async fn start_scan(
     }
 }
 
+/// Returns the timeline of the last finished scan (empty if none).
+// Tauri injects `State` by value into commands.
+#[allow(clippy::needless_pass_by_value)]
+#[tauri::command]
+pub fn get_timeline(state: State<'_, AppState>) -> Vec<TimelineEntryDto> {
+    state.timeline().as_ref().map_or_else(Vec::new, |t| {
+        t.photos
+            .iter()
+            .enumerate()
+            .map(|(id, photo)| TimelineEntryDto::new(id, photo, &t.root))
+            .collect()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
+    use chrono::NaiveDate;
     use serde_json::json;
+    use sito_core::metadata::Orientation;
 
     use super::*;
 
+    fn photo(path: &str, source: TimeSource) -> Photo {
+        Photo {
+            path: PathBuf::from(path),
+            size: 1,
+            taken_at: NaiveDate::from_ymd_opt(2024, 6, 1)
+                .unwrap()
+                .and_hms_opt(12, 0, 5)
+                .unwrap(),
+            time_source: source,
+            orientation: Orientation::NORMAL,
+            camera: None,
+        }
+    }
+
     #[test]
-    fn summary_serializes_in_camel_case() {
-        let dto = ScanSummaryDto::from(ScanSummary {
-            photos_found: 3,
-            entries_seen: 10,
-            unreadable_entries: 1,
-        });
+    fn timeline_entry_serializes_in_camel_case() {
+        let root = PathBuf::from("gallery");
+        let p = photo(
+            &format!("gallery{0}Camera{0}IMG_1.jpg", std::path::MAIN_SEPARATOR),
+            TimeSource::Exif,
+        );
 
         assert_eq!(
-            serde_json::to_value(dto).unwrap(),
-            json!({ "photosFound": 3, "entriesSeen": 10, "unreadableEntries": 1 })
+            serde_json::to_value(TimelineEntryDto::new(3, &p, &root)).unwrap(),
+            json!({
+                "id": 3,
+                "name": "IMG_1.jpg",
+                "relativeDir": "Camera",
+                "takenAt": "2024-06-01T12:00:05",
+                "fromFileDate": false
+            })
         );
     }
 
     #[test]
-    fn progress_serializes_in_camel_case() {
-        let dto = ScanProgressDto::from(ScanProgress {
-            entries_seen: 500,
-            photos_found: 42,
-        });
+    fn file_in_root_has_empty_relative_dir_and_file_date_flag() {
+        let root = PathBuf::from("gallery");
+        let p = photo(
+            &format!("gallery{}IMG_2.jpg", std::path::MAIN_SEPARATOR),
+            TimeSource::FileModified,
+        );
+
+        let dto = TimelineEntryDto::new(0, &p, &root);
+
+        assert_eq!(dto.relative_dir, "");
+        assert!(dto.from_file_date);
+    }
+
+    #[test]
+    fn summary_serializes_in_camel_case() {
+        let timeline = Timeline {
+            root: PathBuf::from("gallery"),
+            photos: vec![
+                photo("a.jpg", TimeSource::Exif),
+                photo("b.jpg", TimeSource::FileModified),
+            ],
+            unreadable_entries: 1,
+        };
 
         assert_eq!(
-            serde_json::to_value(dto).unwrap(),
-            json!({ "entriesSeen": 500, "photosFound": 42 })
+            serde_json::to_value(ScanSummaryDto::from(&timeline)).unwrap(),
+            json!({ "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1 })
+        );
+    }
+
+    #[test]
+    fn progress_serializes_with_phase_tag() {
+        assert_eq!(
+            serde_json::to_value(ScanProgressDto::from(TimelineProgress::Searching {
+                found: 42
+            }))
+            .unwrap(),
+            json!({ "phase": "searching", "found": 42 })
+        );
+        assert_eq!(
+            serde_json::to_value(ScanProgressDto::from(TimelineProgress::Reading {
+                done: 200,
+                total: 1000
+            }))
+            .unwrap(),
+            json!({ "phase": "reading", "done": 200, "total": 1000 })
         );
     }
 
