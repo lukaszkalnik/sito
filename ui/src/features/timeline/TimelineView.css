@@ -1,0 +1,39 @@
+.timeline-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.timeline-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-bar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.timeline-bar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-bar-info p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.timeline-bar-path {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.timeline-message {
+  padding: 2rem;
+  text-align: center;
+}

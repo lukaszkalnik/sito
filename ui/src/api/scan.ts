@@ -2,16 +2,25 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
 /** Progress update streamed while a scan is running. Mirrors `ScanProgressDto`. */
-export interface ScanProgress {
-  entriesSeen: number;
-  photosFound: number;
-}
+export type ScanProgress =
+  { phase: 'searching'; found: number } | { phase: 'reading'; done: number; total: number };
 
 /** Result of a finished scan. Mirrors `ScanSummaryDto`. */
 export interface ScanSummary {
   photosFound: number;
-  entriesSeen: number;
   unreadableEntries: number;
+  withoutExifDate: number;
+}
+
+/** One photo on the timeline. Mirrors `TimelineEntryDto`. */
+export interface TimelineEntry {
+  id: number;
+  name: string;
+  relativeDir: string;
+  /** Local capture time, ISO 8601 without offset, e.g. `2024-06-01T12:00:05`. */
+  takenAt: string;
+  /** `true` if the time comes from the file date instead of EXIF. */
+  fromFileDate: boolean;
 }
 
 /** Error codes sent by the backend. Mirrors `CommandError`. */
@@ -46,7 +55,7 @@ export async function pickFolder(): Promise<string | null> {
   return typeof selected === 'string' ? selected : null;
 }
 
-/** Counts the photos under `path`, calling `onProgress` while scanning. */
+/** Builds the timeline of `path` in the backend, calling `onProgress` while scanning. */
 export async function scanFolder(
   path: string,
   onProgress: (progress: ScanProgress) => void,
@@ -58,4 +67,9 @@ export async function scanFolder(
   } catch (raw) {
     throw toScanError(raw);
   }
+}
+
+/** Returns the timeline of the last finished scan, newest first. */
+export async function getTimeline(): Promise<TimelineEntry[]> {
+  return invoke<TimelineEntry[]>('get_timeline');
 }

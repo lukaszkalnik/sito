@@ -32,7 +32,7 @@ export function scanReducer(state: ScanState, action: ScanAction): ScanState {
       return {
         status: 'scanning',
         path: action.path,
-        progress: { entriesSeen: 0, photosFound: 0 },
+        progress: { phase: 'searching', found: 0 },
       };
     case 'progress':
       // Late progress messages after the scan settled are ignored.

@@ -2,6 +2,10 @@
   --text: #3d3a44;
   --text-h: #08060d;
   --bg: #fff;
+  --border: #e5e4e7;
+  --tile-bg: #eef2f2;
+  --badge-bg: #fde68a;
+  --badge-text: #713f12;
 
   /* System UI fonts (Segoe UI, San Francisco) render Polish diacritics. */
   font:
@@ -19,6 +23,10 @@
     --text: #c9c6cf;
     --text-h: #f3f4f6;
     --bg: #16171d;
+    --border: #2e303a;
+    --tile-bg: #23262d;
+    --badge-bg: #713f12;
+    --badge-text: #fde68a;
   }
 }
 
@@ -26,6 +34,7 @@ body {
   margin: 0;
 }
 
-h1 {
+h1,
+h2 {
   color: var(--text-h);
 }

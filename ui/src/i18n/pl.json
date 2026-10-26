@@ -7,26 +7,30 @@
     "chooseFolder": "Wybierz folder ze zdjęciami",
     "chooseAnother": "Wybierz inny folder",
     "folder": "Folder: {{path}}",
-    "progress": "Przeszukiwanie… przejrzano {{entries}}, znaleziono {{photos}}",
     "result": "Znaleziono {{photos}}.",
     "noPhotos": "Nie znaleziono żadnych zdjęć.",
     "photoCount_one": "{{count, number}} zdjęcie",
     "photoCount_few": "{{count, number}} zdjęcia",
     "photoCount_many": "{{count, number}} zdjęć",
     "photoCount_other": "{{count, number}} zdjęcia",
-    "entryCount_one": "{{count, number}} element",
-    "entryCount_few": "{{count, number}} elementy",
-    "entryCount_many": "{{count, number}} elementów",
-    "entryCount_other": "{{count, number}} elementu",
-    "unreadable_one": "Nie udało się odczytać {{count, number}} elementu (brak dostępu).",
-    "unreadable_few": "Nie udało się odczytać {{count, number}} elementów (brak dostępu).",
-    "unreadable_many": "Nie udało się odczytać {{count, number}} elementów (brak dostępu).",
-    "unreadable_other": "Nie udało się odczytać {{count, number}} elementu (brak dostępu).",
+    "unreadable_one": "Nie udało się odczytać {{count, number}} elementu.",
+    "unreadable_few": "Nie udało się odczytać {{count, number}} elementów.",
+    "unreadable_many": "Nie udało się odczytać {{count, number}} elementów.",
+    "unreadable_other": "Nie udało się odczytać {{count, number}} elementu.",
     "errors": {
       "notFound": "Nie znaleziono wybranego folderu.",
       "notADirectory": "Wybrana ścieżka nie jest folderem.",
       "io": "Nie udało się odczytać wybranego folderu.",
       "internal": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie."
-    }
+    },
+    "searching": "Wyszukiwanie zdjęć… znaleziono {{photos}}",
+    "reading": "Odczytywanie dat: {{done, number}} z {{total, number}}",
+    "withoutExifDate": "Bez daty EXIF: {{count, number}}."
+  },
+  "timeline": {
+    "loading": "Wczytywanie osi czasu…",
+    "loadError": "Nie udało się wczytać osi czasu. Spróbuj ponownie wybrać folder.",
+    "fileDate": "data pliku",
+    "fileDateHint": "Brak daty w EXIF – użyto daty modyfikacji pliku."
   }
 }

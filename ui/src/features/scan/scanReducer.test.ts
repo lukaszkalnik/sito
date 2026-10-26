@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { initialScanState, scanReducer, type ScanState } from './scanReducer';
 
-const summary = { photosFound: 3, entriesSeen: 10, unreadableEntries: 0 };
+const summary = { photosFound: 3, unreadableEntries: 0, withoutExifDate: 0 };
 const scanning: ScanState = {
   status: 'scanning',
   path: 'C:\\Photos',
-  progress: { entriesSeen: 0, photosFound: 0 },
+  progress: { phase: 'searching', found: 0 },
 };
 
 describe('scanReducer', () => {
@@ -17,12 +17,12 @@ describe('scanReducer', () => {
     state = scanReducer(state, { type: 'scanStarted', path: 'C:\\Photos' });
     state = scanReducer(state, {
       type: 'progress',
-      progress: { entriesSeen: 500, photosFound: 2 },
+      progress: { phase: 'reading', done: 2, total: 5 },
     });
     expect(state).toEqual({
       status: 'scanning',
       path: 'C:\\Photos',
-      progress: { entriesSeen: 500, photosFound: 2 },
+      progress: { phase: 'reading', done: 2, total: 5 },
     });
 
     state = scanReducer(state, { type: 'scanFinished', summary });
@@ -56,7 +56,7 @@ describe('scanReducer', () => {
     const done = scanReducer(scanning, { type: 'scanFinished', summary });
 
     expect(
-      scanReducer(done, { type: 'progress', progress: { entriesSeen: 1, photosFound: 1 } }),
+      scanReducer(done, { type: 'progress', progress: { phase: 'searching', found: 1 } }),
     ).toBe(done);
   });
 
