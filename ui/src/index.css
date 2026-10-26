@@ -1,0 +1,31 @@
+:root {
+  --text: #3d3a44;
+  --text-h: #08060d;
+  --bg: #fff;
+
+  /* System UI fonts (Segoe UI, San Francisco) render Polish diacritics. */
+  font:
+    16px/1.5 system-ui,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color-scheme: light dark;
+  color: var(--text);
+  background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #c9c6cf;
+    --text-h: #f3f4f6;
+    --bg: #16171d;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  color: var(--text-h);
+}

@@ -1,0 +1,13 @@
+{
+  "app": {
+    "title": "Sito",
+    "tagline": "Przesiewa serie podobnych zdjęć i podpowiada, które zostawić."
+  },
+  "scan": {
+    "chooseFolder": "Wybierz folder ze zdjęciami",
+    "photoCount_one": "{{count, number}} zdjęcie",
+    "photoCount_few": "{{count, number}} zdjęcia",
+    "photoCount_many": "{{count, number}} zdjęć",
+    "photoCount_other": "{{count, number}} zdjęcia"
+  }
+}
