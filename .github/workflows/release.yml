@@ -1,8 +1,16 @@
 name: Release
 
+# Tag `vX.Y.Z` → build, smoke-test and publish a release.
+# Manual run (workflow_dispatch) → same build and smoke test; installers are
+# uploaded as workflow artifacts instead of a release.
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -15,11 +23,26 @@ jobs:
         include:
           - os: windows-latest
             args: ''
+            bundles: target/release/bundle/nsis/*-setup.exe
           - os: macos-latest
             args: '--target universal-apple-darwin'
+            bundles: target/universal-apple-darwin/release/bundle/dmg/*.dmg
     runs-on: ${{ matrix.os }}
+    env:
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check that the tag matches the Cargo.toml version
+        if: env.IS_TAG == 'true'
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Cargo.toml version $version"
+            exit 1
+          fi
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -29,12 +52,68 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # macOS signing and notarization come later (milestone 5).
+
+      # macOS signing and notarization come later (slice 14).
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
+          tagName: ${{ env.IS_TAG == 'true' && github.ref_name || '' }}
           releaseName: 'Sito ${{ github.ref_name }}'
+          releaseBody: |
+            Instalacja w Windows: pobierz `Sito_*_x64-setup.exe` i uruchom.
+            Instalator nie jest podpisany, więc Windows może pokazać ostrzeżenie
+            „System Windows ochronił ten komputer” – kliknij „Więcej informacji”,
+            a potem „Uruchom mimo to”.
           releaseDraft: true
           args: ${{ matrix.args }}
+
+      - name: Smoke-test the installer (install, launch, uninstall)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          if (-not $installer) { throw 'No NSIS installer found' }
+          Write-Host "Installing $($installer.Name)"
+          Start-Process $installer.FullName -ArgumentList '/S' -Wait
+
+          $dir = Join-Path $env:LOCALAPPDATA 'Sito'
+          $exe = Get-ChildItem $dir -Filter *.exe -ErrorAction SilentlyContinue |
+            Where-Object Name -NotMatch '^uninstall' | Select-Object -First 1
+          if (-not $exe) {
+            Get-ChildItem $env:LOCALAPPDATA | Format-Table Name
+            throw "App executable not found in $dir"
+          }
+
+          Write-Host "Launching $($exe.FullName)"
+          $app = Start-Process $exe.FullName -PassThru
+          Start-Sleep -Seconds 10
+          if ($app.HasExited) { throw "App exited early with code $($app.ExitCode)" }
+          Stop-Process -Id $app.Id -Force
+
+          Write-Host 'Uninstalling'
+          Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
+          # The NSIS uninstaller re-launches itself from a temp copy; wait for it.
+          for ($i = 0; $i -lt 30 -and (Test-Path $exe.FullName); $i++) { Start-Sleep -Seconds 2 }
+          if (Test-Path $exe.FullName) { throw 'App still installed after uninstall' }
+          Write-Host 'Smoke test passed'
+
+      - name: Upload installers (manual runs)
+        if: env.IS_TAG != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sito-${{ matrix.os }}
+          path: ${{ matrix.bundles }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - run: gh release edit "$GITHUB_REF_NAME" --draft=false --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
