@@ -13,7 +13,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | # | Slice | Status |
 |---|---|---|
 | 1 | [Count photos](slices/01-count-photos.md) | ✅ |
-| 2 | Installable app | ⬜ |
+| 2 | [Installable app](slices/02-installable-app.md) | 🚧 |
 | 3 | Timeline | ⬜ |
 | 4 | Thumbnails | ⬜ |
 | 5 | Time series | ⬜ |
@@ -32,8 +32,8 @@ Pick a folder → the app shows how many photos it found (recursive scan, JPEG o
 
 *Try:* pick your gallery folder, compare the count with Explorer.
 
-### ⬜ 2. Installable app
-Sito runs like a regular desktop app: a Windows installer (per-user, no admin rights) built by CI on a version tag, with a Start menu entry and desktop shortcut, app icon and name. From now on every slice is testable in the installed app.
+### 🚧 2. Installable app
+Sito runs like a regular desktop app: a Windows installer (per-user, no admin rights) built by CI on a version tag, with a Start menu entry and desktop shortcut, app icon and name. From now on every slice is testable in the installed app. Plan: [slices/02-installable-app.md](slices/02-installable-app.md)
 
 *Try:* download the installer from the GitHub release, install, start Sito from the Start menu with one click.
 
