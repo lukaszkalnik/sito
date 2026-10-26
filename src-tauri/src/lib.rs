@@ -1,11 +1,5 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
-/// Returns the version of the core library.
-#[tauri::command]
-fn core_version() -> &'static str {
-    sito_core::VERSION
-}
-
 /// Builds and runs the Tauri application.
 ///
 /// # Errors
@@ -24,16 +18,5 @@ pub fn run() -> tauri::Result<()> {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![core_version])
         .run(tauri::generate_context!())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn core_version_matches_core_crate() {
-        assert_eq!(core_version(), sito_core::VERSION);
-    }
 }
