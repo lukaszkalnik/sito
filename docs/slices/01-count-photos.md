@@ -1,6 +1,6 @@
 # Slice 1 – Count photos
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing
 
 ## Context
 
