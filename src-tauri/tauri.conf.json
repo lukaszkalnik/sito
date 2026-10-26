@@ -48,7 +48,10 @@
         "languages": [
           "Polish"
         ],
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "customLanguageFiles": {
+          "Polish": "installer/Polish.nsh"
+        }
       }
     }
   }
