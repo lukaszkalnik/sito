@@ -59,6 +59,8 @@ sito/
 │  └─ e2e/            # Playwright tests
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
 ├─ docs/slices/       # one plan per slice (NN-name.md)
+├─ docs/RELEASING.md  # how to build, release and install
+├─ scripts/           # dev helper scripts (icon rendering)
 ├─ fixtures/          # small test photos with known groups
 └─ .github/workflows/
 ```
@@ -93,7 +95,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
-- **Tags:** `tauri-action` builds MSI (Windows) and DMG (macOS) as a draft release. macOS signing and notarization come later.
+- **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, uninstall) before the release is published. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Roadmap
 
@@ -106,7 +108,7 @@ Run from the repo root unless noted.
 ```bash
 npm install                          # install frontend deps and Tauri CLI
 npm run tauri dev                    # run the desktop app (Vite dev server + Rust)
-npm run tauri build                  # build installers
+npm run tauri build                  # build installers (heavy; use CI instead, see docs/RELEASING.md)
 
 cargo fmt --all --check              # Rust formatting
 cargo clippy --workspace --all-targets -- -D warnings
