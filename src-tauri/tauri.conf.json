@@ -1,7 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sito",
-  "version": "0.1.0",
   "identifier": "io.github.lukaszkalnik.sito",
   "build": {
     "frontendDist": "../ui/dist",
@@ -27,16 +26,30 @@
   "bundle": {
     "active": true,
     "targets": [
-      "msi",
+      "nsis",
       "dmg",
       "app"
     ],
+    "publisher": "Lukasz Kalnik",
+    "copyright": "© 2026 Lukasz Kalnik",
+    "category": "Photography",
+    "shortDescription": "Wybiera najlepsze zdjęcie z serii podobnych ujęć",
+    "longDescription": "Sito przesiewa galerię zdjęć, znajduje serie podobnych ujęć i podpowiada, które zdjęcie z każdej serii zostawić. Działa lokalnie, bez internetu.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Polish"
+        ],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }
