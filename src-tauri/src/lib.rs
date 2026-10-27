@@ -17,6 +17,7 @@ pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(state::AppState::default())
+        .manage(commands::viewer::ViewerState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
             thumbnails::handle(&ctx, &request, responder);
         })
@@ -44,7 +45,9 @@ pub fn run() -> tauri::Result<()> {
         .invoke_handler(tauri::generate_handler![
             commands::scan::start_scan,
             commands::scan::get_timeline,
-            commands::series::get_series
+            commands::series::get_series,
+            commands::viewer::open_viewer,
+            commands::viewer::take_viewer_request
         ])
         .run(tauri::generate_context!())
 }

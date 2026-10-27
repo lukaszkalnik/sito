@@ -2,3 +2,4 @@
 
 pub mod scan;
 pub mod series;
+pub mod viewer;
