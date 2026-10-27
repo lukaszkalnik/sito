@@ -31,14 +31,24 @@ pub enum RejectError {
     },
 }
 
-/// Moves the photo at `path` into the [`REJECTED_DIR`] subfolder of its folder
-/// and returns its new path. A file already there with the same name is kept:
-/// the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
+/// A photo moved into the rejected folder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rejected {
+    /// Where the photo is now.
+    pub path: PathBuf,
+    /// Whether the [`REJECTED_DIR`] folder was created for it (it did not
+    /// exist before).
+    pub created_dir: bool,
+}
+
+/// Moves the photo at `path` into the [`REJECTED_DIR`] subfolder of its
+/// folder, creating the folder if needed. A file already there with the same
+/// name is kept: the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
 ///
 /// # Errors
 ///
 /// Returns an error if the folder cannot be created or the file cannot be moved.
-pub fn reject(path: &Path) -> Result<PathBuf, RejectError> {
+pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
     let parent = path
         .parent()
         .ok_or_else(|| RejectError::NoParent(path.to_path_buf()))?;
@@ -46,6 +56,7 @@ pub fn reject(path: &Path) -> Result<PathBuf, RejectError> {
         .file_name()
         .ok_or_else(|| RejectError::NoParent(path.to_path_buf()))?;
     let dir = parent.join(REJECTED_DIR);
+    let created_dir = !dir.is_dir();
     fs::create_dir_all(&dir).map_err(|source| RejectError::Io {
         from: path.to_path_buf(),
         to: dir.clone(),
@@ -53,18 +64,21 @@ pub fn reject(path: &Path) -> Result<PathBuf, RejectError> {
     })?;
     let target = free_name(&dir, name);
     move_file(path, &target)?;
-    Ok(target)
+    Ok(Rejected {
+        path: target,
+        created_dir,
+    })
 }
 
 /// Moves a rejected photo from `from` back to `to`, its path before it was
-/// rejected, and removes the [`REJECTED_DIR`] folder it was in if that is now
-/// empty.
+/// rejected. With `remove_empty_dir`, the [`REJECTED_DIR`] folder it was in
+/// is removed if that leaves it empty; a folder with other files stays.
 ///
 /// # Errors
 ///
 /// Returns [`RejectError::Missing`] if `from` is gone, [`RejectError::Occupied`]
 /// if `to` exists again, or an error if the file cannot be moved.
-pub fn restore(from: &Path, to: &Path) -> Result<(), RejectError> {
+pub fn restore(from: &Path, to: &Path, remove_empty_dir: bool) -> Result<(), RejectError> {
     if !from.is_file() {
         return Err(RejectError::Missing(from.to_path_buf()));
     }
@@ -72,8 +86,8 @@ pub fn restore(from: &Path, to: &Path) -> Result<(), RejectError> {
         return Err(RejectError::Occupied(to.to_path_buf()));
     }
     move_file(from, to)?;
-    if let Some(dir) = from.parent() {
-        // Fails (and is left alone) while other files are still in the folder.
+    if remove_empty_dir && let Some(dir) = from.parent() {
+        // `remove_dir` only removes an empty folder; it never deletes files.
         let _ = fs::remove_dir(dir);
     }
     Ok(())

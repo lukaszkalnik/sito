@@ -1,6 +1,7 @@
 //! Reject commands: move photos into the "Odrzucone" folder and undo it.
 
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
@@ -15,17 +16,30 @@ use crate::state::AppState;
 /// Event sent to all windows when photos leave or return to the timeline.
 pub const TIMELINE_CHANGED: &str = "timeline-changed";
 
-/// The action log, or `None` if its database could not be opened; rejecting
-/// is then refused, since it could not be undone.
+/// What rejecting needs beyond the scan.
 #[derive(Debug)]
-pub struct Actions(Mutex<Option<ActionLog>>);
+pub struct Actions(Mutex<ActionsState>);
+
+#[derive(Debug)]
+struct ActionsState {
+    /// The action log, or `None` if its database could not be opened;
+    /// rejecting is then refused, since it could not be undone.
+    log: Option<ActionLog>,
+    /// "Odrzucone" folders created since the app started. Only these are
+    /// removed again once undo leaves them empty; folders that were there
+    /// before stay.
+    created_dirs: HashSet<PathBuf>,
+}
 
 impl Actions {
     pub fn new(log: Option<ActionLog>) -> Self {
-        Self(Mutex::new(log))
+        Self(Mutex::new(ActionsState {
+            log,
+            created_dirs: HashSet::new(),
+        }))
     }
 
-    fn lock(&self) -> MutexGuard<'_, Option<ActionLog>> {
+    fn lock(&self) -> MutexGuard<'_, ActionsState> {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
@@ -76,18 +90,24 @@ pub fn reject_photo(
     state: State<'_, AppState>,
     actions: State<'_, Actions>,
 ) -> Result<RejectedDto, CommandError> {
-    let log = actions.lock();
-    let log = log.as_ref().ok_or(CommandError::Internal)?;
+    let mut actions = actions.lock();
+    let actions = &mut *actions;
+    let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let mut scan = state.scan();
     let scan = scan.as_mut().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
 
     let rejected = reject::reject(&path).map_err(move_failed)?;
-    if let Err(err) = log.record_reject(&path, &rejected) {
+    if let Err(err) = log.record_reject(&path, &rejected.path) {
         // Without a log entry it could not be undone: move it back.
         log::warn!("cannot log the rejection of {}: {err}", path.display());
-        reject::restore(&rejected, &path).map_err(move_failed)?;
+        reject::restore(&rejected.path, &path, rejected.created_dir).map_err(move_failed)?;
         return Err(CommandError::Internal);
+    }
+    if rejected.created_dir
+        && let Some(dir) = rejected.path.parent()
+    {
+        actions.created_dirs.insert(dir.to_path_buf());
     }
     scan.remove(id);
     notify(&app);
@@ -106,8 +126,8 @@ pub fn undo_reject(
     state: State<'_, AppState>,
     actions: State<'_, Actions>,
 ) -> Result<Option<UndoneDto>, CommandError> {
-    let log = actions.lock();
-    let Some(log) = log.as_ref() else {
+    let actions = actions.lock();
+    let Some(log) = actions.log.as_ref() else {
         return Ok(None);
     };
     let mut scan = state.scan();
@@ -121,7 +141,11 @@ pub fn undo_reject(
         return Ok(None);
     };
 
-    if let Err(err) = reject::restore(&action.to, &action.from) {
+    let created_here = action
+        .to
+        .parent()
+        .is_some_and(|dir| actions.created_dirs.contains(dir));
+    if let Err(err) = reject::restore(&action.to, &action.from, created_here) {
         if matches!(err, RejectError::Missing(_)) {
             // It can never be undone; skip it so the next "Cofnij" goes on.
             log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
@@ -142,9 +166,9 @@ pub fn undo_reject(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
 pub fn get_undo_state(state: State<'_, AppState>, actions: State<'_, Actions>) -> UndoStateDto {
-    let log = actions.lock();
+    let actions = actions.lock();
     let scan = state.scan();
-    let can_undo = match (log.as_ref(), scan.as_ref()) {
+    let can_undo = match (actions.log.as_ref(), scan.as_ref()) {
         (Some(log), Some(scan)) => log
             .last_undoable(&scan.timeline.root)
             .is_ok_and(|action| action.is_some()),

@@ -23,7 +23,7 @@ Your decisions:
     - the move is `fs::rename` (same folder tree, so the same drive, so instant)
   - `restore(from, to) -> Result<()>` moves the file back:
     - it refuses with `Occupied` if `to` exists again, and with `Missing` if the rejected file is gone
-    - afterwards it removes `Odrzucone` only if the folder is now empty, using `remove_dir`, which never deletes files
+    - afterwards it removes `Odrzucone` if the folder is now empty **and was created in this app session** (your request during implementation): an `Odrzucone` folder that existed before stays. It uses `remove_dir`, which never deletes files.
   - tests run in temp folders: the move, a name clash, restore, the occupied and missing cases, and that the empty folder is removed while a non-empty one stays
 - **`actions.rs`** (new): `ActionLog` on SQLite (`rusqlite` with the `bundled` feature):
   - table `actions(id INTEGER PRIMARY KEY, at TEXT, kind TEXT, from_path TEXT, to_path TEXT, undone_at TEXT NULL)`
