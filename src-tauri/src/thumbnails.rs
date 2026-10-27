@@ -75,8 +75,8 @@ pub fn handle<R: Runtime>(
     });
 }
 
-/// Reads `(scan id, photo index)` from a thumbnail URL.
-fn parse_request(uri: &Uri) -> Option<(u64, usize)> {
+/// Reads `(scan id, photo index)` from a thumbnail or photo URL.
+pub(crate) fn parse_request(uri: &Uri) -> Option<(u64, usize)> {
     let index = uri.path().strip_prefix('/')?.parse().ok()?;
     let scan_id = uri
         .query()?
@@ -87,7 +87,7 @@ fn parse_request(uri: &Uri) -> Option<(u64, usize)> {
     Some((scan_id, index))
 }
 
-fn jpeg_response(bytes: Vec<u8>) -> Response<Vec<u8>> {
+pub(crate) fn jpeg_response(bytes: Vec<u8>) -> Response<Vec<u8>> {
     let mut response = Response::new(bytes);
     let headers = response.headers_mut();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("image/jpeg"));
@@ -99,7 +99,7 @@ fn jpeg_response(bytes: Vec<u8>) -> Response<Vec<u8>> {
     response
 }
 
-fn error_response(status: StatusCode) -> Response<Vec<u8>> {
+pub(crate) fn error_response(status: StatusCode) -> Response<Vec<u8>> {
     let mut response = Response::new(Vec::new());
     *response.status_mut() = status;
     response

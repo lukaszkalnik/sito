@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod commands;
+mod photos;
 mod state;
 mod thumbnails;
 
@@ -18,6 +19,9 @@ pub fn run() -> tauri::Result<()> {
         .manage(state::AppState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
             thumbnails::handle(&ctx, &request, responder);
+        })
+        .register_asynchronous_uri_scheme_protocol(photos::SCHEME, |ctx, request, responder| {
+            photos::handle(&ctx, &request, responder);
         })
         .setup(|app| {
             if cfg!(debug_assertions) {
