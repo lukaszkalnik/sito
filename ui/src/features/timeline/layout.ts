@@ -24,6 +24,11 @@ export type TimelineRow =
   | { kind: 'series'; key: string; entries: TimelineEntry[] }
   | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean };
 
+/** Whether the photos come from more than one folder, so tiles need to name theirs. */
+export function spansSeveralFolders(entries: readonly TimelineEntry[]): boolean {
+  return entries.some((entry) => entry.relativeDir !== entries[0]?.relativeDir);
+}
+
 /**
  * Number of tiles that fit next to each other in `width` pixels (at least 1).
  * Leaves room for the padding of a series, so all rows have the same columns.

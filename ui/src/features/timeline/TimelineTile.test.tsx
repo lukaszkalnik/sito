@@ -22,7 +22,7 @@ const entry: TimelineEntry = {
 function renderTile(scanId = 3) {
   const { container, rerender } = render(
     <ul>
-      <TimelineTile entry={entry} scanId={scanId} />
+      <TimelineTile entry={entry} scanId={scanId} showFolder />
     </ul>,
   );
   const image = () => container.querySelector('img');
@@ -54,11 +54,22 @@ describe('TimelineTile', () => {
   ])('shows the folder %j to tell same-named photos apart', (relativeDir, text) => {
     render(
       <ul>
-        <TimelineTile entry={{ ...entry, relativeDir }} scanId={3} />
+        <TimelineTile entry={{ ...entry, relativeDir }} scanId={3} showFolder />
       </ul>,
     );
 
     expect(screen.getByTestId('timeline-tile-folder')).toHaveTextContent(text);
+  });
+
+  it('hides the folder when all photos share it', () => {
+    render(
+      <ul>
+        <TimelineTile entry={entry} scanId={3} showFolder={false} />
+      </ul>,
+    );
+
+    expect(screen.queryByTestId('timeline-tile-folder')).toBeNull();
+    expect(screen.getByText('IMG_7.jpg')).toBeInTheDocument();
   });
 
   it('requests the thumbnail only after the tile stayed on screen for a moment', () => {
@@ -100,7 +111,7 @@ describe('TimelineTile', () => {
 
     rerender(
       <ul>
-        <TimelineTile entry={entry} scanId={4} />
+        <TimelineTile entry={entry} scanId={4} showFolder />
       </ul>,
     );
 

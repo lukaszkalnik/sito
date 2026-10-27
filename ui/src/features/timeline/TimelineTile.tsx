@@ -15,10 +15,12 @@ type ThumbnailStatus = 'loading' | 'loaded' | 'error';
 interface TimelineTileProps {
   entry: TimelineEntry;
   scanId: number;
+  /** Show the photo's folder, to tell same-named photos from different folders apart. */
+  showFolder: boolean;
 }
 
-/** One photo on the timeline: its thumbnail with capture time and file name. */
-export function TimelineTile({ entry, scanId }: TimelineTileProps) {
+/** One photo on the timeline: its thumbnail with capture time, file name and folder. */
+export function TimelineTile({ entry, scanId, showFolder }: TimelineTileProps) {
   const { t } = useTranslation();
   const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
   const src = thumbnailUrl(scanId, entry.id);
@@ -71,10 +73,11 @@ export function TimelineTile({ entry, scanId }: TimelineTileProps) {
       <span className="timeline-tile-caption">
         <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
         <span className="timeline-tile-name">{entry.name}</span>
-        {/* Same-named photos from different folders are told apart by their folder. */}
-        <span className="timeline-tile-folder" data-testid="timeline-tile-folder">
-          <bdi>{entry.relativeDir || t('timeline.rootFolder')}</bdi>
-        </span>
+        {showFolder && (
+          <span className="timeline-tile-folder" data-testid="timeline-tile-folder">
+            <bdi>{entry.relativeDir || t('timeline.rootFolder')}</bdi>
+          </span>
+        )}
       </span>
       {entry.fromFileDate && (
         <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>

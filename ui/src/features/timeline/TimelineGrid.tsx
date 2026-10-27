@@ -4,7 +4,14 @@ import { useTranslation } from 'react-i18next';
 
 import type { Series, TimelineEntry } from '../../api/scan';
 import { formatDay, timeOf } from './format';
-import { buildRows, columnsFor, rowHeight, type TimelineMode, type TimelineRow } from './layout';
+import {
+  buildRows,
+  columnsFor,
+  rowHeight,
+  spansSeveralFolders,
+  type TimelineMode,
+  type TimelineRow,
+} from './layout';
 import { TimelineTile } from './TimelineTile';
 import './TimelineGrid.css';
 
@@ -62,6 +69,8 @@ export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProp
     () => buildRows(entries, series, columnsFor(width), mode),
     [entries, series, width, mode],
   );
+  // Folders only tell photos apart when the scan spans more than one.
+  const showFolder = useMemo(() => spansSeveralFolders(entries), [entries]);
 
   // The app does not use the React Compiler, so its memoization caveat does not apply.
   // oxlint-disable-next-line react/incompatible-library
@@ -97,7 +106,12 @@ export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProp
               {row.kind === 'tiles' && (
                 <ul className="timeline-tiles">
                   {row.entries.map((entry) => (
-                    <TimelineTile key={entry.id} entry={entry} scanId={scanId} />
+                    <TimelineTile
+                      key={entry.id}
+                      entry={entry}
+                      scanId={scanId}
+                      showFolder={showFolder}
+                    />
                   ))}
                 </ul>
               )}

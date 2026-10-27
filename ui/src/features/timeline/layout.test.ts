@@ -6,6 +6,7 @@ import {
   columnsFor,
   rowHeight,
   SERIES_PADDING,
+  spansSeveralFolders,
   TILE_GAP,
   TILE_WIDTH,
   type TimelineRow,
@@ -21,6 +22,24 @@ function entry(id: number, takenAt: string): TimelineEntry {
     fromFileDate: false,
   };
 }
+
+describe('spansSeveralFolders', () => {
+  const inFolder = (id: number, relativeDir: string) => ({
+    ...entry(id, '2024-06-01T12:00:00'),
+    relativeDir,
+  });
+
+  it('is false for no photos and for photos from one folder', () => {
+    expect(spansSeveralFolders([])).toBe(false);
+    expect(spansSeveralFolders([inFolder(0, 'Camera'), inFolder(1, 'Camera')])).toBe(false);
+    expect(spansSeveralFolders([inFolder(0, ''), inFolder(1, '')])).toBe(false);
+  });
+
+  it('is true as soon as one photo is in another folder', () => {
+    expect(spansSeveralFolders([inFolder(0, 'Camera'), inFolder(1, 'Pulpit\\2024')])).toBe(true);
+    expect(spansSeveralFolders([inFolder(0, ''), inFolder(1, 'Camera')])).toBe(true);
+  });
+});
 
 describe('columnsFor', () => {
   const padding = 2 * SERIES_PADDING;
