@@ -1,6 +1,6 @@
 # Slice 6 – Time-gap slider
 
-**Status:** 🧪 ready for testing (v0.5.0)
+**Status:** ✅ done (tested by the user on 2026-10-27 with v0.6.4)
 
 ## Context
 
