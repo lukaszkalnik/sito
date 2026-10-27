@@ -17,7 +17,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 3 | [Timeline](slices/03-timeline.md) | ✅ |
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
 | 5 | [Time series](slices/05-time-series.md) | ✅ |
-| 6 | Time-gap slider | ⬜ |
+| 6 | [Time-gap slider](slices/06-time-gap-slider.md) | 🚧 |
 | 7 | Compare and decide | ⬜ |
 | 8 | Quarantine with undo | ⬜ |
 | 9 | Persistence | ⬜ |
@@ -54,8 +54,8 @@ Photos grouped into series by a fixed time gap; single photos hidden; series cou
 
 *Try:* check whether the series match what you remember shooting.
 
-### ⬜ 6. Time-gap slider
-Change the gap and the series regroup instantly.
+### 🚧 6. Time-gap slider
+Change the gap (1–60 s, remembered per folder) and the series regroup instantly, keeping the visible photos in place. Plan: [slices/06-time-gap-slider.md](slices/06-time-gap-slider.md)
 
 *Try:* find the gap value that works for your photos.
 
