@@ -84,7 +84,7 @@ SQLite cache of scan results: on start Sito reopens the last folder at once from
 Changes from the first user test (2026-10-27):
 1. **Portrait photos** fill the viewer's full height, letterboxed at the sides.
 2. **"Odrzuć"** is clearly separated from "Cofnij" and has a solid red background.
-3. **Accept a photo:** a "Zaakceptuj" button (and key) marks a photo as accepted, e.g. as the first pick in a large series; a green check mark shows on its thumbnail and in the viewer. Stored in SQLite.
+3. **Accept a photo:** a "Zaakceptuj" button (and key) marks a photo as accepted, e.g. as the first pick in a large series; a green check mark shows on its thumbnails (timeline and series strip), not on the photo itself. Stored in SQLite.
 4. **Current photo in the series strip:** a more prominent marker than the thin blue frame.
 5. **Series strip follows:** stepping to the next photo of a long series scrolls the strip so the current thumbnail stays visible.
 6. **Several cameras at one event:** when cameras' clocks are slightly off, their series interleave (2 photos outside, 2 inside from another camera, back outside). Series are split by camera, even if their times overlap. To decide when planning: how overlapping series are ordered (e.g. by their newest photo) and how the header marks that a series overlaps another.
