@@ -48,6 +48,9 @@ pub struct Timeline {
     pub root: PathBuf,
     /// Photos sorted by capture time, newest first.
     pub photos: Vec<Photo>,
+    /// Photos in "Odrzucone" folders, sorted the same way. Not shown, but
+    /// series are found including them.
+    pub rejected: Vec<Photo>,
     /// Entries that could not be read while searching.
     pub unreadable_entries: u64,
 }
@@ -149,10 +152,14 @@ pub fn build_timeline(
     }
 
     photos.sort_by(compare_photos);
+    // Usually few; read after the shown photos, without progress reports.
+    let mut rejected: Vec<Photo> = found.rejected.par_iter().map(to_photo).collect();
+    rejected.sort_by(compare_photos);
 
     Ok(Timeline {
         root: root.to_path_buf(),
         photos,
+        rejected,
         unreadable_entries: found.unreadable_entries,
     })
 }

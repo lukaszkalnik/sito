@@ -38,8 +38,12 @@ pub struct FoundFile {
 /// Result of a finished search.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SearchResult {
-    /// Photos found, in walk order.
+    /// Photos found, in walk order (without rejected ones).
     pub photos: Vec<FoundFile>,
+    /// Photos inside [`REJECTED_DIR`] folders, in walk order. They are not
+    /// shown, but series are found including them, so a series keeps its
+    /// shape after its weaker shots were rejected.
+    pub rejected: Vec<FoundFile>,
     /// Files and folders visited.
     pub entries_seen: u64,
     /// Entries that could not be read (e.g. permission denied).
@@ -76,11 +80,12 @@ pub fn is_photo(path: &Path) -> bool {
 
 /// Recursively finds the photos under `root`.
 ///
-/// Hidden folders (name starting with `.`), folders containing a `.nomedia`
-/// file and [`REJECTED_DIR`] folders are skipped. Symbolic links are not
-/// followed. Entries that cannot be
-/// read are counted in [`SearchResult::unreadable_entries`] and do not abort
-/// the search.
+/// Hidden folders (name starting with `.`) and folders containing a `.nomedia`
+/// file are skipped. Photos inside [`REJECTED_DIR`] folders (in any letter
+/// case, at any depth below `root`) go to [`SearchResult::rejected`] instead
+/// of [`SearchResult::photos`]. Symbolic links are not followed. Entries that
+/// cannot be read are counted in [`SearchResult::unreadable_entries`] and do
+/// not abort the search.
 ///
 /// `on_progress` is called every few hundred entries and once at the end.
 ///
@@ -105,11 +110,18 @@ pub fn find_photos(
         match entry {
             Ok(entry) if entry.file_type().is_file() && is_photo(entry.path()) => {
                 match entry.metadata() {
-                    Ok(meta) => result.photos.push(FoundFile {
-                        modified: meta.modified().ok(),
-                        size: meta.len(),
-                        path: entry.into_path(),
-                    }),
+                    Ok(meta) => {
+                        let list = if is_in_rejected_dir(entry.path(), root) {
+                            &mut result.rejected
+                        } else {
+                            &mut result.photos
+                        };
+                        list.push(FoundFile {
+                            modified: meta.modified().ok(),
+                            size: meta.len(),
+                            path: entry.into_path(),
+                        });
+                    }
                     Err(_) => result.unreadable_entries += 1,
                 }
             }
@@ -140,15 +152,21 @@ fn check_root(root: &Path) -> Result<(), ScanError> {
 }
 
 fn is_skipped_dir(entry: &DirEntry) -> bool {
-    entry.file_type().is_dir()
-        && (is_hidden(entry) || is_rejected(entry) || entry.path().join(NOMEDIA_MARKER).exists())
+    entry.file_type().is_dir() && (is_hidden(entry) || entry.path().join(NOMEDIA_MARKER).exists())
 }
 
-fn is_rejected(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .is_some_and(|name| name.eq_ignore_ascii_case(REJECTED_DIR))
+/// Whether a folder between `root` and the file at `path` is a [`REJECTED_DIR`].
+fn is_in_rejected_dir(path: &Path, root: &Path) -> bool {
+    path.strip_prefix(root)
+        .ok()
+        .and_then(Path::parent)
+        .is_some_and(|dirs| {
+            dirs.components().any(|dir| {
+                dir.as_os_str()
+                    .to_str()
+                    .is_some_and(|name| name.eq_ignore_ascii_case(REJECTED_DIR))
+            })
+        })
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {

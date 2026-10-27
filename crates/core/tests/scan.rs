@@ -30,7 +30,7 @@ fn gallery() -> TempDir {
         "WhatsApp/Private/.nomedia",
         "WhatsApp/Private/IMG_0006.jpg",
         "WhatsApp/Private/nested/IMG_0007.jpg",
-        // Skipped: rejected photos, in any letter case and at any depth.
+        // Rejected photos, in any letter case and at any depth: listed apart.
         "Odrzucone/IMG_0008.jpg",
         "Camera/2024/odrzucone/IMG_0009.jpg",
         "Camera/ODRZUCONE/deeper/IMG_0010.jpg",
@@ -41,7 +41,7 @@ fn gallery() -> TempDir {
 }
 
 #[test]
-fn finds_jpegs_and_skips_hidden_nomedia_and_rejected_folders() {
+fn finds_jpegs_skips_hidden_and_nomedia_and_lists_rejected_apart() {
     let dir = gallery();
 
     let result = find_photos(dir.path(), |_| {}).unwrap();
@@ -61,6 +61,13 @@ fn finds_jpegs_and_skips_hidden_nomedia_and_rejected_folders() {
             "IMG_0004.JPEG"
         ]
     );
+    let mut rejected: Vec<String> = result
+        .rejected
+        .iter()
+        .map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    rejected.sort();
+    assert_eq!(rejected, ["IMG_0008.jpg", "IMG_0009.jpg", "IMG_0010.jpg"]);
     assert_eq!(result.unreadable_entries, 0);
 }
 
@@ -153,4 +160,5 @@ fn rejected_root_is_still_searched() {
     let result = find_photos(&dir.path().join("Odrzucone"), |_| {}).unwrap();
 
     assert_eq!(result.photos.len(), 1);
+    assert_eq!(result.rejected, Vec::new());
 }

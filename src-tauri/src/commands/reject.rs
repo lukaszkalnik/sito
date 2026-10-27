@@ -153,7 +153,7 @@ pub fn undo_reject(
         return Err(move_failed(err));
     }
     log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
-    let id = scan.restore(&action.from, |path| read_photo(path).ok());
+    let id = scan.restore(&action.from, &action.to, |path| read_photo(path).ok());
     notify(&app);
     Ok(Some(UndoneDto {
         id,

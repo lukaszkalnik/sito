@@ -268,6 +268,7 @@ mod tests {
                 photo("a.jpg", TimeSource::Exif),
                 photo("b.jpg", TimeSource::FileModified),
             ],
+            rejected: vec![],
             unreadable_entries: 1,
         };
 

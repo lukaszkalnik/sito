@@ -43,15 +43,22 @@ impl Scan {
         self.ids.iter().copied().zip(&self.timeline.photos)
     }
 
-    /// The timeline's photos together with the photos removed from this scan,
-    /// in timeline order, and for each whether it was removed. Series are
-    /// found on this list, so rejecting photos does not break them up.
+    /// The timeline's photos together with the rejected ones (in "Odrzucone"
+    /// folders when scanned, or removed from this scan since), in timeline
+    /// order, and for each whether it was rejected. Series are found on this
+    /// list, so rejecting photos never breaks a series up.
     pub fn photos_with_removed(&self) -> (Vec<Photo>, Vec<bool>) {
         let mut all: Vec<(Photo, bool)> = self
             .timeline
             .photos
             .iter()
             .map(|photo| (photo.clone(), false))
+            .chain(
+                self.timeline
+                    .rejected
+                    .iter()
+                    .map(|photo| (photo.clone(), true)),
+            )
             .chain(
                 self.removed
                     .values()
@@ -78,17 +85,22 @@ impl Scan {
         Some(photo)
     }
 
-    /// Puts the photo at `path` back on the timeline and returns its id: the
-    /// id it had if it was removed from this scan, otherwise a new one, with
-    /// the photo read by `read` (it was removed before this scan).
+    /// Puts the photo moved back from `rejected_path` to `path` on the
+    /// timeline and returns its id: the id it had if it was removed from this
+    /// scan, otherwise a new one, with the photo read by `read` (it was
+    /// rejected before this scan, so it is taken off the rejected list).
     pub fn restore(
         &mut self,
         path: &Path,
+        rejected_path: &Path,
         read: impl FnOnce(&Path) -> Option<Photo>,
     ) -> Option<usize> {
         let (id, photo) = if let Some(known) = self.removed.remove(path) {
             known
         } else {
+            self.timeline
+                .rejected
+                .retain(|photo| photo.path != rejected_path);
             let photo = read(path)?;
             let id = self.next_id;
             self.next_id += 1;
@@ -154,6 +166,7 @@ mod tests {
                 .enumerate()
                 .map(|(i, name)| photo(name, i))
                 .collect(),
+            rejected: vec![],
             unreadable_entries: 0,
         }
     }
@@ -227,8 +240,14 @@ mod tests {
         scan.remove(1);
         scan.remove(0);
 
-        assert_eq!(scan.restore(Path::new("b.jpg"), |_| None), Some(1));
-        assert_eq!(scan.restore(Path::new("a.jpg"), |_| None), Some(0));
+        assert_eq!(
+            scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| None),
+            Some(1)
+        );
+        assert_eq!(
+            scan.restore(Path::new("a.jpg"), Path::new("Odrzucone/a.jpg"), |_| None),
+            Some(0)
+        );
 
         assert_eq!(
             names(&scan),
@@ -242,12 +261,17 @@ mod tests {
 
     #[test]
     fn a_photo_removed_before_this_scan_gets_a_new_id() {
-        let mut scan = Scan::new(1, timeline(&["a.jpg", "c.jpg"]));
+        let mut found = timeline(&["a.jpg", "c.jpg"]);
+        found.rejected = vec![photo("Odrzucone/b.jpg", 1)];
+        let mut scan = Scan::new(1, found);
         let older = photo("b.jpg", 1);
 
-        let id = scan.restore(Path::new("b.jpg"), |_| Some(older));
+        let id = scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| {
+            Some(older)
+        });
 
         assert_eq!(id, Some(2));
+        assert_eq!(scan.timeline.rejected, Vec::new());
         assert_eq!(
             names(&scan),
             [
@@ -263,13 +287,25 @@ mod tests {
     fn an_unreadable_photo_is_not_restored() {
         let mut scan = Scan::new(1, timeline(&["a.jpg"]));
 
-        assert_eq!(scan.restore(Path::new("gone.jpg"), |_| None), None);
+        assert_eq!(
+            scan.restore(
+                Path::new("gone.jpg"),
+                Path::new("Odrzucone/gone.jpg"),
+                |_| None
+            ),
+            None
+        );
         assert_eq!(names(&scan), [(0, "a.jpg".into())]);
     }
 
     #[test]
-    fn removed_photos_are_listed_in_place_for_finding_series() {
-        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+    fn rejected_photos_are_listed_in_place_for_finding_series() {
+        let mut found = timeline(&["a.jpg", "b.jpg", "d.jpg"]);
+        // Rejected in an earlier session: found in "Odrzucone" by the scan.
+        found.rejected = vec![photo("Odrzucone/c.jpg", 2)];
+        found.photos[2] = photo("d.jpg", 3);
+        let mut scan = Scan::new(1, found);
+        // Rejected now.
         scan.remove(1);
 
         let (all, removed) = scan.photos_with_removed();
@@ -278,7 +314,7 @@ mod tests {
             .iter()
             .map(|p| p.path.to_string_lossy().into_owned())
             .collect();
-        assert_eq!(paths, ["a.jpg", "b.jpg", "c.jpg"]);
-        assert_eq!(removed, [false, true, false]);
+        assert_eq!(paths, ["a.jpg", "b.jpg", "Odrzucone/c.jpg", "d.jpg"]);
+        assert_eq!(removed, [false, true, true, false]);
     }
 }
