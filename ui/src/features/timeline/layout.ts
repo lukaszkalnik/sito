@@ -119,3 +119,43 @@ export function rowHeight(row: TimelineRow): number {
       return TILE_ROW_HEIGHT + (row.seriesEnd ? SERIES_END_SPACE : 0);
   }
 }
+
+/** Total height in pixels of all rows. */
+export function totalHeight(rows: readonly TimelineRow[]): number {
+  return rows.reduce((sum, row) => sum + rowHeight(row), 0);
+}
+
+/**
+ * Scroll position for `newRows` that keeps the photos seen at `scrollTop` in
+ * `oldRows` in place, for regrouped series or a switched mode. The anchor is
+ * the topmost visible photo that `newRows` still shows (singles disappear in
+ * `series` mode); it stays at the same distance from the top of the view.
+ */
+export function anchoredScrollTop(
+  oldRows: readonly TimelineRow[],
+  newRows: readonly TimelineRow[],
+  scrollTop: number,
+): number {
+  if (scrollTop <= 0) return 0;
+
+  const newStarts = new Map<number, number>();
+  let start = 0;
+  for (const row of newRows) {
+    if (row.kind === 'tiles') for (const entry of row.entries) newStarts.set(entry.id, start);
+    start += rowHeight(row);
+  }
+  const newTotal = start;
+
+  start = 0;
+  for (const row of oldRows) {
+    // Only the tiles count as visible, not the space below them.
+    if (row.kind === 'tiles' && start + TILE_ROW_HEIGHT - TILE_GAP > scrollTop) {
+      for (const entry of row.entries) {
+        const newStart = newStarts.get(entry.id);
+        if (newStart !== undefined) return Math.max(0, newStart - (start - scrollTop));
+      }
+    }
+    start += rowHeight(row);
+  }
+  return newTotal;
+}

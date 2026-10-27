@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { mockTauri } from './tauri-mock';
+import { photoY, topPhoto } from './timeline-helpers';
 
 const PHOTOS = 1000;
 
@@ -70,4 +71,17 @@ test('starts another folder at the default gap', async ({ page }) => {
 
   await expect(slider(page)).toHaveValue('10');
   await expect(page.getByRole('status')).toContainText('250 serii (1000 zdjęć).');
+});
+
+test('keeps the photos in view in place when the gap changes', async ({ page }) => {
+  await openTimeline(page);
+  await expect(page.getByRole('status')).toContainText('250 serii');
+  await page.getByTestId('timeline').evaluate((el) => el.scrollTo(0, 30000));
+  const before = await topPhoto(page);
+  expect(before.name).not.toBe('');
+
+  await slider(page).fill('5');
+  await expect(page.getByRole('status')).toContainText('(750 zdjęć)');
+
+  await expect.poll(() => photoY(page, before.name)).toBe(before.y);
 });

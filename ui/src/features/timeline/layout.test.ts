@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import type { Series, TimelineEntry } from '../../api/scan';
 import {
+  anchoredScrollTop,
   buildRows,
   columnsFor,
   rowHeight,
   SERIES_PADDING,
+  SERIES_ROW_HEIGHT,
   spansSeveralFolders,
   TILE_GAP,
   TILE_WIDTH,
+  totalHeight,
   type TimelineRow,
 } from './layout';
 
@@ -155,6 +158,72 @@ describe('buildRows', () => {
       const keys = buildRows(many, manySeries, 4, mode).map((r) => r.key);
       expect(new Set(keys).size).toBe(keys.length);
     }
+  });
+});
+
+describe('anchoredScrollTop', () => {
+  // Ten photos a second apart, one column, so every photo has its own row.
+  const photos = Array.from({ length: 10 }, (_, id) =>
+    entry(id, `2024-06-01T12:00:${String(59 - id).padStart(2, '0')}`),
+  );
+  const all = buildRows(photos, [], 1, 'all');
+  const grouped: Series[] = [{ start: 6, len: 3 }];
+  const allGrouped = buildRows(photos, grouped, 1, 'all');
+  const onlySeries = buildRows(photos, grouped, 1, 'series');
+  /** Offset of the tile row showing photo `id`. */
+  const offsetOf = (rows: TimelineRow[], id: number) => {
+    const index = rows.findIndex((r) => r.kind === 'tiles' && r.entries.some((e) => e.id === id));
+    return totalHeight(rows.slice(0, index));
+  };
+
+  it('stays at the top', () => {
+    expect(anchoredScrollTop(all, onlySeries, 0)).toBe(0);
+  });
+
+  it('keeps the top photo in place when series appear above it', () => {
+    const scrollTop = offsetOf(all, 7) + 20;
+
+    expect(anchoredScrollTop(all, allGrouped, scrollTop)).toBe(offsetOf(allGrouped, 7) + 20);
+  });
+
+  it('keeps the next shown photo in place when the top one is hidden', () => {
+    // Photo 5 is a single, so photo 6 (the next row) is the first one left.
+    const scrollTop = offsetOf(allGrouped, 5) + 50;
+    const distance = offsetOf(allGrouped, 6) - scrollTop;
+    expect(distance).toBeGreaterThan(0);
+
+    expect(anchoredScrollTop(allGrouped, onlySeries, scrollTop)).toBe(
+      Math.max(0, offsetOf(onlySeries, 6) - distance),
+    );
+  });
+
+  it('keeps the next shown photo in place further down the list', () => {
+    // Photo 9 is a single after the series; switching back to all photos keeps 7 in place.
+    const scrollTop = offsetOf(onlySeries, 7) + 10;
+
+    expect(anchoredScrollTop(onlySeries, allGrouped, scrollTop)).toBe(offsetOf(allGrouped, 7) + 10);
+  });
+
+  it('keeps a header above the top photo visible', () => {
+    // Scrolled so that the series header of photo 6 is at the very top.
+    const scrollTop = offsetOf(allGrouped, 6) - SERIES_ROW_HEIGHT;
+
+    expect(anchoredScrollTop(allGrouped, onlySeries, scrollTop)).toBe(
+      offsetOf(onlySeries, 6) - SERIES_ROW_HEIGHT,
+    );
+  });
+
+  it('ignores a row whose tiles are scrolled out and only the gap below shows', () => {
+    // Photo 6 is out of view; only the space below its tiles is at the top.
+    const scrollTop = offsetOf(allGrouped, 7) - 4;
+
+    expect(anchoredScrollTop(allGrouped, all, scrollTop)).toBe(offsetOf(all, 7) - 4);
+  });
+
+  it('goes to the end when nothing follows the top photo', () => {
+    const scrollTop = offsetOf(all, 9);
+
+    expect(anchoredScrollTop(all, onlySeries, scrollTop)).toBe(totalHeight(onlySeries));
   });
 });
 

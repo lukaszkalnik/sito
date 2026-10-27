@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { mockTauri, type TauriMock } from './tauri-mock';
+import { photoY, topPhoto } from './timeline-helpers';
 
 const PHOTOS = 10000;
 
@@ -78,4 +79,20 @@ test('explains when there are no series', async ({ page }) => {
   await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
 
   await expect(page.getByTestId('timeline')).toBeVisible();
+});
+
+test('keeps the scroll position when switching views', async ({ page }) => {
+  await openTimeline(page, EVERY_TENTH);
+  await expect(page.getByTestId('timeline')).toBeVisible();
+  await page.getByTestId('timeline').evaluate((el) => el.scrollTo(0, 50000));
+  const inSeries = await topPhoto(page);
+  expect(inSeries.name).not.toBe('');
+
+  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+
+  await expect.poll(() => photoY(page, inSeries.name)).toBe(inSeries.y);
+
+  await page.getByRole('button', { name: 'Serie' }).click();
+
+  await expect.poll(() => photoY(page, inSeries.name)).toBe(inSeries.y);
 });

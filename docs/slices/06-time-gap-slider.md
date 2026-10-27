@@ -44,7 +44,7 @@ No change needed:
   - `TimelineGrid` remembers the first visible photo (from the virtualizer range)
   - when `series` changes, a new `rowIndexForEntry(rows, entryId)` in `layout.ts` finds the row with that photo, or in "Serie" mode the next row after it if the photo is now a single
   - the grid then scrolls there with `scrollToIndex(…, { align: 'start' })`
-  - changing the mode still remounts the grid and starts at the top, as today
+  - switching between "Serie" and "Wszystkie zdjęcia" uses the same anchoring (requested during implementation): the grid stays mounted and the photo at the top stays put
 - **pl.json strings:** `gap.label` "Odstęp w serii", `gap.value` "{{seconds}} s", and `gap.hint` (tooltip) "Zdjęcia zrobione w tym odstępie czasu tworzą serię."
 
 ### Tests
@@ -66,7 +66,7 @@ No change needed:
 ## Implementation steps (one commit each, pushed)
 0. `docs: add slice 6 plan`: the plan file, and ROADMAP slice 6 → 🚧.
 1. `feat(ui): time-gap slider remembered per folder`: API param, `gapSetting`, hook split, slider, strings, unit tests, mock `byGap`, e2e for count and persistence.
-2. `feat(ui): keep the visible photos in place when series regroup`: `rowIndexForEntry`, scroll anchoring, unit tests and e2e.
+2. `feat(ui): keep the visible photos in place when series regroup`: `anchoredScrollTop` (replaces the planned `rowIndexForEntry`), scroll anchoring for gap and view changes, unit tests and e2e.
 3. `chore: release v0.5.0` after checks and CI are green, with your OK for the tag. Then the installer download and ROADMAP → 🧪.
 
 ## Verification

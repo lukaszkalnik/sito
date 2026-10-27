@@ -135,9 +135,8 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
         </div>
       ) : (
         timeline.status === 'ready' && (
-          // Remounting on a mode change starts the new view at the top.
+          // The grid stays mounted across mode and gap changes and keeps the visible photos in place.
           <TimelineGrid
-            key={mode}
             entries={timeline.entries}
             series={timeline.series}
             mode={mode}

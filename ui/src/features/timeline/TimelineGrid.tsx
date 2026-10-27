@@ -1,14 +1,16 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { Series, TimelineEntry } from '../../api/scan';
 import { formatDay, timeOf } from './format';
 import {
+  anchoredScrollTop,
   buildRows,
   columnsFor,
   rowHeight,
   spansSeveralFolders,
+  totalHeight,
   type TimelineMode,
   type TimelineRow,
 } from './layout';
@@ -85,13 +87,24 @@ export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProp
     overscan: 4,
   });
 
-  useEffect(() => {
+  // When the rows change (new gap, mode or width), keep the photos at the top
+  // of the view in place. Runs before paint, so the grid never visibly jumps.
+  const previousRows = useRef(rows);
+  useLayoutEffect(() => {
+    const oldRows = previousRows.current;
+    previousRows.current = rows;
     virtualizer.measure();
+    const element = scrollRef.current;
+    if (element && oldRows !== rows) {
+      element.scrollTop = anchoredScrollTop(oldRows, rows, element.scrollTop);
+    }
   }, [rows, virtualizer]);
 
   return (
     <div ref={scrollRef} className="timeline" data-testid="timeline">
-      <div className="timeline-canvas" style={{ height: virtualizer.getTotalSize() }}>
+      {/* Row heights are exact, so the canvas is sized from the rows directly:
+          the scroll position above can then be set before the virtualizer re-measures. */}
+      <div className="timeline-canvas" style={{ height: totalHeight(rows) }}>
         {virtualizer.getVirtualItems().map((item) => {
           const row = rows[item.index];
           if (!row) return null;
