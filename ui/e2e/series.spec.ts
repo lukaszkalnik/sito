@@ -30,7 +30,7 @@ test('shows only series by default, with their count', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('1000 serii (3000 zdjęć).');
   await expect(page.getByRole('button', { name: 'Serie' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
-    'Seria · 3 zdjęcia · 11:20:00–12:00:00',
+    '3 zdjęcia · 11:20:00–12:00:00',
   );
   await expect(page.getByText('IMG_10000.jpg')).toBeVisible();
   await expect(page.getByText('IMG_09990.jpg')).toBeVisible();
@@ -45,16 +45,13 @@ test('marks series inside the full timeline', async ({ page }) => {
 
   await expect(page.getByText('IMG_09997.jpg')).toBeVisible();
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
-    'Seria · 3 zdjęcia · 11:20:00–12:00:00',
+    '3 zdjęcia · 11:20:00–12:00:00',
   );
+  // A short series is a tinted block; single photos are not in one.
   const firstSeriesTile = page.getByTestId('timeline-tile').filter({ hasText: 'IMG_10000.jpg' });
-  await expect(firstSeriesTile.locator('xpath=ancestor::div[1]')).toHaveClass(
-    /timeline-row--series/,
-  );
+  await expect(firstSeriesTile.locator('xpath=ancestor::section[1]')).toHaveClass(/timeline-block/);
   const singleTile = page.getByTestId('timeline-tile').filter({ hasText: 'IMG_09997.jpg' });
-  await expect(singleTile.locator('xpath=ancestor::div[1]')).not.toHaveClass(
-    /timeline-row--series/,
-  );
+  await expect(singleTile.locator('xpath=ancestor::section')).toHaveCount(0);
 });
 
 test('renders only the visible series and reaches the oldest one', async ({ page }) => {

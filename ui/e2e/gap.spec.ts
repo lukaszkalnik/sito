@@ -39,7 +39,7 @@ test('regroups the series when the gap changes', async ({ page }) => {
   await expect(page.getByText('5 s', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
-    'Seria · 3 zdjęcia · 11:59:54–12:00:00',
+    '3 zdjęcia · 11:59:54–12:00:00',
   );
 
   await slider(page).fill('2');

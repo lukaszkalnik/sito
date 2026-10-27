@@ -6,6 +6,7 @@ import type { Series, TimelineEntry } from '../../api/scan';
 import { formatDay, timeOf } from './format';
 import {
   anchoredScrollTop,
+  blockWidth,
   buildRows,
   columnsFor,
   rowHeight,
@@ -37,13 +38,16 @@ function SeriesHeader({ entries }: { entries: readonly TimelineEntry[] }) {
   const { t } = useTranslation();
   const newest = entries[0];
   const oldest = entries[entries.length - 1];
+  const from = oldest ? timeOf(oldest.takenAt) : '';
+  const to = newest ? timeOf(newest.takenAt) : '';
+  const photos = t('scan.photoCount', { count: entries.length });
+  const text =
+    from === to
+      ? t('series.headerAt', { photos, time: to })
+      : t('series.header', { photos, from, to });
   return (
-    <h3 className="timeline-series">
-      {t('series.header', {
-        photos: t('scan.photoCount', { count: entries.length }),
-        from: oldest ? timeOf(oldest.takenAt) : '',
-        to: newest ? timeOf(newest.takenAt) : '',
-      })}
+    <h3 className="timeline-series" title={text}>
+      {text}
     </h3>
   );
 }
@@ -69,10 +73,11 @@ interface TimelineGridProps {
 export function TimelineGrid({ entries, series, mode, scanId, onOpen }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
-  const rows = useMemo(
-    () => buildRows(entries, series, columnsFor(width), mode),
-    [entries, series, width, mode],
-  );
+  const rows = useMemo(() => {
+    const columns = columnsFor(width);
+    // Series blocks may use all of the measured width, not only whole columns.
+    return buildRows(entries, series, columns, mode, Math.max(width, blockWidth(columns)));
+  }, [entries, series, width, mode]);
   // Folders only tell photos apart when the scan spans more than one.
   const showFolder = useMemo(() => spansSeveralFolders(entries), [entries]);
 
@@ -92,18 +97,30 @@ export function TimelineGrid({ entries, series, mode, scanId, onOpen }: Timeline
   // When the rows change (new gap, mode or width), keep the photos at the top
   // of the view in place. Runs before paint, so the grid never visibly jumps.
   const previousRows = useRef(rows);
+  // The scroll position in the old rows. Read from scroll events, because by
+  // the time the effect runs, a shorter new canvas may already have made the
+  // browser clamp `scrollTop`.
+  const lastScrollTop = useRef(0);
   useLayoutEffect(() => {
     const oldRows = previousRows.current;
     previousRows.current = rows;
     virtualizer.measure();
     const element = scrollRef.current;
     if (element && oldRows !== rows) {
-      element.scrollTop = anchoredScrollTop(oldRows, rows, element.scrollTop);
+      element.scrollTop = anchoredScrollTop(oldRows, rows, lastScrollTop.current);
+      lastScrollTop.current = element.scrollTop;
     }
   }, [rows, virtualizer]);
 
   return (
-    <div ref={scrollRef} className="timeline" data-testid="timeline">
+    <div
+      ref={scrollRef}
+      className="timeline"
+      data-testid="timeline"
+      onScroll={(event) => {
+        lastScrollTop.current = event.currentTarget.scrollTop;
+      }}
+    >
       {/* Row heights are exact, so the canvas is sized from the rows directly:
           the scroll position above can then be set before the virtualizer re-measures. */}
       <div className="timeline-canvas" style={{ height: totalHeight(rows) }}>
@@ -130,6 +147,26 @@ export function TimelineGrid({ entries, series, mode, scanId, onOpen }: Timeline
                     />
                   ))}
                 </ul>
+              )}
+              {row.kind === 'blocks' && (
+                <div className="timeline-blocks">
+                  {row.blocks.map((members) => (
+                    <section key={members[0]?.id} className="timeline-block">
+                      <SeriesHeader entries={members} />
+                      <ul className="timeline-tiles">
+                        {members.map((entry) => (
+                          <TimelineTile
+                            key={entry.id}
+                            entry={entry}
+                            scanId={scanId}
+                            showFolder={showFolder}
+                            onOpen={onOpen}
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
               )}
             </div>
           );

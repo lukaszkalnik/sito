@@ -124,8 +124,6 @@ test('shows a series reduced to one photo in the series view', async ({ page }) 
   await page.goto('/');
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
 
-  await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
-    'Seria · 1 zdjęcie · 12:00:00–12:00:00',
-  );
+  await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText('1 zdjęcie · 12:00:00');
   await expect(page.getByRole('status')).toContainText('15 serii (29 zdjęć).');
 });

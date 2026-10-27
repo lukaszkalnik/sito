@@ -57,6 +57,32 @@
   color: var(--series-text);
 }
 
+/* Short series side by side: each a tinted block with its header and tiles,
+   lined up with the tiles of the other rows. */
+.timeline-blocks {
+  display: flex;
+  gap: 8px;
+}
+
+.timeline-block {
+  flex: none;
+  min-width: 0;
+  padding-bottom: 8px;
+  border-radius: 8px;
+  background: var(--series-bg);
+}
+
+.timeline-block .timeline-series {
+  box-sizing: border-box;
+  height: 32px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* As wide as the tiles below, never wider: a long text is cut instead. */
+  width: 0;
+  min-width: 100%;
+}
+
 .timeline-tile {
   position: relative;
   color: var(--text);

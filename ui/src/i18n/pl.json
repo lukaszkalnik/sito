@@ -42,7 +42,8 @@
     "all": "Wszystkie zdjęcia"
   },
   "series": {
-    "header": "Seria · {{photos}} · {{from}}–{{to}}",
+    "header": "{{photos}} · {{from}}–{{to}}",
+    "headerAt": "{{photos}} · {{time}}",
     "summary": "{{series}} ({{photos}}).",
     "count_one": "{{count, number}} seria",
     "count_few": "{{count, number}} serie",

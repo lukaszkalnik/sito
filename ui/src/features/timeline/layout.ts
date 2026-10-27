@@ -18,11 +18,35 @@ export const TILE_GAP = 8;
 /** Which photos the timeline shows: only series, or all photos with series marked. */
 export type TimelineMode = 'series' | 'all';
 
+/** Space between two series blocks sharing a row. */
+export const BLOCK_GAP = TILE_GAP;
+/** Height of a row of series blocks: header, one row of tiles and the block's bottom padding. */
+export const BLOCK_ROW_HEIGHT = SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT + SERIES_END_SPACE;
+
 /** One row of the virtualized timeline. */
 export type TimelineRow =
   | { kind: 'day'; key: string; date: string }
   | { kind: 'series'; key: string; entries: TimelineEntry[] }
-  | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean };
+  | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean }
+  /** Short series side by side, each in its own block with a header. */
+  | { kind: 'blocks'; key: string; blocks: TimelineEntry[][] };
+
+/** Width in pixels of a series block of `len` tiles, padding included. */
+export function blockWidth(len: number): number {
+  return len * TILE_WIDTH + (len - 1) * TILE_GAP + 2 * SERIES_PADDING;
+}
+
+/** The photos of a row, with the distance from the row's top to its tiles. */
+export function tilesOf(row: TimelineRow): { entries: TimelineEntry[]; offset: number } {
+  switch (row.kind) {
+    case 'tiles':
+      return { entries: row.entries, offset: 0 };
+    case 'blocks':
+      return { entries: row.blocks.flat(), offset: SERIES_ROW_HEIGHT };
+    default:
+      return { entries: [], offset: 0 };
+  }
+}
 
 /** Whether the photos come from more than one folder, so tiles need to name theirs. */
 export function spansSeveralFolders(entries: readonly TimelineEntry[]): boolean {
@@ -45,21 +69,38 @@ export function dayOf(entry: TimelineEntry): string {
 
 /**
  * Splits entries (sorted newest first) into rows: a header for every day,
- * then that day's photos in rows of `columns` tiles. Every series starts on a
- * new row under its own header; it belongs to the day of its newest photo, so
- * a series crossing midnight is never split. In `series` mode photos outside
- * series (and days without series) are left out.
+ * then that day's photos in rows of `columns` tiles. A series that fits on
+ * one row becomes a block, and consecutive blocks share a row while they fit
+ * into `width` pixels; a longer series starts on a new row under its own
+ * header. A series belongs to the day of its newest photo, so one crossing
+ * midnight is never split. In `series` mode photos outside series (and days
+ * without series) are left out.
  */
 export function buildRows(
   entries: readonly TimelineEntry[],
   series: readonly Series[],
   columns: number,
   mode: TimelineMode,
+  width: number = blockWidth(columns),
 ): TimelineRow[] {
   const seriesAt = new Map(series.map((s) => [s.start, s]));
   const rows: TimelineRow[] = [];
   let currentDay: string | null = null;
   let singles: TimelineEntry[] = [];
+  // The row of blocks being filled and its used width, while it is the last row.
+  let open: { row: Extract<TimelineRow, { kind: 'blocks' }>; used: number } | null = null;
+
+  const pushBlock = (members: TimelineEntry[]) => {
+    const needed = blockWidth(members.length);
+    if (open && rows[rows.length - 1] === open.row && open.used + BLOCK_GAP + needed <= width) {
+      open.row.blocks.push(members);
+      open.used += BLOCK_GAP + needed;
+      return;
+    }
+    const row = { kind: 'blocks' as const, key: `blocks-${members[0]?.id}`, blocks: [members] };
+    rows.push(row);
+    open = { row, used: needed };
+  };
 
   const pushTiles = (photos: TimelineEntry[], inSeries: boolean) => {
     for (let start = 0; start < photos.length; start += columns) {
@@ -93,8 +134,12 @@ export function buildRows(
       enterDay(entry);
       flushSingles();
       const members = entries.slice(i, i + s.len);
-      rows.push({ kind: 'series', key: `series-${entry.id}`, entries: members });
-      pushTiles(members, true);
+      if (members.length <= columns) {
+        pushBlock(members);
+      } else {
+        rows.push({ kind: 'series', key: `series-${entry.id}`, entries: members });
+        pushTiles(members, true);
+      }
       i += s.len;
     } else {
       if (mode === 'all') {
@@ -117,6 +162,8 @@ export function rowHeight(row: TimelineRow): number {
       return SERIES_ROW_HEIGHT;
     case 'tiles':
       return TILE_ROW_HEIGHT + (row.seriesEnd ? SERIES_END_SPACE : 0);
+    case 'blocks':
+      return BLOCK_ROW_HEIGHT;
   }
 }
 
@@ -138,21 +185,25 @@ export function anchoredScrollTop(
 ): number {
   if (scrollTop <= 0) return 0;
 
-  const newStarts = new Map<number, number>();
+  // Top of each photo's tile in the new layout.
+  const newTops = new Map<number, number>();
   let start = 0;
   for (const row of newRows) {
-    if (row.kind === 'tiles') for (const entry of row.entries) newStarts.set(entry.id, start);
+    const { entries, offset } = tilesOf(row);
+    for (const entry of entries) newTops.set(entry.id, start + offset);
     start += rowHeight(row);
   }
   const newTotal = start;
 
   start = 0;
   for (const row of oldRows) {
-    // Only the tiles count as visible, not the space below them.
-    if (row.kind === 'tiles' && start + TILE_ROW_HEIGHT - TILE_GAP > scrollTop) {
-      for (const entry of row.entries) {
-        const newStart = newStarts.get(entry.id);
-        if (newStart !== undefined) return Math.max(0, newStart - (start - scrollTop));
+    const { entries, offset } = tilesOf(row);
+    const top = start + offset;
+    // Only the tiles count as visible, not a header or the space below them.
+    if (entries.length > 0 && top + TILE_ROW_HEIGHT - TILE_GAP > scrollTop) {
+      for (const entry of entries) {
+        const newTop = newTops.get(entry.id);
+        if (newTop !== undefined) return Math.max(0, newTop - (top - scrollTop));
       }
     }
     start += rowHeight(row);

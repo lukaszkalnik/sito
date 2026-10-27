@@ -6,11 +6,14 @@ import {
   buildRows,
   columnsFor,
   rowHeight,
+  SERIES_END_SPACE,
   SERIES_PADDING,
   SERIES_ROW_HEIGHT,
   spansSeveralFolders,
   TILE_GAP,
+  TILE_ROW_HEIGHT,
   TILE_WIDTH,
+  tilesOf,
   totalHeight,
   type TimelineRow,
 } from './layout';
@@ -62,11 +65,17 @@ describe('columnsFor', () => {
 });
 
 describe('buildRows', () => {
-  /** Rows as short labels: day date, 'series:<ids>', or tile ids ('*' marks series tiles). */
+  /**
+   * Rows as short labels: day date, 'series:<ids>', 'blocks:<ids>|<ids>', or
+   * tile ids ('*' marks series tiles).
+   */
   function shape(rows: TimelineRow[]) {
     return rows.map((r) => {
       if (r.kind === 'day') return r.date;
       if (r.kind === 'series') return `series:${r.entries.map((e) => e.id).join(',')}`;
+      if (r.kind === 'blocks') {
+        return `blocks:${r.blocks.map((b) => b.map((e) => e.id).join(',')).join('|')}`;
+      }
       return r.entries.map((e) => (r.inSeries ? `*${e.id}` : e.id));
     });
   }
@@ -122,10 +131,58 @@ describe('buildRows', () => {
   });
 
   it('shows only series, and only days with series, in series mode', () => {
-    expect(shape(buildRows(entries, series, 3, 'series'))).toEqual([
+    expect(shape(buildRows(entries, series, 3, 'series'))).toEqual(['2024-06-01', 'blocks:1,2,3']);
+  });
+
+  it('packs short series side by side while they fit the width', () => {
+    // Pairs of photos, one pair per hour, all on one day.
+    const pairs = Array.from({ length: 8 }, (_, i) =>
+      entry(i, `2024-06-01T${String(20 - Math.floor(i / 2)).padStart(2, '0')}:00:0${i % 2}`),
+    );
+    const pairSeries = [0, 2, 4, 6].map((start) => ({ start, len: 2 }));
+    // Five columns: two blocks of two need 2 × blockWidth(2) + gap = 696 px,
+    // less than blockWidth(5) = 848 px; a third does not fit.
+    expect(shape(buildRows(pairs, pairSeries, 5, 'series'))).toEqual([
+      '2024-06-01',
+      'blocks:0,1|2,3',
+      'blocks:4,5|6,7',
+    ]);
+    // With the window's real width, more blocks share a row.
+    expect(shape(buildRows(pairs, pairSeries, 5, 'series', 1100))).toEqual([
+      '2024-06-01',
+      'blocks:0,1|2,3|4,5',
+      'blocks:6,7',
+    ]);
+  });
+
+  it('keeps blocks apart when single photos or a new day come between them', () => {
+    const mixed = [
+      entry(0, '2024-06-02T12:00:01'),
+      entry(1, '2024-06-02T12:00:00'),
+      entry(2, '2024-06-02T09:00:00'),
+      entry(3, '2024-06-02T08:00:01'),
+      entry(4, '2024-06-02T08:00:00'),
+      entry(5, '2024-06-01T20:00:01'),
+      entry(6, '2024-06-01T20:00:00'),
+    ];
+    const pairsOf = [0, 3, 5].map((start) => ({ start, len: 2 }));
+
+    expect(shape(buildRows(mixed, pairsOf, 6, 'all'))).toEqual([
+      '2024-06-02',
+      'blocks:0,1',
+      [2],
+      'blocks:3,4',
+      '2024-06-01',
+      'blocks:5,6',
+    ]);
+  });
+
+  it('gives a series longer than a row its own header and tile rows', () => {
+    expect(shape(buildRows(entries, series, 2, 'series'))).toEqual([
       '2024-06-01',
       'series:1,2,3',
-      ['*1', '*2', '*3'],
+      ['*1', '*2'],
+      ['*3'],
     ]);
   });
 
@@ -138,8 +195,7 @@ describe('buildRows', () => {
 
     expect(shape(buildRows(night, [{ start: 0, len: 2 }], 3, 'all'))).toEqual([
       '2024-06-02',
-      'series:0,1',
-      ['*0', '*1'],
+      'blocks:0,1',
       '2024-06-01',
       [2],
     ]);
@@ -245,5 +301,44 @@ describe('rowHeight', () => {
     expect(rowHeight(day)).toBeLessThan(rowHeight(firstTiles));
     expect(rowHeight(header)).toBeLessThan(rowHeight(firstTiles));
     expect(rowHeight(lastTiles)).toBeGreaterThan(rowHeight(firstTiles));
+  });
+
+  it('gives a row of blocks room for header, tiles and the space below', () => {
+    const [, blocks] = buildRows(
+      [entry(0, '2024-06-01T12:00:05'), entry(1, '2024-06-01T12:00:00')],
+      [{ start: 0, len: 2 }],
+      3,
+      'all',
+    ) as [TimelineRow, TimelineRow];
+
+    expect(blocks.kind).toBe('blocks');
+    expect(rowHeight(blocks)).toBe(SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT + SERIES_END_SPACE);
+  });
+});
+
+describe('anchoredScrollTop with blocks', () => {
+  it('keeps a photo in place when its series turns from a band into a block', () => {
+    const photos = [
+      entry(0, '2024-06-01T12:00:09'),
+      entry(1, '2024-06-01T12:00:08'),
+      entry(2, '2024-06-01T09:00:00'),
+      entry(3, '2024-06-01T08:00:00'),
+    ];
+    const pair: Series[] = [{ start: 2, len: 2 }];
+    // One column: the pair is a header with two tile rows; three: one block.
+    const narrow = buildRows(photos, pair, 1, 'all');
+    const wide = buildRows(photos, pair, 3, 'all');
+    const tileTop = (rows: TimelineRow[], id: number) => {
+      let start = 0;
+      for (const row of rows) {
+        const { entries, offset } = tilesOf(row);
+        if (entries.some((e) => e.id === id)) return start + offset;
+        start += rowHeight(row);
+      }
+      throw new Error(`photo ${id} not shown`);
+    };
+    const scrollTop = tileTop(narrow, 2) - 10;
+
+    expect(anchoredScrollTop(narrow, wide, scrollTop)).toBe(tileTop(wide, 2) - 10);
   });
 });
