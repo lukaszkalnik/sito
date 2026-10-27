@@ -12,3 +12,12 @@ npm run tauri dev
 ```
 
 Requirements: Rust (stable), Node.js 24 LTS, and on Windows the MSVC Build Tools and WebView2.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option. The software comes "as is", without warranty of any kind; the authors are not liable for any damages arising from its use (see the license texts).

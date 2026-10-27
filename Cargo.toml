@@ -7,6 +7,7 @@ version = "0.8.0"
 edition = "2024"
 rust-version = "1.90"
 repository = "https://github.com/lukaszkalnik/sito"
+license = "MIT OR Apache-2.0"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
