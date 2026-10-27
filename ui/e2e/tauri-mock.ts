@@ -39,6 +39,15 @@ export interface TauriMock {
    * the timeline by the requested gap like the backend does. Default: none.
    */
   series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
+  /** Request returned by `take_viewer_request` in the viewer window. Default: none. */
+  viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
+}
+
+/** Commands the page invoked, with their arguments, for assertions. */
+export async function invokedCommands(page: Page): Promise<{ cmd: string; args: unknown }[]> {
+  return page.evaluate(
+    () => (window as unknown as { __invoked: { cmd: string; args: unknown }[] }).__invoked,
+  );
 }
 
 /**
@@ -143,12 +152,41 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             return timeline();
           case 'get_series':
             return series((args.maxGapSeconds as number | undefined) ?? 10);
+          case 'open_viewer':
+            return null;
+          case 'take_viewer_request':
+            return m.viewerRequest ?? null;
+          // Events and window calls have no effect in a plain browser.
+          case 'plugin:event|listen':
+            return nextId++;
+          case 'plugin:event|unlisten':
+          case 'plugin:event|emit_to':
+          case 'plugin:window|set_title':
+          case 'plugin:window|close':
+            return null;
           default:
             throw new Error(`Unmocked Tauri command: ${cmd}`);
         }
       },
+      metadata: {
+        currentWindow: { label: new URLSearchParams(location.search).get('window') ?? 'main' },
+        currentWebview: { label: 'main', windowLabel: 'main' },
+      },
+    };
+
+    // Records every command for `invokedCommands`.
+    const invoked: { cmd: string; args: unknown }[] = [];
+    Object.defineProperty(window, '__invoked', { value: invoked });
+    const invoke = internals.invoke;
+    internals.invoke = (cmd, args) => {
+      invoked.push({ cmd, args });
+      return invoke(cmd, args);
     };
 
     Object.defineProperty(window, '__TAURI_INTERNALS__', { value: internals });
+    // Used by `unlisten` of the event API.
+    Object.defineProperty(window, '__TAURI_EVENT_PLUGIN_INTERNALS__', {
+      value: { unregisterListener() {} },
+    });
   }, mock);
 }

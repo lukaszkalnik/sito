@@ -1,0 +1,130 @@
+/* The viewer is always dark, so photos are judged against a neutral background. */
+.viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #111;
+  color: #eee;
+}
+
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+}
+
+.viewer-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.viewer-name {
+  font-weight: 600;
+}
+
+.viewer-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.viewer-close,
+.viewer-step {
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #1c1c1c;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.viewer-close {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.viewer-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+}
+
+.viewer-step {
+  width: 2.75rem;
+  height: 5rem;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.viewer-step:disabled,
+.viewer-close:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.viewer-photo-area {
+  position: relative;
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.viewer-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Loads behind the shown photo and replaces it once ready. */
+.viewer-photo--loading {
+  visibility: hidden;
+}
+
+.viewer-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+}
+
+.viewer-strip {
+  display: flex;
+  gap: 6px;
+  padding: 0.5rem 1rem;
+  overflow-x: auto;
+}
+
+.viewer-strip-item {
+  flex: none;
+  width: 96px;
+  height: 72px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #222;
+  cursor: pointer;
+}
+
+.viewer-strip-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.viewer-strip-item--current {
+  border-color: var(--accent);
+}

@@ -56,5 +56,12 @@
     "decrease": "Zmniejsz odstęp",
     "increase": "Zwiększ odstęp",
     "hint": "Zdjęcia zrobione w tym odstępie czasu tworzą serię."
+  },
+  "viewer": {
+    "previous": "Poprzednie zdjęcie",
+    "next": "Następne zdjęcie",
+    "close": "Zamknij",
+    "series": "Zdjęcia w serii",
+    "loadError": "Nie udało się wczytać zdjęcia."
   }
 }
