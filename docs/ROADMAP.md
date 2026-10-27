@@ -18,16 +18,17 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
 | 5 | [Time series](slices/05-time-series.md) | ✅ |
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | 🧪 |
-| 7 | Compare and decide | ⬜ |
-| 8 | Quarantine with undo | ⬜ |
+| 7 | [Photo viewer](slices/07-photo-viewer.md) | 🚧 |
+| 8 | [Move to trash with undo](slices/08-trash-with-undo.md) | 📝 |
 | 9 | Persistence | ⬜ |
 | 10 | Edit series | ⬜ |
-| 11 | Sharpness suggestion | ⬜ |
-| 12 | Exposure and weights | ⬜ |
-| 13 | Split by content | ⬜ |
-| 14 | Series without EXIF date | ⬜ |
-| 15 | Faces and eyes | ⬜ |
-| 16 | macOS polish | ⬜ |
+| 11 | "Rejected" folder option | ⬜ |
+| 12 | Sharpness suggestion | ⬜ |
+| 13 | Exposure and weights | ⬜ |
+| 14 | Split by content | ⬜ |
+| 15 | Series without EXIF date | ⬜ |
+| 16 | Faces and eyes | ⬜ |
+| 17 | macOS polish | ⬜ |
 
 ### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
@@ -59,18 +60,18 @@ Change the gap (1–60 s, remembered per folder) and the series regroup instantl
 
 *Try:* find the gap value that works for your photos.
 
-### ⬜ 7. Compare and decide
-Open a series side by side; arrows navigate, Space = keep, X = reject (decisions in memory only).
+### 🚧 7. Photo viewer
+Click a thumbnail to open the photo full size in a separate, resizable window (reused for the next photo). If the photo is part of a series, the series thumbnails are shown underneath and open in the same window. Previous/next (buttons and ← →) follow the current view and cross series boundaries. Plan: [slices/07-photo-viewer.md](slices/07-photo-viewer.md)
 
-*Try:* go through a few series with the keyboard.
+*Try:* open a photo from a series, click through the strip, step past the end of the series.
 
-### ⬜ 8. Quarantine with undo
-Apply decisions: rejected photos move to a quarantine folder, logged in SQLite; undo moves them back.
+### 📝 8. Move to trash with undo
+A delete button (and the Delete key) in the viewer moves the photo to the system trash at once and shows the next one. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) restores the last trashed photos to where they were. Plan: [slices/08-trash-with-undo.md](slices/08-trash-with-undo.md)
 
-*Try:* apply on a test folder, undo, verify files are back.
+*Try:* trash a few photos from a test folder, undo, verify the files are back.
 
 ### ⬜ 9. Persistence
-SQLite cache of scan results and decisions; rescans are fast and decisions survive a restart. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under a size limit.
+SQLite cache of scan results and series edits; rescans are fast and work survives a restart. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under a size limit.
 
 *Try:* rescan a large folder twice, restart mid-review; move a folder, rescan, and check that the cache folder does not keep growing.
 
@@ -79,30 +80,35 @@ Fix false positives and misses by hand: remove a photo from a series, add a phot
 
 *Try:* cut a chained series into its real moments, ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
 
-### ⬜ 11. Sharpness suggestion
+### ⬜ 11. "Rejected" folder option
+Setting: instead of the system trash, move rejected photos into a "Rejected" subfolder of the scanned folder (logged and undoable like the trash).
+
+*Try:* switch the option on, reject a few photos, check the subfolder, undo.
+
+### ⬜ 12. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.
 
 *Try:* do the suggestions match your pick?
 
-### ⬜ 12. Exposure and weights
+### ⬜ 13. Exposure and weights
 Exposure score added; score weights adjustable in settings.
 
 *Try:* tune weights on series with exposure differences.
 
-### ⬜ 13. Split by content
+### ⬜ 14. Split by content
 Embedding model (downloaded on first launch, checksum-verified) splits series with different subjects; similarity slider.
 
 *Try:* series with mixed subjects get split.
 
-### ⬜ 14. Series without EXIF date
-Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 13).
+### ⬜ 15. Series without EXIF date
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 14).
 
 *Try:* a folder of WhatsApp images forms only the series that really belong together.
 
-### ⬜ 15. Faces and eyes
+### ⬜ 16. Faces and eyes
 Face and eye-state score (closed eyes penalized).
 
 *Try:* series of portraits pick shots with open eyes.
 
-### ⬜ 16. macOS polish
-Signing, notarization, macOS-specific fixes.
+### ⬜ 17. macOS polish
+Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
