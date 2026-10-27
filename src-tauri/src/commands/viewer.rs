@@ -89,8 +89,18 @@ pub async fn open_viewer(
         .visible(false)
         .build()
         .map_err(|err| internal("open", &err))?;
-        window_fit::show_placed(&window);
-        window.set_focus().map_err(|err| internal("focus", &err))?;
+        // Placed on the main thread, after the window-state plugin has registered
+        // the window there. Doing it from this thread deadlocks: it would hold the
+        // plugin's lock while waiting for the main thread, which waits for the lock.
+        let placed = window.clone();
+        window
+            .run_on_main_thread(move || {
+                window_fit::show_placed(&placed);
+                if let Err(err) = placed.set_focus() {
+                    log::warn!("cannot focus the viewer window: {err}");
+                }
+            })
+            .map_err(|err| internal("place", &err))?;
     }
     Ok(())
 }
