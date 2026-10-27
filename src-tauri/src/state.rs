@@ -27,7 +27,7 @@ pub struct Scan {
 }
 
 impl Scan {
-    fn new(id: u64, timeline: Timeline) -> Self {
+    pub(crate) fn new(id: u64, timeline: Timeline) -> Self {
         let count = timeline.photos.len();
         Self {
             id,

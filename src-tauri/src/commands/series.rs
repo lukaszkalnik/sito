@@ -6,7 +6,7 @@ use serde::Serialize;
 use sito_core::series::{self, DEFAULT_MAX_GAP, Series};
 use tauri::State;
 
-use crate::state::AppState;
+use crate::state::{AppState, Scan};
 
 /// One series as sent to the UI: a range of timeline entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -36,14 +36,18 @@ impl From<Series> for SeriesDto {
 pub fn get_series(max_gap_seconds: Option<u32>, state: State<'_, AppState>) -> Vec<SeriesDto> {
     let max_gap = max_gap_seconds.map_or(DEFAULT_MAX_GAP, |s| Duration::from_secs(s.into()));
     state.scan().as_ref().map_or_else(Vec::new, |scan| {
-        // Rejected photos still shape the series, so a series stays one while
-        // any of its photos is left.
-        let (all, removed) = scan.photos_with_removed();
-        series::without_removed(&series::find_time_series(&all, max_gap), &removed)
+        series_of(scan, max_gap)
             .into_iter()
             .map(SeriesDto::from)
             .collect()
     })
+}
+
+/// The series of `scan`'s timeline. Rejected photos still shape them, so a
+/// series stays one while any of its photos is left.
+pub(crate) fn series_of(scan: &Scan, max_gap: Duration) -> Vec<Series> {
+    let (all, removed) = scan.photos_with_removed();
+    series::without_removed(&series::find_time_series(&all, max_gap), &removed)
 }
 
 #[cfg(test)]
