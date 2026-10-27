@@ -23,12 +23,13 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 9 | Persistence | ⬜ |
 | 10 | Edit series | ⬜ |
 | 11 | Move to trash option | ⬜ |
-| 12 | Sharpness suggestion | ⬜ |
-| 13 | Exposure and weights | ⬜ |
-| 14 | Split by content | ⬜ |
-| 15 | Series without EXIF date | ⬜ |
-| 16 | Faces and eyes | ⬜ |
-| 17 | macOS polish | ⬜ |
+| 12 | Show and restore rejected photos | ⬜ |
+| 13 | Sharpness suggestion | ⬜ |
+| 14 | Exposure and weights | ⬜ |
+| 15 | Split by content | ⬜ |
+| 16 | Series without EXIF date | ⬜ |
+| 17 | Faces and eyes | ⬜ |
+| 18 | macOS polish | ⬜ |
 
 ### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
@@ -85,30 +86,35 @@ Setting: instead of the `Odrzucone` folder, move rejected photos to the system t
 
 *Try:* switch the option on, reject a few photos, find them in the Recycle Bin, undo.
 
-### ⬜ 12. Sharpness suggestion
+### ⬜ 12. Show and restore rejected photos
+Option to show photos from `Odrzucone` folders in the timeline and the viewer, visually weaker (faded, marked "odrzucone") so they do not get in the way. A rejected photo can be restored: moved back from `Odrzucone` to its folder (logged and undoable).
+
+*Try:* show rejected photos, check they are faded but still browsable, restore one and see it back in its folder.
+
+### ⬜ 13. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.
 
 *Try:* do the suggestions match your pick?
 
-### ⬜ 13. Exposure and weights
+### ⬜ 14. Exposure and weights
 Exposure score added; score weights adjustable in settings.
 
 *Try:* tune weights on series with exposure differences.
 
-### ⬜ 14. Split by content
+### ⬜ 15. Split by content
 Embedding model (downloaded on first launch, checksum-verified) splits series with different subjects; similarity slider.
 
 *Try:* series with mixed subjects get split.
 
-### ⬜ 15. Series without EXIF date
-Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 14).
+### ⬜ 16. Series without EXIF date
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 15).
 
 *Try:* a folder of WhatsApp images forms only the series that really belong together.
 
-### ⬜ 16. Faces and eyes
+### ⬜ 17. Faces and eyes
 Face and eye-state score (closed eyes penalized).
 
 *Try:* series of portraits pick shots with open eyes.
 
-### ⬜ 17. macOS polish
+### ⬜ 18. macOS polish
 Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
