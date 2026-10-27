@@ -1,10 +1,10 @@
-# Slice 11 – User feedback 1
+# Slice 12 – User feedback 1
 
 **Status:** 📝 draft (concept; detailed plan when the slice starts)
 
 ## Context
 
-These findings come from the user's first real test of Sito on their own photos (2026-10-27, with v0.7.x and the slice 9 debug build). Zooming in the viewer, also asked for in that test, is its own slice (12).
+These findings come from the user's first real test of Sito on their own photos (2026-10-27, with v0.7.x and the slice 9 debug build). Zooming in the viewer, also asked for in that test, is its own slice (13).
 
 ## Items
 

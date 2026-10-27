@@ -11,7 +11,7 @@ use sito_core::timeline::{self, Timeline, TimelineProgress};
 use crate::thumbnails::Thumbnails;
 
 /// Largest size of the thumbnail cache, in bytes; older thumbnails are
-/// removed beyond it. Slice 14 turns it into a setting.
+/// removed beyond it. Slice 15 turns it into a setting.
 pub const THUMBNAIL_CACHE_LIMIT: u64 = 500 * 1024 * 1024;
 
 /// The photo cache, or `None` if it could not be opened; scans then read

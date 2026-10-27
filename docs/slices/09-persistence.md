@@ -45,7 +45,7 @@ Your decisions:
 ### Tauri (`src-tauri`)
 - **Setup:**
   - opens `photos.db` in `app_cache_dir()`; if it is unusable, it is deleted and recreated, since it is only a cache
-  - after each scan, cleans the thumbnail cache on a background thread (limit 500 MB, `const` for now; slice 14 makes the limit and the cache location settings)
+  - after each scan, cleans the thumbnail cache on a background thread (limit 500 MB, `const` for now; slice 15 makes the limit and the cache location settings)
 - **Stable scan across refresh:** `Scan::refresh(new_timeline)` keeps the scan id and the ids of photos that are still there, matched by path. It gives new photos fresh ids and drops vanished ones. Thumbnail URLs and the UI's references therefore stay valid, with no grey flashes.
 - **`open_folder(path)` command,** used for the start and for picking a folder:
   1. If the cache knows photos under `path`, it sets the scan from `cached_timeline` and returns the summary at once, with `refreshing: true`.

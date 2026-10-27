@@ -1,4 +1,4 @@
-# Slice 12 – Zoom in the viewer
+# Slice 13 – Zoom in the viewer
 
 **Status:** 📝 draft (concept; detailed plan when the slice starts)
 
