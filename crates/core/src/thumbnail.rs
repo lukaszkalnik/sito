@@ -1,14 +1,17 @@
 //! Small, upright JPEG previews of photos.
 
-use std::fs::File;
-use std::io::{BufReader, Cursor};
+use std::fs::{self, File};
+use std::io::{self, BufReader, Cursor};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::UNIX_EPOCH;
 
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
 use image::{DynamicImage, GrayImage, ImageError, ImageReader, RgbImage};
 
 use crate::metadata::Orientation;
+use crate::timeline::Photo;
 
 /// Default longest edge of a thumbnail in pixels: covers a 160×120 tile on a
 /// 2× display.
@@ -16,6 +19,100 @@ pub const DEFAULT_MAX_EDGE: u32 = 400;
 
 /// JPEG quality of thumbnails (1–100).
 const JPEG_QUALITY: u8 = 80;
+
+/// Part of every cache key. Bump it when thumbnails are rendered differently,
+/// so old cache files are no longer used.
+const FORMAT_VERSION: u32 = 1;
+
+/// Thumbnails stored on disk, keyed by photo path, size and modification
+/// time, so a changed photo gets a new thumbnail.
+#[derive(Debug, Clone)]
+pub struct ThumbnailCache {
+    dir: PathBuf,
+    max_edge: u32,
+}
+
+impl ThumbnailCache {
+    /// A cache in `dir` (created on first write) with [`DEFAULT_MAX_EDGE`].
+    #[must_use]
+    pub fn new(dir: impl Into<PathBuf>) -> Self {
+        Self {
+            dir: dir.into(),
+            max_edge: DEFAULT_MAX_EDGE,
+        }
+    }
+
+    /// Folder holding the cached thumbnails.
+    #[must_use]
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    /// Where the thumbnail of `photo` is (or will be) stored. Files are spread
+    /// over 256 subfolders so none of them grows huge.
+    #[must_use]
+    pub fn path_for(&self, photo: &Photo) -> PathBuf {
+        let modified_nanos = photo
+            .modified
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |d| d.as_nanos());
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&FORMAT_VERSION.to_le_bytes());
+        hasher.update(&self.max_edge.to_le_bytes());
+        hasher.update(&photo.size.to_le_bytes());
+        hasher.update(&modified_nanos.to_le_bytes());
+        hasher.update(photo.path.as_os_str().as_encoded_bytes());
+        let hex = hasher.finalize().to_hex();
+        self.dir.join(&hex[..2]).join(format!("{hex}.jpg"))
+    }
+
+    /// Returns the cached thumbnail of `photo`, rendering and storing it first
+    /// if needed. Safe to call from several threads for the same photo.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ThumbnailError`] if the cached file cannot be read or the
+    /// photo cannot be rendered. Failing to store a new thumbnail is not an
+    /// error: it is returned anyway and rendered again next time.
+    pub fn get_or_create(&self, photo: &Photo) -> Result<Vec<u8>, ThumbnailError> {
+        let path = self.path_for(photo);
+        match fs::read(&path) {
+            Ok(bytes) => return Ok(bytes),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(source) => return Err(ThumbnailError::Io { path, source }),
+        }
+
+        let bytes = render_thumbnail(&photo.path, photo.orientation, self.max_edge)?;
+        // Best effort, see above: a full disk must not hide the thumbnail.
+        let _ = store_atomically(&path, &bytes);
+        Ok(bytes)
+    }
+}
+
+/// Writes `bytes` to a temporary file next to `path` and renames it into
+/// place, so readers never see a half-written thumbnail.
+fn store_atomically(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
+
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let temp = path.with_extension(format!(
+        "{}-{}.tmp",
+        std::process::id(),
+        NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::write(&temp, bytes)?;
+    if let Err(err) = fs::rename(&temp, path) {
+        let _ = fs::remove_file(&temp);
+        // Another thread may have stored the same thumbnail first (on Windows
+        // replacing a file that is being read fails); that is fine.
+        if !path.exists() {
+            return Err(err);
+        }
+    }
+    Ok(())
+}
 
 /// Why a thumbnail could not be made.
 #[derive(Debug, thiserror::Error)]
