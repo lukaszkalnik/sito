@@ -1,5 +1,6 @@
 //! All photos of a folder tree, with capture times, sorted newest first.
 
+use std::cmp::Ordering;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -60,6 +61,46 @@ impl Timeline {
             .filter(|p| p.time_source == TimeSource::FileModified)
             .count()
     }
+
+    /// Takes the photo at `path` off the timeline; returns its former position
+    /// and the photo, or `None` if it is not on the timeline.
+    pub fn remove(&mut self, path: &Path) -> Option<(usize, Photo)> {
+        let position = self.photos.iter().position(|photo| photo.path == path)?;
+        Some((position, self.photos.remove(position)))
+    }
+
+    /// Puts `photo` on the timeline at its place in the timeline order and
+    /// returns its position.
+    pub fn insert(&mut self, photo: Photo) -> usize {
+        let position = self
+            .photos
+            .partition_point(|other| compare_photos(other, &photo) == Ordering::Less);
+        self.photos.insert(position, photo);
+        position
+    }
+}
+
+/// Order of photos on a timeline: newest first, ties broken by path.
+#[must_use]
+pub fn compare_photos(a: &Photo, b: &Photo) -> Ordering {
+    b.taken_at
+        .cmp(&a.taken_at)
+        .then_with(|| a.path.cmp(&b.path))
+}
+
+/// Reads one photo as it would appear on a timeline, e.g. one moved back
+/// from the rejected folder.
+///
+/// # Errors
+///
+/// Returns an error if the file cannot be inspected.
+pub fn read_photo(path: &Path) -> std::io::Result<Photo> {
+    let meta = std::fs::metadata(path)?;
+    Ok(to_photo(&FoundFile {
+        path: path.to_path_buf(),
+        size: meta.len(),
+        modified: meta.modified().ok(),
+    }))
 }
 
 /// Progress while building a timeline.
@@ -107,11 +148,7 @@ pub fn build_timeline(
         });
     }
 
-    photos.sort_by(|a, b| {
-        b.taken_at
-            .cmp(&a.taken_at)
-            .then_with(|| a.path.cmp(&b.path))
-    });
+    photos.sort_by(compare_photos);
 
     Ok(Timeline {
         root: root.to_path_buf(),

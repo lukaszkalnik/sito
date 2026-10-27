@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone};
-use sito_core::timeline::{TimeSource, TimelineProgress, build_timeline};
+use sito_core::timeline::{TimeSource, TimelineProgress, build_timeline, read_photo};
 use tempfile::TempDir;
 
 fn fixtures() -> PathBuf {
@@ -201,4 +201,34 @@ fn handles_thousands_of_photos_quickly() {
         "took {:?}",
         start.elapsed()
     );
+}
+
+#[test]
+fn removes_and_reinserts_photos_in_timeline_order() {
+    let dir = gallery();
+    let mut timeline = build_timeline(dir.path(), |_| {}).unwrap();
+    let original = timeline.clone();
+
+    for position in [0, original.photos.len() / 2, original.photos.len() - 1] {
+        let path = original.photos[position].path.clone();
+
+        let (removed_at, photo) = timeline.remove(&path).unwrap();
+        assert_eq!(removed_at, position);
+        assert_eq!(timeline.photos.len(), original.photos.len() - 1);
+        assert!(timeline.remove(&path).is_none());
+
+        assert_eq!(timeline.insert(photo), position);
+        assert_eq!(timeline, original);
+    }
+}
+
+#[test]
+fn reads_a_single_photo_like_the_timeline_does() {
+    let dir = gallery();
+    let timeline = build_timeline(dir.path(), |_| {}).unwrap();
+
+    for photo in &timeline.photos {
+        assert_eq!(&read_photo(&photo.path).unwrap(), photo);
+    }
+    assert!(read_photo(&dir.path().join("missing.jpg")).is_err());
 }
