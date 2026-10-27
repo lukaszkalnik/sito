@@ -30,6 +30,10 @@ fn gallery() -> TempDir {
         "WhatsApp/Private/.nomedia",
         "WhatsApp/Private/IMG_0006.jpg",
         "WhatsApp/Private/nested/IMG_0007.jpg",
+        // Skipped: rejected photos, in any letter case and at any depth.
+        "Odrzucone/IMG_0008.jpg",
+        "Camera/2024/odrzucone/IMG_0009.jpg",
+        "Camera/ODRZUCONE/deeper/IMG_0010.jpg",
     ] {
         touch(root, file);
     }
@@ -37,7 +41,7 @@ fn gallery() -> TempDir {
 }
 
 #[test]
-fn finds_jpegs_and_skips_hidden_and_nomedia_folders() {
+fn finds_jpegs_and_skips_hidden_nomedia_and_rejected_folders() {
     let dir = gallery();
 
     let result = find_photos(dir.path(), |_| {}).unwrap();
@@ -139,4 +143,14 @@ fn file_root_is_not_a_directory() {
     let err = find_photos(&dir.path().join("IMG_0001.jpg"), |_| {}).unwrap_err();
 
     assert!(matches!(err, ScanError::NotADirectory(_)), "got {err:?}");
+}
+
+#[test]
+fn rejected_root_is_still_searched() {
+    let dir = TempDir::new().unwrap();
+    touch(dir.path(), "Odrzucone/IMG_0001.jpg");
+
+    let result = find_photos(&dir.path().join("Odrzucone"), |_| {}).unwrap();
+
+    assert_eq!(result.photos.len(), 1);
 }

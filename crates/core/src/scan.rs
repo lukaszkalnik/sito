@@ -8,6 +8,10 @@ use walkdir::{DirEntry, WalkDir};
 /// File name that marks an Android folder as "not gallery media".
 const NOMEDIA_MARKER: &str = ".nomedia";
 
+/// Name of the folder rejected photos are moved into, next to where they were.
+/// Scans skip it (in any letter case), so rejected photos leave the timeline.
+pub const REJECTED_DIR: &str = "Odrzucone";
+
 /// Number of walked entries between two progress reports.
 const PROGRESS_INTERVAL: u64 = 500;
 
@@ -72,8 +76,9 @@ pub fn is_photo(path: &Path) -> bool {
 
 /// Recursively finds the photos under `root`.
 ///
-/// Hidden folders (name starting with `.`) and folders containing a `.nomedia`
-/// file are skipped. Symbolic links are not followed. Entries that cannot be
+/// Hidden folders (name starting with `.`), folders containing a `.nomedia`
+/// file and [`REJECTED_DIR`] folders are skipped. Symbolic links are not
+/// followed. Entries that cannot be
 /// read are counted in [`SearchResult::unreadable_entries`] and do not abort
 /// the search.
 ///
@@ -135,7 +140,15 @@ fn check_root(root: &Path) -> Result<(), ScanError> {
 }
 
 fn is_skipped_dir(entry: &DirEntry) -> bool {
-    entry.file_type().is_dir() && (is_hidden(entry) || entry.path().join(NOMEDIA_MARKER).exists())
+    entry.file_type().is_dir()
+        && (is_hidden(entry) || is_rejected(entry) || entry.path().join(NOMEDIA_MARKER).exists())
+}
+
+fn is_rejected(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .is_some_and(|name| name.eq_ignore_ascii_case(REJECTED_DIR))
 }
 
 fn is_hidden(entry: &DirEntry) -> bool {
