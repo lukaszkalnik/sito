@@ -42,6 +42,11 @@ impl Thumbnails {
             pool,
         })
     }
+
+    /// The thumbnail cache on disk.
+    pub fn cache(&self) -> &ThumbnailCache {
+        &self.cache
+    }
 }
 
 /// Handles one `thumb://` request; the response is sent from a worker thread.

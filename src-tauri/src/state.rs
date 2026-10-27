@@ -24,6 +24,9 @@ pub struct Scan {
     /// Photos removed from this scan, by path, with their id, so restoring
     /// one brings it back with the same id.
     removed: HashMap<PathBuf, (usize, Photo)>,
+    /// Ids of removed photos once a refresh found them in the rejected folder
+    /// (and so no longer needs them in `removed`), for restoring them.
+    removed_ids: HashMap<PathBuf, usize>,
 }
 
 impl Scan {
@@ -35,7 +38,36 @@ impl Scan {
             ids: (0..count).collect(),
             next_id: count,
             removed: HashMap::new(),
+            removed_ids: HashMap::new(),
         }
+    }
+
+    /// Replaces the timeline with a newer scan of the same folder, keeping
+    /// the scan id and the ids of photos that are still there (by path), so
+    /// thumbnail URLs and the UI's references stay valid. New photos get new
+    /// ids; photos that are gone are dropped.
+    pub fn refresh(&mut self, timeline: Timeline) {
+        let mut old: HashMap<PathBuf, usize> = self
+            .photos()
+            .map(|(id, photo)| (photo.path.clone(), id))
+            .collect();
+        // Rejected photos are now in the new timeline's rejected list.
+        for (path, (id, _)) in self.removed.drain() {
+            self.removed_ids.insert(path, id);
+        }
+        let mut ids = Vec::with_capacity(timeline.photos.len());
+        for photo in &timeline.photos {
+            let id = old
+                .remove(&photo.path)
+                .or_else(|| self.removed_ids.remove(&photo.path))
+                .unwrap_or_else(|| {
+                    self.next_id += 1;
+                    self.next_id - 1
+                });
+            ids.push(id);
+        }
+        self.ids = ids;
+        self.timeline = timeline;
     }
 
     /// The photos with their ids, in timeline order.
@@ -102,8 +134,10 @@ impl Scan {
                 .rejected
                 .retain(|photo| photo.path != rejected_path);
             let photo = read(path)?;
-            let id = self.next_id;
-            self.next_id += 1;
+            let id = self.removed_ids.remove(path).unwrap_or_else(|| {
+                self.next_id += 1;
+                self.next_id - 1
+            });
             (id, photo)
         };
         let position = self.timeline.insert(photo);
@@ -137,6 +171,19 @@ impl AppState {
             .map_or(now, |previous| now.max(previous.id + 1));
         *scan = Some(Scan::new(id, timeline));
         id
+    }
+
+    /// Refreshes scan `scan_id` with a newer `timeline` of its folder (see
+    /// [`Scan::refresh`]). Returns `false`, changing nothing, if another scan
+    /// has replaced it in the meantime.
+    pub fn refresh(&self, scan_id: u64, timeline: Timeline) -> bool {
+        match self.scan().as_mut() {
+            Some(scan) if scan.id == scan_id => {
+                scan.refresh(timeline);
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Photo `id` of scan `scan_id`, or `None` if that scan is no longer
@@ -316,5 +363,59 @@ mod tests {
             .collect();
         assert_eq!(paths, ["a.jpg", "b.jpg", "Odrzucone/c.jpg", "d.jpg"]);
         assert_eq!(removed, [false, true, true, false]);
+    }
+
+    #[test]
+    fn a_refresh_keeps_ids_of_photos_still_there_and_numbers_new_ones() {
+        let mut scan = Scan::new(7, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+
+        // b.jpg is gone; d.jpg is new and the oldest.
+        let mut newer = timeline(&["a.jpg", "c.jpg"]);
+        newer.photos.push(photo("d.jpg", 9));
+        scan.refresh(newer);
+
+        assert_eq!(scan.id, 7);
+        assert_eq!(
+            names(&scan),
+            [
+                (0, "a.jpg".into()),
+                (2, "c.jpg".into()),
+                (3, "d.jpg".into())
+            ]
+        );
+        assert!(scan.photo(1).is_none());
+    }
+
+    #[test]
+    fn a_photo_rejected_before_a_refresh_is_restored_with_its_id() {
+        let mut scan = Scan::new(7, timeline(&["a.jpg", "b.jpg"]));
+        scan.remove(1);
+        // The refresh finds b.jpg in the rejected folder.
+        let mut newer = timeline(&["a.jpg"]);
+        newer.rejected = vec![photo("Odrzucone/b.jpg", 1)];
+        scan.refresh(newer);
+        let (all, _) = scan.photos_with_removed();
+        assert_eq!(all.len(), 2, "no duplicate of the rejected photo");
+
+        let id = scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| {
+            Some(photo("b.jpg", 1))
+        });
+
+        assert_eq!(id, Some(1));
+        assert_eq!(scan.timeline.rejected, Vec::new());
+    }
+
+    #[test]
+    fn a_refresh_of_a_replaced_scan_changes_nothing() {
+        let state = AppState::default();
+        let old = state.set_timeline(timeline(&["a.jpg"]));
+        let current = state.set_timeline(timeline(&["b.jpg"]));
+
+        assert!(!state.refresh(old, timeline(&["c.jpg"])));
+        assert!(state.refresh(current, timeline(&["b.jpg", "d.jpg"])));
+        assert_eq!(
+            state.photo(current, 1).map(|p| p.path),
+            Some(PathBuf::from("d.jpg"))
+        );
     }
 }

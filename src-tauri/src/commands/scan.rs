@@ -4,11 +4,14 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sito_core::scan::ScanError;
-use sito_core::timeline::{self, Photo, TimeSource, Timeline, TimelineProgress};
-use tauri::State;
+use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
+use tauri::{AppHandle, Emitter, Manager, State};
 
+use super::reject::TIMELINE_CHANGED;
+use crate::photo_cache::PhotoCacheState;
 use crate::state::AppState;
+use crate::thumbnails::Thumbnails;
 
 /// Progress update sent to the UI while a scan is running.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,6 +53,9 @@ pub struct ScanSummaryDto {
     photos_found: usize,
     unreadable_entries: u64,
     without_exif_date: usize,
+    /// Shown from the photo cache; a background rescan is running and ends
+    /// with a `scan-refreshed` event.
+    refreshing: bool,
 }
 
 impl ScanSummaryDto {
@@ -59,6 +65,7 @@ impl ScanSummaryDto {
             photos_found: t.photos.len(),
             unreadable_entries: t.unreadable_entries,
             without_exif_date: t.without_exif_date(),
+            refreshing: false,
         }
     }
 }
@@ -132,18 +139,36 @@ impl From<ScanError> for CommandError {
     }
 }
 
-/// Builds the timeline of `path`, sending progress through `on_progress`, and
-/// keeps it for [`get_timeline`].
+/// Event with the [`ScanSummaryDto`] of a finished background refresh.
+pub const SCAN_REFRESHED: &str = "scan-refreshed";
+
+/// Opens the folder `path` and keeps its timeline for [`get_timeline`].
 ///
-/// The scan runs on a blocking thread so the UI stays responsive.
+/// A folder scanned before is shown at once from the photo cache; it is then
+/// rescanned in the background (the summary says `refreshing`), and the
+/// result replaces the timeline with [`TIMELINE_CHANGED`] and
+/// [`SCAN_REFRESHED`]. Otherwise the folder is scanned now, sending progress
+/// through `on_progress`. Either way only new or changed photos are read.
 #[tauri::command]
 pub async fn start_scan(
     path: PathBuf,
     on_progress: Channel<ScanProgressDto>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, CommandError> {
+    if path.is_dir()
+        && let Some(cached) = app.state::<PhotoCacheState>().cached_timeline(&path)
+    {
+        let mut summary = ScanSummaryDto::new(0, &cached);
+        summary.scan_id = state.set_timeline(cached);
+        summary.refreshing = true;
+        refresh_in_background(app, path, summary.scan_id);
+        return Ok(summary);
+    }
+
+    let scanner = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        timeline::build_timeline(&path, |progress| {
+        scanner.state::<PhotoCacheState>().scan(&path, |progress| {
             // A closed channel only means the UI stopped listening.
             let _ = on_progress.send(progress.into());
         })
@@ -154,6 +179,7 @@ pub async fn start_scan(
         Ok(Ok(timeline)) => {
             let mut summary = ScanSummaryDto::new(0, &timeline);
             summary.scan_id = state.set_timeline(timeline);
+            clean_thumbnails_in_background(app);
             Ok(summary)
         }
         Ok(Err(err)) => {
@@ -165,6 +191,50 @@ pub async fn start_scan(
             Err(CommandError::Internal)
         }
     }
+}
+
+/// Rescans `path` (shown from the cache as scan `scan_id`) and swaps the
+/// result in, keeping photo ids.
+fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64) {
+    tauri::async_runtime::spawn_blocking(move || {
+        let summary = match app.state::<PhotoCacheState>().scan(&path, |_| {}) {
+            Ok(timeline) => {
+                let summary = ScanSummaryDto::new(scan_id, &timeline);
+                if !app.state::<AppState>().refresh(scan_id, timeline) {
+                    // Another folder was opened meanwhile.
+                    return;
+                }
+                if let Err(err) = app.emit(TIMELINE_CHANGED, ()) {
+                    log::warn!("cannot announce the refreshed timeline: {err}");
+                }
+                summary
+            }
+            Err(err) => {
+                // The cached view stays; it may be out of date.
+                log::warn!("background rescan of {} failed: {err}", path.display());
+                let state = app.state::<AppState>();
+                let scan = state.scan();
+                match scan.as_ref() {
+                    Some(scan) if scan.id == scan_id => {
+                        ScanSummaryDto::new(scan_id, &scan.timeline)
+                    }
+                    _ => return,
+                }
+            }
+        };
+        if let Err(err) = app.emit(SCAN_REFRESHED, summary) {
+            log::warn!("cannot announce the refreshed summary: {err}");
+        }
+        app.state::<PhotoCacheState>()
+            .clean_thumbnails(&app.state::<Thumbnails>());
+    });
+}
+
+fn clean_thumbnails_in_background(app: AppHandle) {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<PhotoCacheState>()
+            .clean_thumbnails(&app.state::<Thumbnails>());
+    });
 }
 
 /// Returns the timeline of the last finished scan (empty if none).
@@ -274,7 +344,7 @@ mod tests {
 
         assert_eq!(
             serde_json::to_value(ScanSummaryDto::new(7, &timeline)).unwrap(),
-            json!({ "scanId": 7, "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1 })
+            json!({ "scanId": 7, "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1, "refreshing": false })
         );
     }
 

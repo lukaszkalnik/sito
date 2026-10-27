@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod commands;
+mod photo_cache;
 mod photos;
 mod state;
 mod thumbnails;
@@ -45,13 +46,19 @@ pub fn run() -> tauri::Result<()> {
                 )?;
             }
             let cache_dir = match app.path().app_cache_dir() {
-                Ok(dir) => dir.join("thumbnails"),
+                Ok(dir) => dir,
                 Err(err) => {
                     log::warn!("no app cache folder ({err}); using the temp folder");
-                    std::env::temp_dir().join("sito-thumbnails")
+                    std::env::temp_dir().join("sito")
                 }
             };
-            app.manage(thumbnails::Thumbnails::new(cache_dir)?);
+            app.manage(thumbnails::Thumbnails::new(cache_dir.join("thumbnails"))?);
+            if let Err(err) = std::fs::create_dir_all(&cache_dir) {
+                log::warn!("cannot create {}: {err}", cache_dir.display());
+            }
+            app.manage(photo_cache::PhotoCacheState::open(
+                &photo_cache::cache_file(&cache_dir),
+            ));
             app.manage(commands::reject::Actions::new(open_action_log(
                 app.handle(),
             )));
