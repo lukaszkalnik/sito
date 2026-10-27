@@ -3078,6 +3078,7 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "log",
+ "rayon",
  "serde",
  "serde_json",
  "sito-core",

@@ -45,14 +45,17 @@ impl From<TimelineProgress> for ScanProgressDto {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanSummaryDto {
+    /// Identifies this scan; part of thumbnail URLs.
+    scan_id: u64,
     photos_found: usize,
     unreadable_entries: u64,
     without_exif_date: usize,
 }
 
-impl From<&Timeline> for ScanSummaryDto {
-    fn from(t: &Timeline) -> Self {
+impl ScanSummaryDto {
+    fn new(scan_id: u64, t: &Timeline) -> Self {
         Self {
+            scan_id,
             photos_found: t.photos.len(),
             unreadable_entries: t.unreadable_entries,
             without_exif_date: t.without_exif_date(),
@@ -144,8 +147,8 @@ pub async fn start_scan(
 
     match result {
         Ok(Ok(timeline)) => {
-            let summary = ScanSummaryDto::from(&timeline);
-            state.set_timeline(timeline);
+            let mut summary = ScanSummaryDto::new(0, &timeline);
+            summary.scan_id = state.set_timeline(timeline);
             Ok(summary)
         }
         Ok(Err(err)) => {
@@ -164,7 +167,8 @@ pub async fn start_scan(
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
 pub fn get_timeline(state: State<'_, AppState>) -> Vec<TimelineEntryDto> {
-    state.timeline().as_ref().map_or_else(Vec::new, |t| {
+    state.scan().as_ref().map_or_else(Vec::new, |scan| {
+        let t = &scan.timeline;
         t.photos
             .iter()
             .enumerate()
@@ -266,8 +270,8 @@ mod tests {
         };
 
         assert_eq!(
-            serde_json::to_value(ScanSummaryDto::from(&timeline)).unwrap(),
-            json!({ "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1 })
+            serde_json::to_value(ScanSummaryDto::new(7, &timeline)).unwrap(),
+            json!({ "scanId": 7, "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1 })
         );
     }
 
