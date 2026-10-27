@@ -67,7 +67,7 @@ Click a thumbnail to open the photo full size in a separate, resizable window (r
 *Try:* open a photo from a series, click through the strip, step past the end of the series.
 
 ### 🧪 8. Reject into "Odrzucone" with undo
-A reject button (and the Delete key) in the viewer moves the photo at once into an `Odrzucone` subfolder of its own folder and shows the next one. Scans skip `Odrzucone` folders by default, so rejected photos disappear from the timeline. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) moves the last rejected photos back. Plan: [slices/08-reject-with-undo.md](slices/08-reject-with-undo.md)
+A reject button (and the Delete key) in the viewer moves the photo at once into an `Odrzucone` subfolder of its own folder and shows the next one of its series. Photos in `Odrzucone` folders are hidden but still shape the series, so a series sorted down to one photo stays a series; short series are packed side by side. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) moves the last rejected photos back. Plan: [slices/08-reject-with-undo.md](slices/08-reject-with-undo.md)
 
 *Try:* reject a few photos from a test folder, check the `Odrzucone` subfolders, rescan (they stay hidden), undo, verify the files are back.
 

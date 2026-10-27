@@ -1,6 +1,6 @@
 # Slice 8 – Reject into "Odrzucone" with undo
 
-**Status:** 🧪 ready for testing (v0.7.0)
+**Status:** 🧪 ready for testing (v0.7.2)
 
 ## Context
 
@@ -108,3 +108,4 @@ Your decisions:
 ## Follow-up after testing v0.7.0
 - Rejecting the second photo of a 2-photo series dissolved the series: the kept photo left "Serie" (it was now a single) and the viewer jumped to the next series. Now series keep their shape: they are found on the scan's photos including those rejected in this session, and a series stays one while any of its photos is left (`series::without_removed`). After "Odrzuć" the viewer stays in the series: next photo of it, else the previous one (`afterReject`).
 - A series reduced to one photo now never dissolves (your decision): scans read photos in `Odrzucone` folders into a separate list (`Timeline::rejected`), and series are found including them, so the shape survives rescans and restarts.
+- Short series are packed side by side as tinted blocks with compact headers, so a 1-photo series no longer takes a whole row; toasts moved to the top of the window. The Tauri reject and undo logic is tested end to end on copies of the fixture photos.
