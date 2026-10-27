@@ -4,6 +4,8 @@ Work is split into vertical slices. Each slice goes through all layers (core →
 
 Every concept lives in the repo, also unfinished ones: as soon as a slice has more than a one-line description, its draft goes into `docs/slices/NN-name.md` (status 📝 draft), and ideas into `docs/ideas/`. The roadmap then keeps only a one-line summary and the link; details are never duplicated here. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
 
+**Numbers are IDs, not order.** A slice keeps its number forever, like a ticket; a new slice gets the next free number. The order of the table (and of the sections below) is the order of work: the first slice not done is next. Refer to other slices by number and link.
+
 **Status:** ⬜ not started · 📝 concept drafted or planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
 
 **Scale:** galleries have 10,000+ photos per folder. Every slice must stay responsive at that size (no blocking the UI, no rendering or loading everything at once).
