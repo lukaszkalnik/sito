@@ -1,6 +1,6 @@
 # Slice 8 – Reject into "Odrzucone" with undo
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (v0.7.0)
 
 ## Context
 
