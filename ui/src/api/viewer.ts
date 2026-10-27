@@ -26,6 +26,20 @@ const VIEWER_LABEL = 'viewer';
 const SHOW_EVENT = 'viewer-show';
 const CONTEXT_EVENT = 'viewer-context';
 
+/**
+ * Whether this page runs in the viewer window: by its window label, or by the
+ * `?window=viewer` query the window is opened with.
+ */
+export function isViewerWindow(): boolean {
+  if (new URLSearchParams(window.location.search).get('window') === VIEWER_LABEL) return true;
+  try {
+    return getCurrentWindow().label === VIEWER_LABEL;
+  } catch {
+    // Outside Tauri (e.g. tests) there is no window label.
+    return false;
+  }
+}
+
 /** Shows a photo in the viewer window, opening the window if needed. */
 export async function openViewer(request: ViewerRequest): Promise<void> {
   await invoke('open_viewer', { request });
