@@ -63,6 +63,21 @@
     "next": "Następne zdjęcie",
     "close": "Zamknij",
     "series": "Zdjęcia w serii",
-    "loadError": "Nie udało się wczytać zdjęcia."
+    "loadError": "Nie udało się wczytać zdjęcia.",
+    "empty": "Brak zdjęć do pokazania."
+  },
+  "reject": {
+    "button": "Odrzuć",
+    "hint": "Przenieś zdjęcie do podfolderu „Odrzucone” (Delete)",
+    "done": "{{name}} → Odrzucone",
+    "failed": "Nie udało się odrzucić zdjęcia."
+  },
+  "undo": {
+    "button": "Cofnij",
+    "hint": "Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)",
+    "done": "Przywrócono {{name}}",
+    "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
+    "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
+    "failed": "Nie udało się cofnąć odrzucenia."
   }
 }

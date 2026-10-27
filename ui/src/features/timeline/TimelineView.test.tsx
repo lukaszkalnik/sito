@@ -13,6 +13,12 @@ vi.mock('../../api/scan', async (importActual) => ({
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
+vi.mock('../../api/reject', async (importActual) => ({
+  ...(await importActual<typeof import('../../api/reject')>()),
+  canUndo: vi.fn(() => Promise.resolve(false)),
+  undoReject: vi.fn(),
+  onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
+}));
 vi.mock('../../api/viewer', () => ({
   openViewer: vi.fn(() => Promise.resolve()),
   sendViewerContext: vi.fn(() => Promise.resolve()),

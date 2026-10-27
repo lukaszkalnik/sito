@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { onTimelineChanged } from '../../api/reject';
 import { getSeries, getTimeline, type Series } from '../../api/scan';
 import { useTimelineEntries } from './useTimelineEntries';
 
@@ -9,9 +10,12 @@ vi.mock('../../api/scan', async (importActual) => ({
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
+vi.mock('../../api/reject', () => ({ onTimelineChanged: vi.fn() }));
 
 const mockedTimeline = vi.mocked(getTimeline);
 const mockedSeries = vi.mocked(getSeries);
+/** Announces `timeline-changed` to the hook, like the backend after a rejection. */
+let announceChange: () => void = () => {};
 
 /** A promise with its resolve function, to answer requests in any order. */
 function deferred<T>() {
@@ -26,6 +30,24 @@ describe('useTimelineEntries', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockedTimeline.mockResolvedValue([]);
+    vi.mocked(onTimelineChanged).mockImplementation((handler) => {
+      announceChange = handler;
+      return Promise.resolve(() => {});
+    });
+  });
+
+  it('reloads timeline and series when photos are rejected or restored', async () => {
+    mockedSeries.mockResolvedValue([]);
+    const scan = {};
+    const { result } = renderHook(() => useTimelineEntries(scan, 10));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(mockedTimeline).toHaveBeenCalledTimes(1);
+
+    mockedSeries.mockResolvedValue([{ start: 0, len: 2 }]);
+    act(() => announceChange());
+
+    await waitFor(() => expect(result.current).toMatchObject({ series: [{ start: 0, len: 2 }] }));
+    expect(mockedTimeline).toHaveBeenCalledTimes(2);
   });
 
   it('keeps the previous series while new ones load and drops stale answers', async () => {

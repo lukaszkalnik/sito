@@ -21,6 +21,12 @@ vi.mock('../../api/scan', async (importActual) => ({
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
+vi.mock('../../api/reject', async (importActual) => ({
+  ...(await importActual<typeof import('../../api/reject')>()),
+  canUndo: vi.fn(() => Promise.resolve(false)),
+  undoReject: vi.fn(),
+  onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
+}));
 vi.mock('../../api/viewer', () => ({
   openViewer: vi.fn(() => Promise.resolve()),
   sendViewerContext: vi.fn(() => Promise.resolve()),
@@ -59,6 +65,14 @@ const entries: TimelineEntry[] = [
   },
 ];
 
+/**
+ * A timeline of `count` photos (repeating `entries`); the status line counts
+ * the loaded timeline, since rejected photos leave it.
+ */
+function timelineOf(count: number): TimelineEntry[] {
+  return Array.from({ length: count }, (_, id) => ({ ...(entries[id % 2] as TimelineEntry), id }));
+}
+
 describe('ScanScreen', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -78,6 +92,7 @@ describe('ScanScreen', () => {
     [12345, 'Znaleziono 12 345 zdjęć.'],
   ])('shows the timeline with the count for %i photos', async (count, text) => {
     mockedScan.mockResolvedValue(summary(count));
+    mockedTimeline.mockResolvedValue(timelineOf(count));
     render(<ScanScreen />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }));
@@ -91,6 +106,7 @@ describe('ScanScreen', () => {
 
   it('mentions photos without EXIF date and unreadable entries', async () => {
     mockedScan.mockResolvedValue(summary(3, { withoutExif: 2, unreadable: 5 }));
+    mockedTimeline.mockResolvedValue(timelineOf(3));
     render(<ScanScreen />);
 
     await userEvent.click(screen.getByRole('button'));

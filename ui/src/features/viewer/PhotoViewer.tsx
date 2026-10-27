@@ -18,6 +18,11 @@ interface PhotoViewerProps {
   position: number;
   onShow: (position: number) => void;
   onClose: () => void;
+  /** Moves the shown photo into the "Odrzucone" folder. */
+  onReject: () => void;
+  /** Whether "Cofnij" has a rejection to undo. */
+  canUndo: boolean;
+  onUndo: () => void;
 }
 
 /**
@@ -60,6 +65,9 @@ export function PhotoViewer({
   position,
   onShow,
   onClose,
+  onReject,
+  canUndo,
+  onUndo,
 }: PhotoViewerProps) {
   const { t } = useTranslation();
   const entry = entries[position];
@@ -79,12 +87,13 @@ export function PhotoViewer({
       if (event.key === 'ArrowLeft' && previous !== null) onShow(previous);
       else if (event.key === 'ArrowRight' && next !== null) onShow(next);
       else if (event.key === 'Escape') onClose();
+      else if (event.key === 'Delete') onReject();
       else return;
       event.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [previous, next, onShow, onClose]);
+  }, [previous, next, onShow, onClose, onReject]);
 
   // Fetch the neighbours ahead of time, so stepping to them is instant.
   useEffect(() => {
@@ -106,6 +115,18 @@ export function PhotoViewer({
           </span>
           <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
         </p>
+        <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
+          {t('reject.button')}
+        </button>
+        <button
+          type="button"
+          className="viewer-close"
+          title={t('undo.hint')}
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          {t('undo.button')}
+        </button>
         <button type="button" className="viewer-close" onClick={onClose}>
           {t('viewer.close')}
         </button>

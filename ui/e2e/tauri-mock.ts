@@ -41,6 +41,8 @@ export interface TauriMock {
   series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
   /** Request returned by `take_viewer_request` in the viewer window. Default: none. */
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
+  /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
+  rejected?: number[];
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -64,7 +66,26 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
       `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
+    // Ids of rejected photos, newest last; undo pops them.
+    const rejected: number[] = [...(m.rejected ?? [])];
+    // Event name → callback ids registered with `listen`.
+    const listeners = new Map<string, number[]>();
+    const emit = (event: string) =>
+      (listeners.get(event) ?? []).forEach((handler) =>
+        callbacks.get(handler)?.({ event, id: 0, payload: null }),
+      );
+
+    /** The timeline as the backend returns it: without rejected photos. */
     function timeline(): unknown[] {
+      return allPhotos().filter((photo) => !rejected.includes((photo as { id: number }).id));
+    }
+
+    function nameOf(id: number): string {
+      const photo = allPhotos().find((p) => (p as { id: number }).id === id) as { name: string };
+      return photo.name;
+    }
+
+    function allPhotos(): unknown[] {
       const t = m.timeline;
       if (!t) return [];
       if ('entries' in t) return t.entries;
@@ -157,8 +178,25 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'take_viewer_request':
             return m.viewerRequest ?? null;
           // Events and window calls have no effect in a plain browser.
-          case 'plugin:event|listen':
+          case 'plugin:event|listen': {
+            const event = args.event as string;
+            listeners.set(event, [...(listeners.get(event) ?? []), args.handler as number]);
             return nextId++;
+          }
+          case 'reject_photo': {
+            const id = args.id as number;
+            rejected.push(id);
+            emit('timeline-changed');
+            return { name: nameOf(id) };
+          }
+          case 'undo_reject': {
+            const id = rejected.pop();
+            if (id === undefined) return null;
+            emit('timeline-changed');
+            return { id, name: nameOf(id) };
+          }
+          case 'get_undo_state':
+            return { canUndo: rejected.length > 0 };
           case 'plugin:event|unlisten':
           case 'plugin:event|emit_to':
           case 'plugin:window|set_title':

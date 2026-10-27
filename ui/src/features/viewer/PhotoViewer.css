@@ -49,6 +49,21 @@
   font-size: 0.85rem;
 }
 
+.viewer-reject {
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #c0392b;
+  border-radius: 6px;
+  background: #1c1c1c;
+  color: #ff8a80;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.viewer-reject:hover {
+  background: #3a1512;
+}
+
 .viewer-stage {
   flex: 1;
   min-height: 0;
@@ -127,4 +142,14 @@
 
 .viewer-strip-item--current {
   border-color: var(--accent);
+}
+
+.viewer--empty {
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.viewer--empty .viewer-error {
+  position: static;
 }

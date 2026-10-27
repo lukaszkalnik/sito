@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -26,9 +26,11 @@ const entries: TimelineEntry[] = Array.from({ length: 6 }, (_, id) => ({
 // Series at positions 1–3; 0, 4 and 5 are single photos.
 const series: Series[] = [{ start: 1, len: 3 }];
 
-function renderViewer(position: number, mode: 'series' | 'all' = 'all') {
+function renderViewer(position: number, mode: 'series' | 'all' = 'all', canUndo = false) {
   const onShow = vi.fn();
   const onClose = vi.fn();
+  const onReject = vi.fn();
+  const onUndo = vi.fn();
   render(
     <PhotoViewer
       entries={entries}
@@ -38,9 +40,12 @@ function renderViewer(position: number, mode: 'series' | 'all' = 'all') {
       position={position}
       onShow={onShow}
       onClose={onClose}
+      onReject={onReject}
+      canUndo={canUndo}
+      onUndo={onUndo}
     />,
   );
-  return { onShow, onClose };
+  return { onShow, onClose, onReject, onUndo };
 }
 
 describe('PhotoViewer', () => {
@@ -130,6 +135,26 @@ describe('PhotoViewer', () => {
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(screen.getByText('folder główny')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Poprzednie zdjęcie' })).toBeDisabled();
+  });
+
+  it('rejects the photo with the button and the Delete key', async () => {
+    const { onReject } = renderViewer(2);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+    await userEvent.keyboard('{Delete}');
+
+    expect(onReject).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers Cofnij only when there is something to undo', async () => {
+    renderViewer(2);
+    expect(screen.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
+    cleanup();
+
+    const { onUndo } = renderViewer(2, 'all', true);
+    await userEvent.click(screen.getByRole('button', { name: 'Cofnij' }));
+
+    expect(onUndo).toHaveBeenCalledOnce();
   });
 
   it('closes with Escape and the close button', async () => {

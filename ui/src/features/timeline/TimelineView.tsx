@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import type { ScanSummary, Series } from '../../api/scan';
 import { openViewer, sendViewerContext } from '../../api/viewer';
+import { Toast } from '../reject/Toast';
+import { useUndo } from '../reject/useUndo';
 import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
 import type { TimelineMode } from './layout';
 import { TimelineGrid } from './TimelineGrid';
@@ -124,6 +126,10 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
     saveGap(path, seconds);
   };
 
+  const { canUndo, undo, toast } = useUndo();
+  // Rejected photos leave the timeline, so the count follows it once loaded.
+  const photos = timeline.status === 'ready' ? timeline.entries.length : summary.photosFound;
+
   return (
     <main className="timeline-view">
       <header className="timeline-bar">
@@ -133,7 +139,7 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
             {path}
           </p>
           <p role="status">
-            {t('scan.result', { photos: t('scan.photoCount', { count: summary.photosFound }) })}
+            {t('scan.result', { photos: t('scan.photoCount', { count: photos }) })}
             {timeline.status === 'ready' && <SeriesSummary series={timeline.series} />}
             {summary.withoutExifDate > 0 &&
               ` ${t('scan.withoutExifDate', { count: summary.withoutExifDate })}`}
@@ -143,6 +149,14 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
         </div>
         <GapSlider gap={gap} onChange={changeGap} />
         <ModeToggle mode={mode} onChange={setMode} />
+        <button
+          type="button"
+          title={t('undo.hint')}
+          disabled={!canUndo}
+          onClick={() => void undo()}
+        >
+          {t('undo.button')}
+        </button>
         <button type="button" disabled={busy} onClick={onChooseAnother}>
           {t('scan.chooseAnother')}
         </button>
@@ -175,6 +189,7 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
           />
         )
       )}
+      <Toast message={toast} onUndo={() => void undo()} />
     </main>
   );
 }

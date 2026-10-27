@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { onTimelineChanged } from '../../api/reject';
 import { getSeries, getTimeline, type Series, type TimelineEntry } from '../../api/scan';
 
 export type TimelineEntriesState =
@@ -11,14 +12,29 @@ export type TimelineEntriesState =
 type Loaded<T> = { scanKey: unknown; value: T | null };
 
 /**
+ * Counts the `timeline-changed` events (photos rejected or restored), so
+ * effects that depend on it reload.
+ */
+function useTimelineRevision(): number {
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const unlisten = onTimelineChanged(() => setRevision((r) => r + 1));
+    return () => void unlisten.then((stop) => stop());
+  }, []);
+  return revision;
+}
+
+/**
  * Loads the timeline and series of the last scan. `scanKey` changes with
  * every finished scan, which reloads both; a new `gap` (seconds) reloads only
- * the series. While new series load, the previous ones of the same scan stay,
- * so dragging the gap slider does not flash a loading state.
+ * the series; rejecting or restoring a photo reloads both. While new data
+ * loads, the previous data of the same scan stays, so neither dragging the
+ * gap slider nor rejecting flashes a loading state.
  */
 export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntriesState {
   const [entries, setEntries] = useState<Loaded<TimelineEntry[]> | null>(null);
   const [series, setSeries] = useState<Loaded<Series[]> | null>(null);
+  const revision = useTimelineRevision();
 
   useEffect(() => {
     let cancelled = false;
@@ -29,7 +45,7 @@ export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntri
     return () => {
       cancelled = true;
     };
-  }, [scanKey]);
+  }, [scanKey, revision]);
 
   useEffect(() => {
     // Only the latest request counts; slower answers for older gaps are dropped.
@@ -41,7 +57,7 @@ export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntri
     return () => {
       cancelled = true;
     };
-  }, [scanKey, gap]);
+  }, [scanKey, gap, revision]);
 
   const current = (loaded: Loaded<unknown> | null) => loaded !== null && loaded.scanKey === scanKey;
   if (

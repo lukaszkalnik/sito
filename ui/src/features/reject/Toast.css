@@ -1,0 +1,35 @@
+.toast-area {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  background: #222;
+  color: #fff;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 35%);
+  pointer-events: auto;
+}
+
+.toast--error {
+  background: #8a1c1c;
+}
+
+.toast button {
+  border: 1px solid #666;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
