@@ -84,7 +84,10 @@ export interface Series {
   len: number;
 }
 
-/** Returns the series of the last finished scan, using the default time gap. */
-export async function getSeries(): Promise<Series[]> {
-  return invoke<Series[]>('get_series', {});
+/**
+ * Returns the series of the last finished scan: neighbouring photos at most
+ * `maxGapSeconds` apart (the backend default when omitted).
+ */
+export async function getSeries(maxGapSeconds?: number): Promise<Series[]> {
+  return invoke<Series[]>('get_series', { maxGapSeconds });
 }

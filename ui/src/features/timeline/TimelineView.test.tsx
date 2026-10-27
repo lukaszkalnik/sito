@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSeries, getTimeline, type Series, type TimelineEntry } from '../../api/scan';
 import '../../i18n';
+import { loadGap, saveGap } from './gapSetting';
 import { TimelineView } from './TimelineView';
 
 vi.mock('../../api/scan', async (importActual) => ({
@@ -45,6 +46,38 @@ function renderView(photos: number) {
 describe('TimelineView', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
+  });
+
+  it('regroups with the gap from the slider and remembers it for the folder', async () => {
+    saveGap('C:\\Zdjęcia', 4);
+    mockedTimeline.mockResolvedValue(entries(6));
+    mockedSeries.mockImplementation((gap) => Promise.resolve(pairs(gap === 30 ? 3 : 1)));
+    renderView(6);
+
+    const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
+    expect(slider).toHaveValue('4');
+    expect(screen.getByText('4 s')).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent('1 seria (2 zdjęcia).');
+    expect(mockedSeries).toHaveBeenLastCalledWith(4);
+
+    fireEvent.change(slider, { target: { value: '30' } });
+
+    expect(screen.getByText('30 s')).toBeInTheDocument();
+    expect(await screen.findByText(/3 serie \(6 zdjęć\)\./)).toBeInTheDocument();
+    expect(mockedSeries).toHaveBeenLastCalledWith(30);
+    expect(loadGap('C:\\Zdjęcia')).toBe(30);
+  });
+
+  it('starts other folders at the default gap', async () => {
+    saveGap('D:\\Inne', 4);
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(pairs(1));
+    renderView(2);
+
+    expect(screen.getByRole('slider', { name: 'Odstęp w serii' })).toHaveValue('10');
+    await screen.findByText(/1 seria/);
+    expect(mockedSeries).toHaveBeenCalledWith(10);
   });
 
   it.each([

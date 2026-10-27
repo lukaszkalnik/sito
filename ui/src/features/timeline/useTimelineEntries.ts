@@ -7,30 +7,51 @@ export type TimelineEntriesState =
   | { status: 'ready'; entries: TimelineEntry[]; series: Series[] }
   | { status: 'error' };
 
-type Loaded = { scanId: unknown; state: Exclude<TimelineEntriesState, { status: 'loading' }> };
+/** A result loaded for one scan; `null` means loading it failed. */
+type Loaded<T> = { scanKey: unknown; value: T | null };
 
 /**
- * Loads the timeline and series of the last scan. `scanId` changes with
- * every finished scan, which triggers a reload; until it arrives the state is
- * `loading`.
+ * Loads the timeline and series of the last scan. `scanKey` changes with
+ * every finished scan, which reloads both; a new `gap` (seconds) reloads only
+ * the series. While new series load, the previous ones of the same scan stay,
+ * so dragging the gap slider does not flash a loading state.
  */
-export function useTimelineEntries(scanId: unknown): TimelineEntriesState {
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntriesState {
+  const [entries, setEntries] = useState<Loaded<TimelineEntry[]> | null>(null);
+  const [series, setSeries] = useState<Loaded<Series[]> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([getTimeline(), getSeries()]).then(
-      ([entries, series]) => {
-        if (!cancelled) setLoaded({ scanId, state: { status: 'ready', entries, series } });
-      },
-      () => {
-        if (!cancelled) setLoaded({ scanId, state: { status: 'error' } });
-      },
+    getTimeline().then(
+      (value) => !cancelled && setEntries({ scanKey, value }),
+      () => !cancelled && setEntries({ scanKey, value: null }),
     );
     return () => {
       cancelled = true;
     };
-  }, [scanId]);
+  }, [scanKey]);
 
-  return loaded !== null && loaded.scanId === scanId ? loaded.state : { status: 'loading' };
+  useEffect(() => {
+    // Only the latest request counts; slower answers for older gaps are dropped.
+    let cancelled = false;
+    getSeries(gap).then(
+      (value) => !cancelled && setSeries({ scanKey, value }),
+      () => !cancelled && setSeries({ scanKey, value: null }),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [scanKey, gap]);
+
+  const current = (loaded: Loaded<unknown> | null) => loaded !== null && loaded.scanKey === scanKey;
+  if (
+    (current(entries) && entries?.value === null) ||
+    (current(series) && series?.value === null)
+  ) {
+    return { status: 'error' };
+  }
+  if (current(entries) && current(series) && entries?.value && series?.value) {
+    return { status: 'ready', entries: entries.value, series: series.value };
+  }
+  return { status: 'loading' };
 }

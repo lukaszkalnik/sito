@@ -38,6 +38,24 @@
   text-align: center;
 }
 
+.timeline-gap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.timeline-gap input {
+  width: 8rem;
+  accent-color: var(--accent);
+}
+
+.timeline-gap-value {
+  min-width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .timeline-mode {
   display: flex;
   border: 1px solid var(--border);

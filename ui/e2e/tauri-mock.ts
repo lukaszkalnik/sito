@@ -25,12 +25,20 @@ export interface TauriMock {
    */
   timeline?:
     | { entries: unknown[] }
-    | { count: number; newest: string; stepSeconds: number; fileDateEvery?: number };
+    | {
+        count: number;
+        newest: string;
+        stepSeconds: number;
+        /** Repeating gaps in seconds between neighbours; overrides `stepSeconds`. */
+        stepPattern?: number[];
+        fileDateEvery?: number;
+      };
   /**
-   * Series returned by `get_series`: explicit ranges, or generated as a
-   * series of `size` photos starting at every `every`-th photo. Default: none.
+   * Series returned by `get_series`: explicit ranges, generated as a series
+   * of `size` photos starting at every `every`-th photo, or `'byGap'` to group
+   * the timeline by the requested gap like the backend does. Default: none.
    */
-  series?: { start: number; len: number }[] | { every: number; size: number };
+  series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
 }
 
 /**
@@ -52,19 +60,47 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       if (!t) return [];
       if ('entries' in t) return t.entries;
       const newest = new Date(t.newest).getTime();
-      return Array.from({ length: t.count }, (_, i) => ({
-        id: i,
-        name: `IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
-        relativeDir: 'Camera',
-        relativePath: `Camera\\IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
-        takenAt: localIso(new Date(newest - i * t.stepSeconds * 1000)),
-        fromFileDate: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0,
-      }));
+      const pattern = t.stepPattern ?? [t.stepSeconds];
+      let offset = 0;
+      return Array.from({ length: t.count }, (_, i) => {
+        if (i > 0) offset += pattern[(i - 1) % pattern.length] * 1000;
+        return {
+          id: i,
+          name: `IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
+          relativeDir: 'Camera',
+          relativePath: `Camera\\IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
+          takenAt: localIso(new Date(newest - offset)),
+          fromFileDate: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0,
+        };
+      });
     }
 
-    function series(): unknown[] {
+    /** Mirrors `find_time_series` in core: EXIF-dated neighbours at most the gap apart. */
+    function seriesByGap(gapSeconds: number): unknown[] {
+      const entries = timeline() as { takenAt: string; fromFileDate: boolean }[];
+      const result = [];
+      let start = 0;
+      for (let i = 1; i <= entries.length; i++) {
+        const newer = entries[i - 1];
+        const older = entries[i];
+        const together =
+          older !== undefined &&
+          !newer.fromFileDate &&
+          !older.fromFileDate &&
+          new Date(newer.takenAt).getTime() - new Date(older.takenAt).getTime() <=
+            gapSeconds * 1000;
+        if (!together) {
+          if (i - start >= 2) result.push({ start, len: i - start });
+          start = i;
+        }
+      }
+      return result;
+    }
+
+    function series(gapSeconds: number): unknown[] {
       const s = m.series;
       if (!s) return [];
+      if (s === 'byGap') return seriesByGap(gapSeconds);
       if (Array.isArray(s)) return s;
       const count = timeline().length;
       const result = [];
@@ -106,7 +142,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'get_timeline':
             return timeline();
           case 'get_series':
-            return series();
+            return series((args.maxGapSeconds as number | undefined) ?? 10);
           default:
             throw new Error(`Unmocked Tauri command: ${cmd}`);
         }

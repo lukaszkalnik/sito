@@ -49,5 +49,10 @@
     "count_other": "{{count, number}} serii",
     "none": "Nie znaleziono serii zdjęć.",
     "noneHint": "Przełącz na „Wszystkie zdjęcia”, aby zobaczyć wszystkie zdjęcia."
+  },
+  "gap": {
+    "label": "Odstęp w serii",
+    "value": "{{seconds}} s",
+    "hint": "Zdjęcia zrobione w tym odstępie czasu tworzą serię."
   }
 }
