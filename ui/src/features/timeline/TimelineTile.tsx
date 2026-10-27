@@ -71,6 +71,10 @@ export function TimelineTile({ entry, scanId }: TimelineTileProps) {
       <span className="timeline-tile-caption">
         <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
         <span className="timeline-tile-name">{entry.name}</span>
+        {/* Same-named photos from different folders are told apart by their folder. */}
+        <span className="timeline-tile-folder" data-testid="timeline-tile-folder">
+          <bdi>{entry.relativeDir || t('timeline.rootFolder')}</bdi>
+        </span>
       </span>
       {entry.fromFileDate && (
         <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>

@@ -130,6 +130,17 @@
   text-overflow: ellipsis;
 }
 
+/* Long folders are cut at the start, so the innermost folder stays visible. */
+.timeline-tile-folder {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
 .timeline-tile-badge {
   position: absolute;
   top: 6px;

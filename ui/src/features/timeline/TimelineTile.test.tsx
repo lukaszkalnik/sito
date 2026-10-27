@@ -48,6 +48,19 @@ describe('TimelineTile', () => {
     expect(screen.getByTestId('timeline-tile')).toHaveAttribute('title', 'Camera\\IMG_7.jpg');
   });
 
+  it.each([
+    ['Pulpit\\2024', 'Pulpit\\2024'],
+    ['', 'folder główny'],
+  ])('shows the folder %j to tell same-named photos apart', (relativeDir, text) => {
+    render(
+      <ul>
+        <TimelineTile entry={{ ...entry, relativeDir }} scanId={3} />
+      </ul>,
+    );
+
+    expect(screen.getByTestId('timeline-tile-folder')).toHaveTextContent(text);
+  });
+
   it('requests the thumbnail only after the tile stayed on screen for a moment', () => {
     const { image } = renderTile();
     expect(image()).toBeNull();
