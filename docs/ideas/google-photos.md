@@ -39,7 +39,7 @@ Status: concept, not planned. Researched 2026-10-27; Google's Photos APIs change
 - **Flow:** the user points Sito at a copy of `DCIM/Camera` (USB/MTP, Windows Explorer, or the Android app below) or at an unpacked Takeout export. Takeout delivers 2/10/50 GB zips with JSON sidecars (`photoTakenTime`).
 - **Download:** full originals, once (Takeout means the whole library; a phone copy means only what's on the device).
 - **Reject/undo:** works as today on the copy ("Odrzucone"). The cloud is not affected, so the user has to apply the result in Google Photos manually. For DCIM on the phone itself, see option D.
-- **Effort:** small. Takeout needs a sidecar reader for photos without EXIF (fits slice 18), plus maybe reading zips directly.
+- **Effort:** small. Takeout needs a sidecar reader for photos without EXIF (fits slice 19), plus maybe reading zips directly.
 - **Risks:** disk space for 10k+ originals. Only a snapshot: it doesn't sync back.
 - **Rule fit:** perfect. This is what Sito already does.
 
@@ -61,9 +61,9 @@ Status: concept, not planned. Researched 2026-10-27; Google's Photos APIs change
 
 ## Recommendation
 
-> **Decision (2026-10-27):** the user considers **option D, a standalone Android app**, the strongest direction for slice 22. Takeout date files go into slice 18.
+> **Decision (2026-10-27):** the user considers **option D, a standalone Android app**, the strongest direction for slice 23. Takeout date files go into slice 19.
 
-1. **Do nothing cloud-specific for now.** Finish slices 9–19 on local folders. Option B already covers "photos from an Android phone" if the user copies `DCIM/Camera` or uses Takeout. The only cheap addition is a Takeout sidecar reader, as part of slice 18.
+1. **Do nothing cloud-specific for now.** Finish slices 9–20 on local folders. Option B already covers "photos from an Android phone" if the user copies `DCIM/Camera` or uses Takeout. The only cheap addition is a Takeout sidecar reader, as part of slice 19.
 2. If cloud review is wanted, the **official path is option A** as one roadmap slice, "Import from Google Photos (Picker)". Scope: OAuth desktop flow with keychain storage, a Picker session for ≤ 2,000 items, download and cache of `w400` and `w2048` sizes, the timeline and series on remote items, and reject as a local decision with an "Open in Google Photos" list. It needs a `PhotoSource` abstraction in core first (path vs. remote id). Accept that the user still deletes in Google Photos by hand.
 3. **Don't build option C now.** It's the only way to really trash in the cloud at scale, but it rests on an undocumented API and grey ToS. The prerequisite refactors (pure `core` → wasm, a backend-agnostic `ui/src/api`) are worth doing anyway if C or D ever becomes a goal; they also help testing.
 
