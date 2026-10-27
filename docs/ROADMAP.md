@@ -68,9 +68,9 @@ Apply decisions: rejected photos move to a quarantine folder, logged in SQLite; 
 *Try:* apply on a test folder, undo, verify files are back.
 
 ### ⬜ 9. Persistence
-SQLite cache of scan results and decisions; rescans are fast and decisions survive a restart.
+SQLite cache of scan results and decisions; rescans are fast and decisions survive a restart. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under a size limit.
 
-*Try:* rescan a large folder twice, restart mid-review.
+*Try:* rescan a large folder twice, restart mid-review; move a folder, rescan, and check that the cache folder does not keep growing.
 
 ### ⬜ 10. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.
