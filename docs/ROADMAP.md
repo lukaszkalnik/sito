@@ -25,6 +25,7 @@ Every concept lives in the repo, also unfinished ones: as soon as a slice has mo
 | 9 | [Persistence](slices/09-persistence.md) | ✅ |
 | 10 | [Third-party license notices](slices/10-third-party-notices.md) | 📝 |
 | 11 | [Showcase screenshots for the README](slices/11-readme-showcase.md) | 📝 |
+| 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 📝 |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
 | 14 | Edit series | ⬜ |
@@ -90,6 +91,9 @@ Ship the license notices of the bundled libraries with the installer, shown from
 ### 📝 11. Showcase screenshots for the README
 A „glam shot” of Sito for the README, made from freely licensed stock photos arranged into series. Concept: [slices/11-readme-showcase.md](slices/11-readme-showcase.md)
 
+### 📝 25. Google Takeout dates
+Photos from a Google Takeout export get their real capture time from Takeout's JSON date files instead of the export date. Concept: [slices/25-takeout-dates.md](slices/25-takeout-dates.md)
+
 ### 📝 12. User feedback 1
 Findings from the first user test: portrait photos, the reject button, accepting photos, the series strip, series from several cameras, „O programie”. Concept: [slices/12-user-feedback-1.md](slices/12-user-feedback-1.md)
 
@@ -127,9 +131,9 @@ Embedding model (downloaded on first launch, checksum-verified) splits series wi
 *Try:* series with mixed subjects get split.
 
 ### ⬜ 20. Series without EXIF date
-Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 19). Also reads the date files of a Google Takeout export (`IMG_1234.jpg.json` / `.supplemental-metadata.json`, field `photoTakenTime`), so exported photos without EXIF get their real capture time instead of the export date.
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 19).
 
-*Try:* a folder of WhatsApp images forms only the series that really belong together. An unpacked Takeout folder shows photos at their real capture dates.
+*Try:* a folder of WhatsApp images forms only the series that really belong together.
 
 ### ⬜ 21. Faces and eyes
 Face and eye-state score (closed eyes penalized).
