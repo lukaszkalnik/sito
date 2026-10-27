@@ -66,6 +66,10 @@
   opacity: 1;
 }
 
+.timeline-tile--instant .timeline-tile-image {
+  transition: none;
+}
+
 .timeline-tile-broken {
   position: absolute;
   top: 8px;

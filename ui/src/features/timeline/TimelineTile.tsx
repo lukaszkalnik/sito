@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { TimelineEntry } from '../../api/scan';
 import { thumbnailUrl } from '../../api/thumbnails';
 import { timeOf } from './format';
+import { rememberLoaded, wasLoaded } from './loadedThumbnails';
 import { useMountedFor } from './useMountedFor';
 
 /** How long a tile must stay on screen before its thumbnail is requested. */
@@ -19,15 +20,18 @@ interface TimelineTileProps {
 /** One photo on the timeline: its thumbnail with capture time and file name. */
 export function TimelineTile({ entry, scanId }: TimelineTileProps) {
   const { t } = useTranslation();
-  const showThumbnail = useMountedFor(THUMBNAIL_DELAY_MS);
+  const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
   const src = thumbnailUrl(scanId, entry.id);
   // Remembers which URL the status belongs to, so a reused tile starts fresh.
   const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
-  const status = result?.src === src ? result.status : 'loading';
+  // A thumbnail seen before is cached by the webview: show it at once, unfaded.
+  const seenBefore = wasLoaded(src);
+  const status = result?.src === src ? result.status : seenBefore ? 'loaded' : 'loading';
+  const showThumbnail = delayPassed || seenBefore;
 
   return (
     <li
-      className={`timeline-tile timeline-tile--${status}`}
+      className={`timeline-tile timeline-tile--${status}${seenBefore ? ' timeline-tile--instant' : ''}`}
       title={entry.relativePath}
       data-testid="timeline-tile"
     >
@@ -36,9 +40,11 @@ export function TimelineTile({ entry, scanId }: TimelineTileProps) {
           className="timeline-tile-image"
           src={src}
           alt=""
-          loading="lazy"
-          decoding="async"
-          onLoad={() => setResult({ src, status: 'loaded' })}
+          decoding={seenBefore ? 'sync' : 'async'}
+          onLoad={() => {
+            rememberLoaded(src);
+            setResult({ src, status: 'loaded' });
+          }}
           onError={() => setResult({ src, status: 'error' })}
         />
       )}

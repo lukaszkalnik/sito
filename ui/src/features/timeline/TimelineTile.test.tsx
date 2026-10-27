@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TimelineEntry } from '../../api/scan';
 import '../../i18n';
+import { forgetLoaded } from './loadedThumbnails';
 import { THUMBNAIL_DELAY_MS, TimelineTile } from './TimelineTile';
 
 vi.mock('../../api/thumbnails', () => ({
@@ -31,6 +32,7 @@ function renderTile(scanId = 3) {
 describe('TimelineTile', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    forgetLoaded();
   });
 
   afterEach(() => {
@@ -90,5 +92,32 @@ describe('TimelineTile', () => {
     );
 
     expect(image()).toHaveAttribute('src', 'thumb://localhost/7?scan=4');
+  });
+
+  it('shows a thumbnail seen before at once when its tile comes back', () => {
+    const first = renderTile();
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    fireEvent.load(first.image()!);
+    cleanup();
+
+    const again = renderTile();
+
+    expect(again.image()).toHaveAttribute('src', 'thumb://localhost/7?scan=3');
+    expect(screen.getByTestId('timeline-tile')).toHaveClass(
+      'timeline-tile--loaded',
+      'timeline-tile--instant',
+    );
+  });
+
+  it('still waits for thumbnails of another scan', () => {
+    const first = renderTile(3);
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    fireEvent.load(first.image()!);
+    cleanup();
+
+    const again = renderTile(4);
+
+    expect(again.image()).toBeNull();
+    expect(screen.getByTestId('timeline-tile')).toHaveClass('timeline-tile--loading');
   });
 });
