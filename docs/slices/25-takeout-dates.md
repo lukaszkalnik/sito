@@ -23,18 +23,24 @@ From the user's own export on `F:\Google Photos`, inspected read-only on 2026-10
 - **Core:** when a photo has no EXIF date, look for its Takeout date file in the same folder and take `photoTakenTime`. That gives a new `TimeSource::Takeout`, which counts like EXIF for series.
   - **Matching:** by the date file's base name first, then the numbered-duplicate rule, then by `title`.
   - **Only the date:** `geoData` and `description` are never read or stored (privacy).
-- **Unpacked Takeout:** works through the normal folder scan. The date files are found next to the photos.
-- **Zipped Takeout (open):** unpacking 220 GB needs as much free space again.
-  - Option A: Sito reads photos directly from the zips (scan, thumbnails, viewer). The photos would be read-only: rejecting can't move a file inside a zip, so it would be a decision list only.
-  - Option B: document how to unpack to a drive with room, and support unpacked folders only.
+- **Unpacked Takeout only** (decided 2026-10-27): it works through the normal folder scan, and the date files are found next to the photos. The README explains how to unpack a Takeout to a drive with enough room. Reading the zips directly isn't supported, because rejecting couldn't move files inside a zip.
+- **A wrong EXIF date is overridden** (decided 2026-10-27). Google takes `photoTakenTime` from EXIF on upload and updates it when someone corrects the date in Google Photos, so comparing the two tells which one to use:
+  - **Same, or off by whole hours up to ±14 h:** that's only the time zone (EXIF is local, Takeout is UTC). Keep the EXIF time.
+  - **Off by anything else:** the date was most likely corrected in Google Photos (e.g. a camera with a reset clock). Use the Takeout time.
+  - **Implausible EXIF date** (before 1990, a camera default such as 2000-01-01 00:00 or 1970-01-01, or in the future): use the Takeout time if there is one; otherwise the photo counts as without a date.
+  - The photo's info and the debug panel show which date was used and why.
 - **Time zone:** `photoTakenTime` is UTC. EXIF capture times are local, so the Takeout time is converted to the local time zone (of the computer, or from the photo's offset when known).
 - **Tests:** synthetic fixtures with made-up date files, covering all naming forms. The user's export is used only for a manual check.
 
+## Related slices
+
+- RAW photos (e.g. Olympus `.orf`) are [slice 26](26-raw-photos.md), and TIFF is [slice 27](27-tiff-photos.md). Both come right after this one, so the user's Takeout is fully supported.
+- Videos are out of scope.
+
 ## Open questions
 
-- Zips directly (A) or unpack first (B)?
-- RAW (`.orf`), TIFF and video: out of scope here? Sito is JPEG-only so far.
-- Prefer the Takeout date over a file date only, or also over a suspicious EXIF date (e.g. year 2000 from a camera with a reset clock)?
+- Is ±14 h the right limit for "only the time zone"? Daylight-saving shifts and half-hour zones need checking.
+- Where to show "date from Takeout" or "date corrected": the viewer's info line, the tile badge (like „data pliku”), or only the debug panel?
 
 ## Verification (outline)
 

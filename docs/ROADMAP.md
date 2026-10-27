@@ -26,6 +26,8 @@ Every concept lives in the repo, also unfinished ones: as soon as a slice has mo
 | 10 | [Third-party license notices](slices/10-third-party-notices.md) | 📝 |
 | 11 | [Showcase screenshots for the README](slices/11-readme-showcase.md) | 📝 |
 | 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 📝 |
+| 26 | [RAW photos](slices/26-raw-photos.md) | 📝 |
+| 27 | [TIFF photos](slices/27-tiff-photos.md) | 📝 |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
 | 14 | Edit series | ⬜ |
@@ -92,7 +94,13 @@ Ship the license notices of the bundled libraries with the installer, shown from
 A „glam shot” of Sito for the README, made from freely licensed stock photos arranged into series. Concept: [slices/11-readme-showcase.md](slices/11-readme-showcase.md)
 
 ### 📝 25. Google Takeout dates
-Photos from a Google Takeout export get their real capture time from Takeout's JSON date files instead of the export date. Concept: [slices/25-takeout-dates.md](slices/25-takeout-dates.md)
+Photos from an unpacked Google Takeout get their real capture time from Takeout's JSON date files, which also correct wrong EXIF dates. Concept: [slices/25-takeout-dates.md](slices/25-takeout-dates.md)
+
+### 📝 26. RAW photos
+RAW photos (Olympus `.orf` first, other common formats if cheap) in the timeline, series and viewer, with RAW+JPEG pairs as one shot. Concept: [slices/26-raw-photos.md](slices/26-raw-photos.md)
+
+### 📝 27. TIFF photos
+TIFF photos (scans, reproductions) in the timeline, series and viewer. Concept: [slices/27-tiff-photos.md](slices/27-tiff-photos.md)
 
 ### 📝 12. User feedback 1
 Findings from the first user test: portrait photos, the reject button, accepting photos, the series strip, series from several cameras, „O programie”. Concept: [slices/12-user-feedback-1.md](slices/12-user-feedback-1.md)
