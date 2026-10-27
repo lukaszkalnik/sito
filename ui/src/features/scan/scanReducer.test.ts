@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { initialScanState, scanReducer, type ScanState } from './scanReducer';
 
-const summary = { scanId: 1, photosFound: 3, unreadableEntries: 0, withoutExifDate: 0 };
+const summary = {
+  scanId: 1,
+  photosFound: 3,
+  unreadableEntries: 0,
+  withoutExifDate: 0,
+  refreshing: false,
+};
 const scanning: ScanState = {
   status: 'scanning',
   path: 'C:\\Photos',
@@ -62,5 +68,34 @@ describe('scanReducer', () => {
 
   it('does not start picking while scanning', () => {
     expect(scanReducer(scanning, { type: 'pickStarted' })).toBe(scanning);
+  });
+
+  describe('a background refresh', () => {
+    const cached = { ...summary, refreshing: true };
+    const fresh = { ...summary, photosFound: 4, refreshing: false };
+    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary: cached };
+
+    it('updates the summary of the folder shown', () => {
+      expect(scanReducer(done, { type: 'refreshed', summary: fresh })).toEqual({
+        ...done,
+        summary: fresh,
+      });
+    });
+
+    it('also while another folder is being picked', () => {
+      const picking = scanReducer(done, { type: 'pickStarted' });
+
+      expect(scanReducer(picking, { type: 'refreshed', summary: fresh })).toEqual({
+        status: 'picking',
+        previous: { ...done, summary: fresh },
+      });
+    });
+
+    it('is ignored for a scan that is no longer shown', () => {
+      const other = { ...fresh, scanId: 99 };
+
+      expect(scanReducer(done, { type: 'refreshed', summary: other })).toBe(done);
+      expect(scanReducer(scanning, { type: 'refreshed', summary: fresh })).toBe(scanning);
+    });
   });
 });

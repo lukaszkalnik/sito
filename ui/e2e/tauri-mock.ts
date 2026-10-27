@@ -8,6 +8,7 @@ interface Summary {
   photosFound: number;
   unreadableEntries: number;
   withoutExifDate: number;
+  refreshing?: boolean;
 }
 
 /** Canned backend answers for one test. */
@@ -43,6 +44,11 @@ export interface TauriMock {
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
   rejected?: number[];
+  /**
+   * A background refresh after `start_scan` (when its summary says
+   * `refreshing`): `scan-refreshed` with `summary` after `afterMs`.
+   */
+  refresh?: { summary: Summary; afterMs: number };
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -70,9 +76,9 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     const rejected: number[] = [...(m.rejected ?? [])];
     // Event name → callback ids registered with `listen`.
     const listeners = new Map<string, number[]>();
-    const emit = (event: string) =>
+    const emit = (event: string, payload: unknown = null) =>
       (listeners.get(event) ?? []).forEach((handler) =>
-        callbacks.get(handler)?.({ event, id: 0, payload: null }),
+        callbacks.get(handler)?.({ event, id: 0, payload }),
       );
 
     /** The timeline as the backend returns it: without rejected photos. */
@@ -185,6 +191,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
               throw m.scanResult.err;
             }
             send?.({ index: m.scanProgress.length, end: true });
+            const refresh = m.refresh;
+            if (refresh) setTimeout(() => emit('scan-refreshed', refresh.summary), refresh.afterMs);
             return m.scanResult.ok;
           }
           case 'get_timeline':

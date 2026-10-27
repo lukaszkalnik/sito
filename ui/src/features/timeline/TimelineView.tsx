@@ -111,8 +111,9 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
   // Each picked folder keeps its own gap; another folder starts from its stored one.
   const [chosen, setChosen] = useState<{ path: string; gap: number } | null>(null);
   const gap = chosen?.path === path ? chosen.gap : loadGap(path);
-  // A new summary object means a new scan finished, so the timeline is reloaded.
-  const timeline = useTimelineEntries(summary, gap);
+  // A new scan id means another scan finished, so the timeline is reloaded; a
+  // refreshed summary keeps the id and the view.
+  const timeline = useTimelineEntries(summary.scanId, gap);
   const [mode, setMode] = useState<TimelineMode>('series');
 
   // An open viewer steps through the same photos as this view.
@@ -150,6 +151,7 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
               ` ${t('scan.withoutExifDate', { count: summary.withoutExifDate })}`}
             {summary.unreadableEntries > 0 &&
               ` ${t('scan.unreadable', { count: summary.unreadableEntries })}`}
+            {summary.refreshing && ` ${t('scan.refreshing')}`}
           </p>
         </div>
         <GapSlider gap={gap} onChange={changeGap} />

@@ -47,7 +47,13 @@ function renderView(photos: number) {
   render(
     <TimelineView
       path="C:\Zdjęcia"
-      summary={{ scanId: 1, photosFound: photos, unreadableEntries: 0, withoutExifDate: 0 }}
+      summary={{
+        scanId: 1,
+        photosFound: photos,
+        unreadableEntries: 0,
+        withoutExifDate: 0,
+        refreshing: false,
+      }}
       busy={false}
       onChooseAnother={() => {}}
     />,

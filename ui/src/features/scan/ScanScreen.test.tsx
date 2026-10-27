@@ -1,14 +1,16 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getSeries,
   getTimeline,
+  onScanRefreshed,
   pickFolder,
   ScanError,
   scanFolder,
   type ScanProgress,
+  type ScanSummary,
   type TimelineEntry,
 } from '../../api/scan';
 import '../../i18n';
@@ -20,6 +22,7 @@ vi.mock('../../api/scan', async (importActual) => ({
   scanFolder: vi.fn(),
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
+  onScanRefreshed: vi.fn(),
 }));
 vi.mock('../../api/reject', async (importActual) => ({
   ...(await importActual<typeof import('../../api/reject')>()),
@@ -43,6 +46,7 @@ function summary(photosFound: number, extra: { unreadable?: number; withoutExif?
     photosFound,
     unreadableEntries: extra.unreadable ?? 0,
     withoutExifDate: extra.withoutExif ?? 0,
+    refreshing: false,
   };
 }
 
@@ -74,11 +78,51 @@ function timelineOf(count: number): TimelineEntry[] {
 }
 
 describe('ScanScreen', () => {
+  /** Announces a finished background refresh, like the backend. */
+  let announceRefresh: (summary: ScanSummary) => void = () => {};
+
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     mockedPick.mockResolvedValue('C:\\Zdjęcia');
     mockedTimeline.mockResolvedValue(entries);
     mockedSeries.mockResolvedValue([{ start: 0, len: 2 }]);
+    vi.mocked(onScanRefreshed).mockImplementation((handler) => {
+      announceRefresh = handler;
+      return Promise.resolve(() => {});
+    });
+  });
+
+  it('reopens the last folder on start, from the cache, and shows the refresh', async () => {
+    localStorage.setItem('sito.lastFolder', 'D:\\Złote gody');
+    mockedTimeline.mockResolvedValue(timelineOf(3));
+    mockedScan.mockResolvedValue({ ...summary(3), refreshing: true });
+    render(<ScanScreen />);
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(
+        /Znaleziono 3 zdjęcia\..*Sprawdzanie zmian…/,
+      ),
+    );
+    expect(mockedScan).toHaveBeenCalledWith('D:\\Złote gody', expect.any(Function));
+    expect(mockedPick).not.toHaveBeenCalled();
+
+    act(() => announceRefresh({ ...summary(3, { unreadable: 2 }), refreshing: false }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Nie udało się odczytać 2 elementów.',
+    );
+    expect(screen.getByRole('status')).not.toHaveTextContent('Sprawdzanie zmian');
+  });
+
+  it('remembers the folder opened last', async () => {
+    mockedScan.mockResolvedValue(summary(2));
+    render(<ScanScreen />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }));
+    await screen.findByTestId('timeline');
+
+    expect(localStorage.getItem('sito.lastFolder')).toBe('C:\\Zdjęcia');
   });
 
   it.each([

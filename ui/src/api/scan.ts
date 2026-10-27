@@ -1,4 +1,5 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 
 /** Progress update streamed while a scan is running. Mirrors `ScanProgressDto`. */
@@ -12,6 +13,8 @@ export interface ScanSummary {
   photosFound: number;
   unreadableEntries: number;
   withoutExifDate: number;
+  /** Shown from the cache; a background rescan is running and ends with `onScanRefreshed`. */
+  refreshing: boolean;
 }
 
 /** One photo on the timeline. Mirrors `TimelineEntryDto`. */
@@ -90,4 +93,11 @@ export interface Series {
  */
 export async function getSeries(maxGapSeconds?: number): Promise<Series[]> {
   return invoke<Series[]>('get_series', { maxGapSeconds });
+}
+
+/** Calls `handler` with the new summary when a background rescan has finished. */
+export async function onScanRefreshed(
+  handler: (summary: ScanSummary) => void,
+): Promise<UnlistenFn> {
+  return listen<ScanSummary>('scan-refreshed', (event) => handler(event.payload));
 }

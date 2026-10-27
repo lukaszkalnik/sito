@@ -6,6 +6,7 @@
   "scan": {
     "chooseFolder": "Wybierz folder ze zdjęciami",
     "chooseAnother": "Wybierz inny folder",
+    "refreshing": "Sprawdzanie zmian…",
     "folder": "Folder: {{path}}",
     "result": "Znaleziono {{photos}}.",
     "noPhotos": "Nie znaleziono żadnych zdjęć.",

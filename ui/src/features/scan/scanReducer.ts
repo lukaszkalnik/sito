@@ -16,7 +16,8 @@ export type ScanAction =
   | { type: 'scanStarted'; path: string }
   | { type: 'progress'; progress: ScanProgress }
   | { type: 'scanFinished'; summary: ScanSummary }
-  | { type: 'scanFailed'; code: ScanErrorCode };
+  | { type: 'scanFailed'; code: ScanErrorCode }
+  | { type: 'refreshed'; summary: ScanSummary };
 
 export const initialScanState: ScanState = { status: 'idle' };
 
@@ -45,5 +46,18 @@ export function scanReducer(state: ScanState, action: ScanAction): ScanState {
       return state.status === 'scanning'
         ? { status: 'error', path: state.path, code: action.code }
         : state;
+    case 'refreshed':
+      // Only for the scan still shown (also while picking another folder).
+      if (state.status === 'done' && state.summary.scanId === action.summary.scanId) {
+        return { ...state, summary: action.summary };
+      }
+      if (
+        state.status === 'picking' &&
+        state.previous.status === 'done' &&
+        state.previous.summary.scanId === action.summary.scanId
+      ) {
+        return { ...state, previous: { ...state.previous, summary: action.summary } };
+      }
+      return state;
   }
 }

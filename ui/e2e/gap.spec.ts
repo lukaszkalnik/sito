@@ -63,8 +63,8 @@ test('remembers the gap for the folder', async ({ page }) => {
   await slider(page).fill('5');
   await expect(page.getByRole('status')).toContainText('(750 zdjęć)');
 
+  // The folder opened last is opened again by itself.
   await page.reload();
-  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
 
   await expect(slider(page)).toHaveValue('5');
   await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
