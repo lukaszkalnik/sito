@@ -2,9 +2,9 @@
 
 Work is split into vertical slices. Each slice goes through all layers (core → Tauri → UI) and ends with something the user can try in the running app. Ship one slice at a time; the user tests it before the next one starts.
 
-Plan each slice in plan mode first and save the approved plan as `docs/slices/NN-name.md` (Markdown), then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
+Every concept lives in the repo, also unfinished ones: as soon as a slice has more than a one-line description, its draft goes into `docs/slices/NN-name.md` (status 📝 draft), and ideas into `docs/ideas/`. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
 
-**Status:** ⬜ not started · 📝 planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
+**Status:** ⬜ not started · 📝 concept drafted or planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
 
 **Scale:** galleries have 10,000+ photos per folder. Every slice must stay responsive at that size (no blocking the UI, no rendering or loading everything at once).
 
@@ -21,9 +21,9 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
 | 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | ✅ |
 | 9 | [Persistence](slices/09-persistence.md) | ✅ |
-| 10 | Third-party license notices | ⬜ |
-| 11 | User feedback 1 | ⬜ |
-| 12 | Zoom in the viewer | ⬜ |
+| 10 | [Third-party license notices](slices/10-third-party-notices.md) | 📝 |
+| 11 | [User feedback 1](slices/11-user-feedback-1.md) | 📝 |
+| 12 | [Zoom in the viewer](slices/12-viewer-zoom.md) | 📝 |
 | 13 | Edit series | ⬜ |
 | 14 | Settings: trash, cache location and size | ⬜ |
 | 15 | Show and restore rejected photos | ⬜ |
@@ -81,12 +81,12 @@ SQLite cache of scan results: on start Sito reopens the last folder at once from
 
 *Try:* restart Sito (the last folder opens at once), rescan a large folder twice, move a folder, rescan, and check that the cache folder stays under 500 MB.
 
-### ⬜ 10. Third-party license notices
+### 📝 10. Third-party license notices
 The installer ships compiled copies of the Rust crates and bundled npm packages, whose licenses (MIT, Apache-2.0, BSD, zlib, …) require their notices to go along. A `THIRD-PARTY-NOTICES` file is generated at build time (`cargo-about` for Rust, a Vite license plugin for the UI bundle), included in the installer, and opened from a „Licencje” link in the app. CI fails when a dependency brings a license that is not on the reviewed list.
 
-*Try:* open „Licencje” in the installed app and find React and `image` with their license texts.
+*Try:* open „Licencje” in the installed app and find React and `image` with their license texts. Draft: [slices/10-third-party-notices.md](slices/10-third-party-notices.md)
 
-### ⬜ 11. User feedback 1
+### 📝 11. User feedback 1
 Changes from the first user test (2026-10-27):
 1. **Portrait photos** fill the viewer's full height, letterboxed at the sides.
 2. **"Odrzuć"** is clearly separated from "Cofnij" and has a solid red background.
@@ -96,12 +96,12 @@ Changes from the first user test (2026-10-27):
 6. **Several cameras at one event:** when cameras' clocks are slightly off, their series interleave (2 photos outside, 2 inside from another camera, back outside). Series are split by camera, even if their times overlap. To decide when planning: how overlapping series are ordered (e.g. by their newest photo) and how the header marks that a series overlaps another.
 7. **About:** an „O programie” entry showing the version number (and links to the license and the third-party notices from slice 10).
 
-*Try:* a portrait photo fills the viewer's height; accept the best shot of a big series and see the check mark; step through a long series and watch the strip follow; open the party folder shot with several cameras and check each camera's series stays together.
+*Try:* a portrait photo fills the viewer's height; accept the best shot of a big series and see the check mark; step through a long series and watch the strip follow; open the party folder shot with several cameras and check each camera's series stays together. Draft: [slices/11-user-feedback-1.md](slices/11-user-feedback-1.md)
 
-### ⬜ 12. Zoom in the viewer
+### 📝 12. Zoom in the viewer
 Zoom into the photo in the viewer (mouse wheel, pinch on touchpad, keys) and pan around, to compare sharpness and faces at 100 %. Stepping to another photo keeps the zoom and position, so the same detail can be compared across a series.
 
-*Try:* zoom into a face, step through the series and compare the same spot in every shot.
+*Try:* zoom into a face, step through the series and compare the same spot in every shot. Draft: [slices/12-viewer-zoom.md](slices/12-viewer-zoom.md)
 
 ### ⬜ 13. Edit series
 Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, ungroup a series completely, or "cut here" to split a series that chains several moments (e.g. a long event shot in quick succession) into two at a chosen photo. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
