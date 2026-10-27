@@ -1,6 +1,6 @@
 # Slice 5 – Time series
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (v0.4.0)
 
 ## Context
 

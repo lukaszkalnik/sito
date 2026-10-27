@@ -16,7 +16,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 2 | [Installable app](slices/02-installable-app.md) | ✅ |
 | 3 | [Timeline](slices/03-timeline.md) | ✅ |
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
-| 5 | [Time series](slices/05-time-series.md) | 🚧 |
+| 5 | [Time series](slices/05-time-series.md) | 🧪 |
 | 6 | Time-gap slider | ⬜ |
 | 7 | Compare and decide | ⬜ |
 | 8 | Quarantine with undo | ⬜ |
@@ -48,7 +48,7 @@ Real thumbnails in the timeline: generated in the background, cached on disk, lo
 
 *Try:* scroll fast through 10,000+ photos; thumbnails fill in without freezing, and a second visit is instant.
 
-### 🚧 5. Time series
+### 🧪 5. Time series
 Photos grouped into series by a fixed time gap; single photos hidden; series count shown. Toggle between "Serie" (series only) and "Wszystkie zdjęcia" (full timeline with series marked). Only photos with an EXIF date form series. Plan: [slices/05-time-series.md](slices/05-time-series.md)
 
 *Try:* check whether the series match what you remember shooting.
