@@ -118,6 +118,44 @@ fn breaks_ties_by_path() {
 }
 
 #[test]
+fn merges_photos_from_nested_folders_by_time() {
+    let dir = TempDir::new().unwrap();
+    for (fixture, target) in [
+        ("datetime-only_2024-05-30_10-00-00.jpg", "root.jpg"),
+        ("pixel_2024-06-01_12-00-00.jpg", "DCIM/Camera/2024/06/a.jpg"),
+        ("pixel_2024-06-01_12-00-05.jpg", "Pixel/Camera/b.jpg"),
+        (
+            "offset_2024-06-02_08-30-00+0200.jpg",
+            "WhatsApp/Images/c.jpg",
+        ),
+        ("rotated_orientation-6.jpg", "DCIM/Camera/2024/05/d.jpg"),
+    ] {
+        let path = dir.path().join(target);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::copy(fixtures().join(fixture), path).unwrap();
+    }
+
+    let timeline = build_timeline(dir.path(), |_| {}).unwrap();
+
+    let relative: Vec<PathBuf> = timeline
+        .photos
+        .iter()
+        .map(|p| p.path.strip_prefix(dir.path()).unwrap().to_path_buf())
+        .collect();
+    assert_eq!(
+        relative,
+        [
+            Path::new("WhatsApp/Images/c.jpg"),     // 2024-06-02 08:30
+            Path::new("Pixel/Camera/b.jpg"),        // 2024-06-01 12:00:05
+            Path::new("DCIM/Camera/2024/06/a.jpg"), // 2024-06-01 12:00:00
+            Path::new("DCIM/Camera/2024/05/d.jpg"), // 2024-05-31 18:15
+            Path::new("root.jpg"),                  // 2024-05-30 10:00
+        ]
+        .map(Path::to_path_buf)
+    );
+}
+
+#[test]
 fn reports_searching_then_reading_progress() {
     let dir = gallery();
     let mut reports = Vec::new();

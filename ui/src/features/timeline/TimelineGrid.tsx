@@ -66,7 +66,7 @@ export function TimelineGrid({ entries }: { entries: readonly TimelineEntry[] })
                     <li
                       key={entry.id}
                       className="timeline-tile"
-                      title={entry.relativeDir ? `${entry.relativeDir}\\${entry.name}` : entry.name}
+                      title={entry.relativePath}
                       data-testid="timeline-tile"
                     >
                       <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>

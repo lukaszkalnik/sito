@@ -70,6 +70,8 @@ pub struct TimelineEntryDto {
     name: String,
     /// Folder of the file relative to the scanned folder (empty for the root).
     relative_dir: String,
+    /// File path relative to the scanned folder, with the OS path separator.
+    relative_path: String,
     /// Capture time as local ISO 8601 without offset, e.g. `2024-06-01T12:00:05`.
     taken_at: String,
     /// `true` if the time comes from the file date instead of EXIF.
@@ -78,10 +80,9 @@ pub struct TimelineEntryDto {
 
 impl TimelineEntryDto {
     fn new(id: usize, photo: &Photo, root: &Path) -> Self {
-        let relative_dir = photo
-            .path
+        let relative = photo.path.strip_prefix(root).unwrap_or(&photo.path);
+        let relative_dir = relative
             .parent()
-            .and_then(|dir| dir.strip_prefix(root).ok())
             .map(|dir| dir.to_string_lossy().into_owned())
             .unwrap_or_default();
         Self {
@@ -92,6 +93,7 @@ impl TimelineEntryDto {
                 .map(|n| n.to_string_lossy().into_owned())
                 .unwrap_or_default(),
             relative_dir,
+            relative_path: relative.to_string_lossy().into_owned(),
             taken_at: photo.taken_at.format("%Y-%m-%dT%H:%M:%S").to_string(),
             from_file_date: photo.time_source == TimeSource::FileModified,
         }
@@ -209,10 +211,31 @@ mod tests {
                 "id": 3,
                 "name": "IMG_1.jpg",
                 "relativeDir": "Camera",
+                "relativePath": format!("Camera{}IMG_1.jpg", std::path::MAIN_SEPARATOR),
                 "takenAt": "2024-06-01T12:00:05",
                 "fromFileDate": false
             })
         );
+    }
+
+    #[test]
+    fn nested_photo_has_multi_level_relative_paths() {
+        let root = PathBuf::from("gallery");
+        let p = photo(
+            &["gallery", "DCIM", "Camera", "2024", "06", "IMG_3.jpg"]
+                .join(std::path::MAIN_SEPARATOR_STR),
+            TimeSource::Exif,
+        );
+
+        let dto = TimelineEntryDto::new(0, &p, &root);
+
+        let sep = std::path::MAIN_SEPARATOR_STR;
+        assert_eq!(dto.relative_dir, ["DCIM", "Camera", "2024", "06"].join(sep));
+        assert_eq!(
+            dto.relative_path,
+            ["DCIM", "Camera", "2024", "06", "IMG_3.jpg"].join(sep)
+        );
+        assert_eq!(dto.name, "IMG_3.jpg");
     }
 
     #[test]
@@ -226,6 +249,7 @@ mod tests {
         let dto = TimelineEntryDto::new(0, &p, &root);
 
         assert_eq!(dto.relative_dir, "");
+        assert_eq!(dto.relative_path, "IMG_2.jpg");
         assert!(dto.from_file_date);
     }
 

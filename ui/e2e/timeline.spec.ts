@@ -26,6 +26,13 @@ test('starts with the newest day in Polish', async ({ page }) => {
   await expect(page.getByTestId('timeline-tile').first()).toContainText('12:00:00');
 });
 
+test('shows the path relative to the scanned folder on hover', async ({ page }) => {
+  await expect(page.getByTestId('timeline-tile').first()).toHaveAttribute(
+    'title',
+    'Camera\\IMG_10000.jpg',
+  );
+});
+
 test('renders only the visible part of 10 000 photos', async ({ page }) => {
   await expect(page.getByTestId('timeline-tile').first()).toBeVisible();
 

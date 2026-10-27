@@ -50,6 +50,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         id: i,
         name: `IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
         relativeDir: 'Camera',
+        relativePath: `Camera\\IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
         takenAt: localIso(new Date(newest - i * t.stepSeconds * 1000)),
         fromFileDate: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0,
       }));

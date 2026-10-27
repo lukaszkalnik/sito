@@ -17,6 +17,8 @@ export interface TimelineEntry {
   id: number;
   name: string;
   relativeDir: string;
+  /** File path relative to the scanned folder, with the OS path separator. */
+  relativePath: string;
   /** Local capture time, ISO 8601 without offset, e.g. `2024-06-01T12:00:05`. */
   takenAt: string;
   /** `true` if the time comes from the file date instead of EXIF. */

@@ -4,7 +4,14 @@ import type { TimelineEntry } from '../../api/scan';
 import { buildRows, columnsFor, rowHeight, TILE_GAP, TILE_WIDTH } from './layout';
 
 function entry(id: number, takenAt: string): TimelineEntry {
-  return { id, name: `IMG_${id}.jpg`, relativeDir: '', takenAt, fromFileDate: false };
+  return {
+    id,
+    name: `IMG_${id}.jpg`,
+    relativeDir: '',
+    relativePath: `IMG_${id}.jpg`,
+    takenAt,
+    fromFileDate: false,
+  };
 }
 
 describe('columnsFor', () => {
