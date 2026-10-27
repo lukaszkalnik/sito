@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod commands;
+mod lifo_pool;
 mod photo_cache;
 mod photos;
 mod state;

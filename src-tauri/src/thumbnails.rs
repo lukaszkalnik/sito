@@ -10,20 +10,23 @@ use tauri::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use tauri::http::{HeaderValue, Request, Response, StatusCode, Uri};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::lifo_pool::LifoPool;
 use crate::state::AppState;
 
 /// Name of the URI scheme.
 pub const SCHEME: &str = "thumb";
 
 /// Threads rendering thumbnails. Few on purpose: decoding is memory hungry,
-/// and the UI only asks for what is on screen.
+/// and the UI only asks for what is on screen. The newest request is served
+/// first, so after a fast scroll the photos on screen come before those
+/// scrolled past.
 const WORKERS: usize = 2;
 
 /// Renders and caches thumbnails off the main thread.
 #[derive(Debug)]
 pub struct Thumbnails {
     cache: ThumbnailCache,
-    pool: rayon::ThreadPool,
+    pool: LifoPool,
 }
 
 impl Thumbnails {
@@ -32,11 +35,8 @@ impl Thumbnails {
     /// # Errors
     ///
     /// Returns an error if the worker threads cannot be started.
-    pub fn new(cache_dir: PathBuf) -> Result<Self, rayon::ThreadPoolBuildError> {
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(WORKERS)
-            .thread_name(|i| format!("thumbnail-{i}"))
-            .build()?;
+    pub fn new(cache_dir: PathBuf) -> std::io::Result<Self> {
+        let pool = LifoPool::new(WORKERS, "thumbnail")?;
         Ok(Self {
             cache: ThumbnailCache::new(cache_dir),
             pool,
