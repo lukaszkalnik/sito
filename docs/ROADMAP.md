@@ -29,7 +29,8 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 15 | Split by content | ⬜ |
 | 16 | Series without EXIF date | ⬜ |
 | 17 | Faces and eyes | ⬜ |
-| 18 | macOS polish | ⬜ |
+| 18 | English and German UI | ⬜ |
+| 19 | macOS polish | ⬜ |
 
 ### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
@@ -116,5 +117,10 @@ Face and eye-state score (closed eyes penalized).
 
 *Try:* series of portraits pick shots with open eyes.
 
-### ⬜ 18. macOS polish
+### ⬜ 18. English and German UI
+UI translations in English and German next to Polish (`en.json`, `de.json`), with dates and numbers formatted for the chosen language (`en-GB`/`de-DE`) and correct plural rules. The language follows the system language by default and can be changed in settings; a test checks that every key exists in all three files.
+
+*Try:* switch the system language (or the setting) to English and German and check all screens, plurals and dates.
+
+### ⬜ 19. macOS polish
 Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
