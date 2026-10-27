@@ -75,9 +75,9 @@ SQLite cache of scan results and decisions; rescans are fast and decisions survi
 *Try:* rescan a large folder twice, restart mid-review; move a folder, rescan, and check that the cache folder does not keep growing.
 
 ### ⬜ 10. Edit series
-Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, or ungroup a series completely. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
+Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, ungroup a series completely, or "cut here" to split a series that chains several moments (e.g. a long event shot in quick succession) into two at a chosen photo. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
 
-*Try:* ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
+*Try:* cut a chained series into its real moments, ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
 
 ### ⬜ 11. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.
