@@ -107,7 +107,25 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
 
     /** Mirrors `find_time_series` in core: EXIF-dated neighbours at most the gap apart. */
     function seriesByGap(gapSeconds: number): unknown[] {
-      const entries = timeline() as { takenAt: string; fromFileDate: boolean }[];
+      // Like the backend: series are found including rejected photos and keep
+      // their shape while any of their photos is left.
+      const entries = allPhotos() as { id: number; takenAt: string; fromFileDate: boolean }[];
+      const keptBefore = [0];
+      entries.forEach((e, i) =>
+        keptBefore.push((keptBefore[i] ?? 0) + (rejected.includes(e.id) ? 0 : 1)),
+      );
+      return findSeries(entries, gapSeconds)
+        .map(({ start, len }) => ({
+          start: keptBefore[start] ?? 0,
+          len: (keptBefore[start + len] ?? 0) - (keptBefore[start] ?? 0),
+        }))
+        .filter((s) => s.len > 0);
+    }
+
+    function findSeries(
+      entries: { takenAt: string; fromFileDate: boolean }[],
+      gapSeconds: number,
+    ): { start: number; len: number }[] {
       const result = [];
       let start = 0;
       for (let i = 1; i <= entries.length; i++) {

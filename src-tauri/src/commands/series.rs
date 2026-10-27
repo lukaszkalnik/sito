@@ -36,7 +36,10 @@ impl From<Series> for SeriesDto {
 pub fn get_series(max_gap_seconds: Option<u32>, state: State<'_, AppState>) -> Vec<SeriesDto> {
     let max_gap = max_gap_seconds.map_or(DEFAULT_MAX_GAP, |s| Duration::from_secs(s.into()));
     state.scan().as_ref().map_or_else(Vec::new, |scan| {
-        series::find_time_series(&scan.timeline.photos, max_gap)
+        // Rejected photos still shape the series, so a series stays one while
+        // any of its photos is left.
+        let (all, removed) = scan.photos_with_removed();
+        series::without_removed(&series::find_time_series(&all, max_gap), &removed)
             .into_iter()
             .map(SeriesDto::from)
             .collect()

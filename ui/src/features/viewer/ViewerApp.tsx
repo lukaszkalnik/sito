@@ -12,7 +12,7 @@ import {
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { useTimelineEntries } from '../timeline/useTimelineEntries';
-import { navigationOrder, neighbours } from './navigation';
+import { afterReject } from './navigation';
 import { PhotoViewer } from './PhotoViewer';
 
 /** Photo id meaning "no photo left to show". */
@@ -56,12 +56,7 @@ function LoadedViewer({
   const reject = async () => {
     if (!entry || rejecting.current) return;
     rejecting.current = true;
-    // Continue with the next photo, or the previous one at the end.
-    const { previous, next } = neighbours(
-      navigationOrder(entries.length, series, request.mode),
-      position,
-    );
-    const after = next ?? previous;
+    const after = afterReject(entries.length, series, request.mode, position);
     try {
       const rejected = await rejectPhoto(entry.id);
       onShowId(after === null ? NO_PHOTO : (entries[after]?.id ?? NO_PHOTO));

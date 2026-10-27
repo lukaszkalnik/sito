@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Series } from '../../api/scan';
-import { navigationOrder, neighbours, seriesOf } from './navigation';
+import { afterReject, navigationOrder, neighbours, seriesOf } from './navigation';
 
 // Ten photos; series at positions 1–2 and 5–7.
 const series: Series[] = [
@@ -53,5 +53,28 @@ describe('seriesOf', () => {
     expect(seriesOf(series, 0)).toBeUndefined();
     expect(seriesOf(series, 3)).toBeUndefined();
     expect(seriesOf(series, 8)).toBeUndefined();
+  });
+});
+
+describe('afterReject', () => {
+  it('stays in the series: next photo of it, else the previous one', () => {
+    expect(afterReject(10, series, 'series', 5)).toBe(6);
+    expect(afterReject(10, series, 'series', 7)).toBe(6);
+    expect(afterReject(10, series, 'all', 2)).toBe(1);
+  });
+
+  it('continues with the view when the series has no other photo', () => {
+    const shrunk: Series[] = [
+      { start: 1, len: 1 },
+      { start: 5, len: 3 },
+    ];
+    expect(afterReject(10, shrunk, 'series', 1)).toBe(5);
+    expect(afterReject(10, shrunk, 'all', 1)).toBe(2);
+  });
+
+  it('continues with the next single photo, or the previous one at the end', () => {
+    expect(afterReject(10, series, 'all', 3)).toBe(4);
+    expect(afterReject(10, series, 'all', 9)).toBe(8);
+    expect(afterReject(1, [], 'all', 0)).toBeNull();
   });
 });

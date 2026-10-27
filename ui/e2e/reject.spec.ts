@@ -92,3 +92,40 @@ test('undoes a rejection from the main window', async ({ page }) => {
   await expect(page.getByRole('status')).toContainText('Znaleziono 30 zdjęć.');
   await expect(page.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
 });
+
+test('keeps a series of two as a series when one of its photos is rejected', async ({ page }) => {
+  // Pairs of photos 2 s apart, 10 minutes between pairs: series at ids 0–1, 2–3, …
+  await servePixels(page);
+  await mockTauri(page, {
+    ...BASE,
+    timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 0, stepPattern: [2, 600] },
+    viewerRequest: { id: 1, scanId: 5, mode: 'series', gap: 10 },
+  });
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto('/?window=viewer');
+  await expect(photo(page, 'IMG_00029.jpg')).toBeVisible();
+
+  await page.keyboard.press('Delete');
+
+  // Stays in the series with the kept photo instead of jumping to the next pair.
+  await expect(photo(page, 'IMG_00030.jpg')).toBeVisible();
+  const strip = page.getByRole('navigation', { name: 'Zdjęcia w serii' });
+  await expect(strip.getByRole('button')).toHaveCount(1);
+});
+
+test('shows a series reduced to one photo in the series view', async ({ page }) => {
+  await servePixels(page);
+  await mockTauri(page, {
+    ...BASE,
+    timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 0, stepPattern: [2, 600] },
+    rejected: [1],
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+
+  await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
+    'Seria · 1 zdjęcie · 12:00:00–12:00:00',
+  );
+  await expect(page.getByRole('status')).toContainText('15 serii (29 zdjęć).');
+});

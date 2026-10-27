@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use sito_core::timeline::{Photo, Timeline};
+use sito_core::timeline::{Photo, Timeline, compare_photos};
 
 /// The result of one finished scan.
 #[derive(Debug)]
@@ -41,6 +41,25 @@ impl Scan {
     /// The photos with their ids, in timeline order.
     pub fn photos(&self) -> impl Iterator<Item = (usize, &Photo)> {
         self.ids.iter().copied().zip(&self.timeline.photos)
+    }
+
+    /// The timeline's photos together with the photos removed from this scan,
+    /// in timeline order, and for each whether it was removed. Series are
+    /// found on this list, so rejecting photos does not break them up.
+    pub fn photos_with_removed(&self) -> (Vec<Photo>, Vec<bool>) {
+        let mut all: Vec<(Photo, bool)> = self
+            .timeline
+            .photos
+            .iter()
+            .map(|photo| (photo.clone(), false))
+            .chain(
+                self.removed
+                    .values()
+                    .map(|(_, photo)| (photo.clone(), true)),
+            )
+            .collect();
+        all.sort_by(|a, b| compare_photos(&a.0, &b.0));
+        all.into_iter().unzip()
     }
 
     /// The photo with id `id`, if it is on the timeline.
@@ -246,5 +265,20 @@ mod tests {
 
         assert_eq!(scan.restore(Path::new("gone.jpg"), |_| None), None);
         assert_eq!(names(&scan), [(0, "a.jpg".into())]);
+    }
+
+    #[test]
+    fn removed_photos_are_listed_in_place_for_finding_series() {
+        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+        scan.remove(1);
+
+        let (all, removed) = scan.photos_with_removed();
+
+        let paths: Vec<_> = all
+            .iter()
+            .map(|p| p.path.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(paths, ["a.jpg", "b.jpg", "c.jpg"]);
+        assert_eq!(removed, [false, true, false]);
     }
 }

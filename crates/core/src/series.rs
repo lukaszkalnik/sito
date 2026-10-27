@@ -7,13 +7,38 @@ use crate::timeline::{Photo, TimeSource};
 /// Default largest gap between two neighbouring photos of one series.
 pub const DEFAULT_MAX_GAP: Duration = Duration::from_secs(10);
 
-/// A run of at least two consecutive photos of a timeline.
+/// A run of consecutive photos of a timeline: at least two when found, fewer
+/// once photos of it were rejected (see [`without_removed`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Series {
     /// Index of the series' first (newest) photo in the timeline.
     pub start: usize,
-    /// Number of photos in the series (at least 2).
+    /// Number of photos in the series.
     pub len: usize,
+}
+
+/// Maps `series` found on a list of photos to the same list without the
+/// photos marked `true` in `removed` (same length as that list). A series
+/// keeps its shape while at least one of its photos is left, so rejecting
+/// all but the best shot of a series still shows it as a series.
+#[must_use]
+pub fn without_removed(series: &[Series], removed: &[bool]) -> Vec<Series> {
+    // Position of each photo in the list without the removed ones.
+    let mut kept_before = Vec::with_capacity(removed.len() + 1);
+    let mut kept = 0;
+    for &gone in removed {
+        kept_before.push(kept);
+        kept += usize::from(!gone);
+    }
+    kept_before.push(kept);
+    series
+        .iter()
+        .filter_map(|s| {
+            let start = *kept_before.get(s.start)?;
+            let len = kept_before.get(s.start + s.len)? - start;
+            (len > 0).then_some(Series { start, len })
+        })
+        .collect()
 }
 
 /// Finds series in `photos` (sorted newest first, as in
@@ -145,5 +170,41 @@ mod tests {
             ranges(&find_time_series(&photos(&[5, 5, 5]), DEFAULT_MAX_GAP)),
             [(0, 3)]
         );
+    }
+
+    #[test]
+    fn a_series_keeps_its_shape_while_one_photo_is_left() {
+        // Photos 0–1 and 3–5 form series; 2 and 6 are single.
+        let series = [Series { start: 0, len: 2 }, Series { start: 3, len: 3 }];
+
+        // The second photo of the first series is rejected: one is left.
+        let removed = [false, true, false, false, false, false, false];
+        assert_eq!(
+            ranges(&without_removed(&series, &removed)),
+            [(0, 1), (2, 3)]
+        );
+
+        // Two of the second series and a single are rejected.
+        let removed = [false, false, true, true, false, true, false];
+        assert_eq!(
+            ranges(&without_removed(&series, &removed)),
+            [(0, 2), (2, 1)]
+        );
+    }
+
+    #[test]
+    fn a_series_with_all_photos_rejected_is_gone() {
+        let series = [Series { start: 0, len: 2 }, Series { start: 2, len: 2 }];
+
+        let removed = [true, true, false, false];
+
+        assert_eq!(ranges(&without_removed(&series, &removed)), [(0, 2)]);
+    }
+
+    #[test]
+    fn nothing_removed_leaves_the_series_unchanged() {
+        let series = [Series { start: 1, len: 3 }];
+
+        assert_eq!(ranges(&without_removed(&series, &[false; 5])), [(1, 3)]);
     }
 }

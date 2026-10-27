@@ -39,3 +39,23 @@ export function neighbours(
 export function seriesOf(series: readonly Series[], position: number): Series | undefined {
   return series.find((s) => position >= s.start && position < s.start + s.len);
 }
+
+/**
+ * The photo to show after rejecting the one at `position`: the next photo of
+ * its series, else the previous one of its series, so you can keep sorting
+ * the same series; only a single photo (or the last of a series) continues
+ * with the next, else the previous, photo of the view. `null` if none is left.
+ */
+export function afterReject(
+  count: number,
+  series: readonly Series[],
+  mode: ViewMode,
+  position: number,
+): number | null {
+  const own = seriesOf(series, position);
+  if (own && own.len > 1) {
+    return position + 1 < own.start + own.len ? position + 1 : position - 1;
+  }
+  const { previous, next } = neighbours(navigationOrder(count, series, mode), position);
+  return next ?? previous;
+}

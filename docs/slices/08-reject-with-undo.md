@@ -104,3 +104,6 @@ Your decisions:
 - **Folder-scoped undo:** opening a parent folder (e.g. `D:\Desktop`) also lets Cofnij undo rejections made earlier in a subfolder (e.g. `D:\Desktop\Złote gody`), since those photos are part of the open timeline.
 - **A rejected file renamed** to `IMG (2).jpg` because of a clash is restored under its original name, since the log stores both paths.
 - `rusqlite` with `bundled` compiles SQLite from C. That adds about a minute to clean builds, locally and in CI.
+
+## Follow-up after testing v0.7.0
+- Rejecting the second photo of a 2-photo series dissolved the series: the kept photo left "Serie" (it was now a single) and the viewer jumped to the next series. Now series keep their shape: they are found on the scan's photos including those rejected in this session, and a series stays one while any of its photos is left (`series::without_removed`). After "Odrzuć" the viewer stays in the series: next photo of it, else the previous one (`afterReject`).
