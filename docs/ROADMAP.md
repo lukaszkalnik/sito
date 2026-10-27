@@ -93,7 +93,7 @@ Changes from the first user test (2026-10-27):
 3. **Accept a photo:** a "Zaakceptuj" button (and key) marks a photo as accepted, e.g. as the first pick in a large series; a green check mark shows on its thumbnails (timeline and series strip), not on the photo itself. Stored in SQLite.
 4. **Current photo in the series strip:** a more prominent marker than the thin blue frame.
 5. **Series strip follows:** stepping to the next photo of a long series scrolls the strip so the current thumbnail stays visible.
-6. **Several cameras at one event:** when cameras' clocks are slightly off, their series interleave (2 photos outside, 2 inside from another camera, back outside). Series are split by camera, even if their times overlap. To decide when planning: how overlapping series are ordered (e.g. by their newest photo) and how the header marks that a series overlaps another.
+. **About:** an „O programie” entry showing the version number (and the links to the license and third-party notices from slice 10).
 
 *Try:* a portrait photo fills the viewer's height; accept the best shot of a big series and see the check mark; step through a long series and watch the strip follow; open the party folder shot with several cameras and check each camera's series stays together.
 
