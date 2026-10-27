@@ -109,9 +109,9 @@ Embedding model (downloaded on first launch, checksum-verified) splits series wi
 *Try:* series with mixed subjects get split.
 
 ### ⬜ 16. Series without EXIF date
-Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 15).
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 15). Also reads the date files of a Google Takeout export (`IMG_1234.jpg.json` / `.supplemental-metadata.json`, field `photoTakenTime`), so exported photos without EXIF get their real capture time instead of the export date.
 
-*Try:* a folder of WhatsApp images forms only the series that really belong together.
+*Try:* a folder of WhatsApp images forms only the series that really belong together. An unpacked Takeout folder shows photos at their real capture dates.
 
 ### ⬜ 17. Faces and eyes
 Face and eye-state score (closed eyes penalized).
@@ -127,4 +127,4 @@ UI translations in English and German next to Polish (`en.json`, `de.json`), wit
 Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
 
 ### ⬜ 20. Google Photos (to be decided)
-Work on photos stored in Google Photos without downloading the whole library. Since March 2025 the official API only allows a hand-picked batch (Picker API) and cannot trash anything; a browser extension or an Android app are the alternatives. Open questions and options: [ideas/google-photos.md](ideas/google-photos.md). Scope and whether to do it at all are still open.
+Work on photos stored in Google Photos without downloading the whole library. Since March 2025 the official API only allows a hand-picked batch (Picker API) and cannot trash anything. **Preferred direction: a standalone Android app** (Tauri mobile, reusing the core and much of the UI) working on the phone's own photos, with the system trash and undo. Still to verify: whether Google Photos follows trashing done on the phone. Options and open questions: [ideas/google-photos.md](ideas/google-photos.md). Scope still to be decided.

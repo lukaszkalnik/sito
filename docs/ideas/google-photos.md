@@ -61,6 +61,8 @@ Status: concept, not planned. Researched 2026-10-27; Google's Photos APIs change
 
 ## Recommendation
 
+> **Decision (2026-10-27):** the user considers **option D, a standalone Android app**, the strongest direction for slice 20. Takeout date files go into slice 16.
+
 1. **Do nothing cloud-specific for now.** Finish slices 9–17 on local folders. Option B already covers "photos from an Android phone" if the user copies `DCIM/Camera` or uses Takeout. The only cheap addition is a Takeout sidecar reader, as part of slice 16.
 2. If cloud review is wanted, the **official path is option A** as one roadmap slice, "Import from Google Photos (Picker)". Scope: OAuth desktop flow with keychain storage, a Picker session for ≤ 2,000 items, download and cache of `w400` and `w2048` sizes, the timeline and series on remote items, and reject as a local decision with an "Open in Google Photos" list. It needs a `PhotoSource` abstraction in core first (path vs. remote id). Accept that the user still deletes in Google Photos by hand.
 3. **Don't build option C now.** It's the only way to really trash in the cloud at scale, but it rests on an undocumented API and grey ToS. The prerequisite refactors (pure `core` → wasm, a backend-agnostic `ui/src/api`) are worth doing anyway if C or D ever becomes a goal; they also help testing.
