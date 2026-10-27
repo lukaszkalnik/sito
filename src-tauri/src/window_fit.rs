@@ -3,8 +3,8 @@
 //! excludes the taskbar), even when they were remembered on a larger or
 //! disconnected monitor.
 
-use tauri::{PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
-use tauri_plugin_window_state::{StateFlags, WindowExt};
+use tauri::{Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, Window, WindowEvent};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
 
 /// What the window-state plugin remembers of each window.
 pub const STATE_FLAGS: StateFlags = StateFlags::SIZE
@@ -31,6 +31,17 @@ pub fn show_placed<R: Runtime>(window: &WebviewWindow<R>) {
     }
     if let Err(err) = window.show() {
         log::warn!("cannot show the {} window: {err}", window.label());
+    }
+}
+
+/// Writes the size and position of all windows to disk when one is about to
+/// close. The plugin itself only writes on app exit, which closing the last
+/// window on Windows does not reliably reach, so the state was never saved.
+pub fn save_on_close<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
+    if let WindowEvent::CloseRequested { .. } = event
+        && let Err(err) = window.app_handle().save_window_state(STATE_FLAGS)
+    {
+        log::warn!("cannot save the window size and position: {err}");
     }
 }
 

@@ -27,6 +27,7 @@ pub fn run() -> tauri::Result<()> {
                 .skip_initial_state(commands::viewer::LABEL)
                 .build(),
         )
+        .on_window_event(window_fit::save_on_close)
         .manage(state::AppState::default())
         .manage(commands::viewer::ViewerState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
