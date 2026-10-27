@@ -15,7 +15,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 1 | [Count photos](slices/01-count-photos.md) | ✅ |
 | 2 | [Installable app](slices/02-installable-app.md) | ✅ |
 | 3 | [Timeline](slices/03-timeline.md) | ✅ |
-| 4 | [Thumbnails](slices/04-thumbnails.md) | 🚧 |
+| 4 | [Thumbnails](slices/04-thumbnails.md) | 🧪 |
 | 5 | Time series | ⬜ |
 | 6 | Time-gap slider | ⬜ |
 | 7 | Compare and decide | ⬜ |
@@ -42,7 +42,7 @@ All photos sorted by capture time (EXIF date and orientation, mtime fallback), s
 
 *Try:* scroll through a large folder, check order and dates.
 
-### 🚧 4. Thumbnails
+### 🧪 4. Thumbnails
 Real thumbnails in the timeline: generated in the background, cached on disk, loaded lazily for the visible area only, correct EXIF rotation. Generated on demand for visible tiles, cached in the app cache folder. Plan: [slices/04-thumbnails.md](slices/04-thumbnails.md)
 
 *Try:* scroll fast through 10,000+ photos; thumbnails fill in without freezing, and a second visit is instant.

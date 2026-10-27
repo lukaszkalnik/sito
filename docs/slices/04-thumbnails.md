@@ -1,6 +1,6 @@
 # Slice 4 – Thumbnails
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (v0.3.0)
 
 ## Context
 
