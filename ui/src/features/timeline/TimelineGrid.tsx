@@ -75,7 +75,7 @@ interface TimelineGridProps {
 }
 
 /** How long a revealed photo stays highlighted. */
-export const HIGHLIGHT_MS = 1500;
+export const HIGHLIGHT_MS = 2600;
 /** How long to wait for a revealed photo to appear in the rows. */
 const REVEAL_WAIT_MS = 2000;
 
