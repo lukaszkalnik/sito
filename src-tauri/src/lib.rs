@@ -52,6 +52,9 @@ pub fn run() -> tauri::Result<()> {
                 }
             };
             app.manage(thumbnails::Thumbnails::new(cache_dir)?);
+            app.manage(commands::reject::Actions::new(open_action_log(
+                app.handle(),
+            )));
             // The main window is created hidden from the config.
             if let Some(main) = app.get_webview_window("main") {
                 window_fit::show_placed(&main);
@@ -63,7 +66,26 @@ pub fn run() -> tauri::Result<()> {
             commands::scan::get_timeline,
             commands::series::get_series,
             commands::viewer::open_viewer,
-            commands::viewer::take_viewer_request
+            commands::viewer::take_viewer_request,
+            commands::reject::reject_photo,
+            commands::reject::undo_reject,
+            commands::reject::get_undo_state
         ])
         .run(tauri::generate_context!())
+}
+
+/// Opens the log of file operations in the app data folder, or `None` (with a
+/// warning) if that fails; rejecting photos is then refused.
+fn open_action_log(app: &tauri::AppHandle) -> Option<sito_core::actions::ActionLog> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|err| log::warn!("no app data folder: {err}"))
+        .ok()?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|err| log::warn!("cannot create {}: {err}", dir.display()))
+        .ok()?;
+    sito_core::actions::ActionLog::open(&dir.join("sito.db"))
+        .map_err(|err| log::warn!("cannot open the action log: {err}"))
+        .ok()
 }

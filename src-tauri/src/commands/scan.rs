@@ -67,7 +67,8 @@ impl ScanSummaryDto {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimelineEntryDto {
-    /// Position on the timeline; stable until the next scan.
+    /// Stable id of the photo within its scan (kept when other photos are
+    /// rejected or restored).
     id: usize,
     /// File name.
     name: String,
@@ -113,6 +114,10 @@ pub enum CommandError {
     NotADirectory,
     /// The folder could not be read.
     Io,
+    /// Undo would overwrite a file that now has the photo's original name.
+    Occupied,
+    /// The rejected photo is no longer in the rejected folder.
+    Missing,
     /// Unexpected failure inside the app.
     Internal,
 }
@@ -168,11 +173,8 @@ pub async fn start_scan(
 #[tauri::command]
 pub fn get_timeline(state: State<'_, AppState>) -> Vec<TimelineEntryDto> {
     state.scan().as_ref().map_or_else(Vec::new, |scan| {
-        let t = &scan.timeline;
-        t.photos
-            .iter()
-            .enumerate()
-            .map(|(id, photo)| TimelineEntryDto::new(id, photo, &t.root))
+        scan.photos()
+            .map(|(id, photo)| TimelineEntryDto::new(id, photo, &scan.timeline.root))
             .collect()
     })
 }

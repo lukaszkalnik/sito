@@ -1,8 +1,8 @@
 //! `photo://` protocol: serves the original files of the current scan's photos
 //! for the full-size viewer.
 //!
-//! URL: `photo://localhost/<photo index>?scan=<scan id>` (macOS) or
-//! `http://photo.localhost/<photo index>?scan=<scan id>` (Windows). The bytes
+//! URL: `photo://localhost/<photo id>?scan=<scan id>` (macOS) or
+//! `http://photo.localhost/<photo id>?scan=<scan id>` (Windows). The bytes
 //! are served unchanged; the webview applies the EXIF orientation itself.
 
 use std::path::Path;
@@ -23,7 +23,7 @@ pub fn handle<R: Runtime>(
     responder: UriSchemeResponder,
 ) {
     let photo = parse_request(request.uri())
-        .and_then(|(scan_id, index)| ctx.app_handle().state::<AppState>().photo(scan_id, index));
+        .and_then(|(scan_id, id)| ctx.app_handle().state::<AppState>().photo(scan_id, id));
     let Some(photo) = photo else {
         responder.respond(error_response(StatusCode::NOT_FOUND));
         return;

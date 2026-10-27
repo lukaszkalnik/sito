@@ -1,7 +1,7 @@
 //! `thumb://` protocol: serves thumbnails of the current scan's photos.
 //!
-//! URL: `thumb://localhost/<photo index>?scan=<scan id>` (macOS) or
-//! `http://thumb.localhost/<photo index>?scan=<scan id>` (Windows).
+//! URL: `thumb://localhost/<photo id>?scan=<scan id>` (macOS) or
+//! `http://thumb.localhost/<photo id>?scan=<scan id>` (Windows).
 
 use std::path::PathBuf;
 
@@ -56,7 +56,7 @@ pub fn handle<R: Runtime>(
         return;
     };
     let photo = parse_request(request.uri())
-        .and_then(|(scan_id, index)| app.state::<AppState>().photo(scan_id, index));
+        .and_then(|(scan_id, id)| app.state::<AppState>().photo(scan_id, id));
     let Some(photo) = photo else {
         responder.respond(error_response(StatusCode::NOT_FOUND));
         return;
@@ -75,16 +75,16 @@ pub fn handle<R: Runtime>(
     });
 }
 
-/// Reads `(scan id, photo index)` from a thumbnail or photo URL.
+/// Reads `(scan id, photo id)` from a thumbnail or photo URL.
 pub(crate) fn parse_request(uri: &Uri) -> Option<(u64, usize)> {
-    let index = uri.path().strip_prefix('/')?.parse().ok()?;
+    let id = uri.path().strip_prefix('/')?.parse().ok()?;
     let scan_id = uri
         .query()?
         .split('&')
         .find_map(|pair| pair.strip_prefix("scan="))?
         .parse()
         .ok()?;
-    Some((scan_id, index))
+    Some((scan_id, id))
 }
 
 pub(crate) fn jpeg_response(bytes: Vec<u8>) -> Response<Vec<u8>> {
