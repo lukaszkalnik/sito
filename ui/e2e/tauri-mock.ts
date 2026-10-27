@@ -26,6 +26,11 @@ export interface TauriMock {
   timeline?:
     | { entries: unknown[] }
     | { count: number; newest: string; stepSeconds: number; fileDateEvery?: number };
+  /**
+   * Series returned by `get_series`: explicit ranges, or generated as a
+   * series of `size` photos starting at every `every`-th photo. Default: none.
+   */
+  series?: { start: number; len: number }[] | { every: number; size: number };
 }
 
 /**
@@ -55,6 +60,18 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         takenAt: localIso(new Date(newest - i * t.stepSeconds * 1000)),
         fromFileDate: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0,
       }));
+    }
+
+    function series(): unknown[] {
+      const s = m.series;
+      if (!s) return [];
+      if (Array.isArray(s)) return s;
+      const count = timeline().length;
+      const result = [];
+      for (let start = 0; start + s.size <= count; start += s.every) {
+        result.push({ start, len: s.size });
+      }
+      return result;
     }
 
     const internals = {
@@ -88,6 +105,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           }
           case 'get_timeline':
             return timeline();
+          case 'get_series':
+            return series();
           default:
             throw new Error(`Unmocked Tauri command: ${cmd}`);
         }

@@ -1,9 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import type { TimelineEntry } from '../../api/scan';
-import { formatDay } from './format';
-import { buildRows, columnsFor, rowHeight } from './layout';
+import type { Series, TimelineEntry } from '../../api/scan';
+import { formatDay, timeOf } from './format';
+import { buildRows, columnsFor, rowHeight, type TimelineMode, type TimelineRow } from './layout';
 import { TimelineTile } from './TimelineTile';
 import './TimelineGrid.css';
 
@@ -22,17 +23,45 @@ function useElementWidth(ref: React.RefObject<HTMLElement | null>): number {
   return width;
 }
 
-/** Virtualized grid of photos grouped by day; renders only visible rows. */
-export function TimelineGrid({
-  entries,
-  scanId,
-}: {
+/** Header above the photos of one series: count and time range. */
+function SeriesHeader({ entries }: { entries: readonly TimelineEntry[] }) {
+  const { t } = useTranslation();
+  const newest = entries[0];
+  const oldest = entries[entries.length - 1];
+  return (
+    <h3 className="timeline-series">
+      {t('series.header', {
+        photos: t('scan.photoCount', { count: entries.length }),
+        from: oldest ? timeOf(oldest.takenAt) : '',
+        to: newest ? timeOf(newest.takenAt) : '',
+      })}
+    </h3>
+  );
+}
+
+function rowClass(row: TimelineRow): string {
+  if (row.kind === 'series') return 'timeline-row timeline-row--series timeline-row--series-start';
+  if (row.kind === 'tiles' && row.inSeries) {
+    return `timeline-row timeline-row--series${row.seriesEnd ? ' timeline-row--series-end' : ''}`;
+  }
+  return 'timeline-row';
+}
+
+interface TimelineGridProps {
   entries: readonly TimelineEntry[];
+  series: readonly Series[];
+  mode: TimelineMode;
   scanId: number;
-}) {
+}
+
+/** Virtualized grid of photos grouped by day and series; renders only visible rows. */
+export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
-  const rows = useMemo(() => buildRows(entries, columnsFor(width)), [entries, width]);
+  const rows = useMemo(
+    () => buildRows(entries, series, columnsFor(width), mode),
+    [entries, series, width, mode],
+  );
 
   // The app does not use the React Compiler, so its memoization caveat does not apply.
   // oxlint-disable-next-line react/incompatible-library
@@ -60,12 +89,12 @@ export function TimelineGrid({
           return (
             <div
               key={item.key}
-              className="timeline-row"
+              className={rowClass(row)}
               style={{ height: item.size, transform: `translateY(${item.start}px)` }}
             >
-              {row.kind === 'day' ? (
-                <h2 className="timeline-day">{formatDay(row.date)}</h2>
-              ) : (
+              {row.kind === 'day' && <h2 className="timeline-day">{formatDay(row.date)}</h2>}
+              {row.kind === 'series' && <SeriesHeader entries={row.entries} />}
+              {row.kind === 'tiles' && (
                 <ul className="timeline-tiles">
                   {row.entries.map((entry) => (
                     <TimelineTile key={entry.id} entry={entry} scanId={scanId} />

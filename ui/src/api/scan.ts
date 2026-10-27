@@ -77,3 +77,14 @@ export async function scanFolder(
 export async function getTimeline(): Promise<TimelineEntry[]> {
   return invoke<TimelineEntry[]>('get_timeline');
 }
+
+/** A series: `len` consecutive timeline entries starting at id `start`. Mirrors `SeriesDto`. */
+export interface Series {
+  start: number;
+  len: number;
+}
+
+/** Returns the series of the last finished scan, using the default time gap. */
+export async function getSeries(): Promise<Series[]> {
+  return invoke<Series[]>('get_series', {});
+}

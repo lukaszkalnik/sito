@@ -33,5 +33,20 @@
     "fileDate": "data pliku",
     "fileDateHint": "Brak daty w EXIF – użyto daty modyfikacji pliku.",
     "thumbnailError": "Nie udało się wczytać miniatury."
+  },
+  "view": {
+    "label": "Widok",
+    "series": "Serie",
+    "all": "Wszystkie zdjęcia"
+  },
+  "series": {
+    "header": "Seria · {{photos}} · {{from}}–{{to}}",
+    "summary": "{{series}} ({{photos}}).",
+    "count_one": "{{count, number}} seria",
+    "count_few": "{{count, number}} serie",
+    "count_many": "{{count, number}} serii",
+    "count_other": "{{count, number}} serii",
+    "none": "Nie znaleziono serii zdjęć.",
+    "noneHint": "Przełącz na „Wszystkie zdjęcia”, aby zobaczyć wszystkie zdjęcia."
   }
 }

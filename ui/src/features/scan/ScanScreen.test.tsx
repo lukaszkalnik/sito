@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  getSeries,
   getTimeline,
   pickFolder,
   ScanError,
@@ -18,11 +19,13 @@ vi.mock('../../api/scan', async (importActual) => ({
   pickFolder: vi.fn(),
   scanFolder: vi.fn(),
   getTimeline: vi.fn(),
+  getSeries: vi.fn(),
 }));
 
 const mockedPick = vi.mocked(pickFolder);
 const mockedScan = vi.mocked(scanFolder);
 const mockedTimeline = vi.mocked(getTimeline);
+const mockedSeries = vi.mocked(getSeries);
 
 function summary(photosFound: number, extra: { unreadable?: number; withoutExif?: number } = {}) {
   return {
@@ -57,6 +60,7 @@ describe('ScanScreen', () => {
     vi.resetAllMocks();
     mockedPick.mockResolvedValue('C:\\Zdjęcia');
     mockedTimeline.mockResolvedValue(entries);
+    mockedSeries.mockResolvedValue([{ start: 0, len: 2 }]);
   });
 
   it.each([
@@ -74,7 +78,8 @@ describe('ScanScreen', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }));
 
-    expect(await screen.findByText(text)).toBeInTheDocument();
+    expect(await screen.findByRole('status')).toHaveTextContent(text);
+    expect(await screen.findByText('1 seria (2 zdjęcia).', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('C:\\Zdjęcia')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Wybierz inny folder' })).toBeEnabled();
     expect(await screen.findByTestId('timeline')).toBeInTheDocument();

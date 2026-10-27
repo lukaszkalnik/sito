@@ -18,6 +18,7 @@ test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
   await expect(page.getByTestId('timeline')).toBeVisible();
 });
 

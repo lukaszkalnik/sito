@@ -37,3 +37,26 @@
   padding: 2rem;
   text-align: center;
 }
+
+.timeline-mode {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.timeline-mode button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.timeline-mode button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+}

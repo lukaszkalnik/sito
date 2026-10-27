@@ -18,7 +18,7 @@
 
 .timeline-day {
   margin: 0;
-  padding-top: 1rem;
+  padding: 1rem 8px 0;
   font-size: 1rem;
   font-weight: 600;
 }
@@ -31,8 +31,30 @@
   display: flex;
   gap: 8px;
   margin: 0;
-  padding: 0;
+  padding: 0 8px;
   list-style: none;
+}
+
+/* A series is a tinted band: header row, tile rows, and space below the last row. */
+.timeline-row--series {
+  background: var(--series-bg);
+}
+
+.timeline-row--series-start {
+  border-radius: 8px 8px 0 0;
+}
+
+.timeline-row--series-end {
+  background: linear-gradient(var(--series-bg), var(--series-bg)) top / 100% calc(100% - 8px)
+    no-repeat;
+}
+
+.timeline-series {
+  margin: 0;
+  padding: 6px 8px 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--series-text);
 }
 
 .timeline-tile {
