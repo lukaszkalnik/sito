@@ -131,3 +131,97 @@ fn is_safe_to_use_from_several_threads_at_once() {
     }
     assert_eq!(files_in(cache_dir.path()), [cache.path_for(&photo)]);
 }
+
+/// `count` small photos in `dir`, each with its thumbnail cached.
+fn cached_photos(dir: &Path, cache: &ThumbnailCache, count: usize) -> Vec<Photo> {
+    (0..count)
+        .map(|i| {
+            let path = dir.join(format!("photo-{i}.jpg"));
+            RgbImage::from_pixel(64, 48, Rgb([30, 120, 200]))
+                .save(&path)
+                .unwrap();
+            let photo = photo(path);
+            cache.get_or_create(&photo).unwrap();
+            photo
+        })
+        .collect()
+}
+
+#[test]
+fn clean_removes_thumbnails_of_photos_no_longer_known() {
+    let photos_dir = TempDir::new().unwrap();
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path());
+    let photos = cached_photos(photos_dir.path(), &cache, 3);
+
+    let report = cache.clean(&photos[..2], u64::MAX).unwrap();
+
+    assert_eq!(report.orphans_removed, 1);
+    assert_eq!(report.oldest_removed, 0);
+    assert!(cache.path_for(&photos[0]).exists());
+    assert!(cache.path_for(&photos[1]).exists());
+    assert!(!cache.path_for(&photos[2]).exists());
+}
+
+#[test]
+fn clean_keeps_the_cache_under_the_limit_removing_the_oldest_first() {
+    let photos_dir = TempDir::new().unwrap();
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path());
+    let photos = cached_photos(photos_dir.path(), &cache, 4);
+    // Make photo 0 the oldest thumbnail and photo 3 the newest.
+    let now = SystemTime::now();
+    for (i, photo) in photos.iter().enumerate() {
+        let age = Duration::from_secs(3600 * (4 - i as u64));
+        fs::File::options()
+            .write(true)
+            .open(cache.path_for(photo))
+            .unwrap()
+            .set_modified(now - age)
+            .unwrap();
+    }
+    let size = fs::metadata(cache.path_for(&photos[0])).unwrap().len();
+
+    // Room for two and a half thumbnails: the two oldest go.
+    let report = cache.clean(&photos, size * 5 / 2).unwrap();
+
+    assert_eq!(report.oldest_removed, 2);
+    assert!(!cache.path_for(&photos[0]).exists());
+    assert!(!cache.path_for(&photos[1]).exists());
+    assert!(cache.path_for(&photos[2]).exists());
+    assert!(cache.path_for(&photos[3]).exists());
+    assert!(report.bytes_left <= size * 5 / 2);
+}
+
+#[test]
+fn clean_never_touches_files_it_did_not_create() {
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path());
+    let foreign = [
+        cache_dir.path().join("notes.txt"),
+        cache_dir.path().join("ab").join("holiday.jpg"),
+        cache_dir
+            .path()
+            .join("photos")
+            .join(format!("{}.jpg", "a".repeat(64))),
+    ];
+    for file in &foreign {
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, b"keep me").unwrap();
+    }
+
+    let report = cache.clean(&[], 0).unwrap();
+
+    assert_eq!(report.orphans_removed, 0);
+    for file in &foreign {
+        assert!(file.exists(), "{}", file.display());
+    }
+}
+
+#[test]
+fn clean_of_a_cache_never_written_does_nothing() {
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path().join("thumbnails"));
+
+    assert_eq!(cache.clean(&[], 0).unwrap().bytes_left, 0);
+}

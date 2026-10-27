@@ -1,5 +1,6 @@
 //! Small, upright JPEG previews of photos.
 
+use std::collections::HashSet;
 use std::fs::{self, File};
 use std::io::{self, BufReader, Cursor};
 use std::path::{Path, PathBuf};
@@ -87,6 +88,89 @@ impl ThumbnailCache {
         let _ = store_atomically(&path, &bytes);
         Ok(bytes)
     }
+
+    /// Removes thumbnails no photo in `needed` uses any more (of photos that
+    /// were edited, moved or deleted), then, while the cache is larger than
+    /// `max_bytes`, the oldest ones. Only files named like cached thumbnails
+    /// are touched; a removed thumbnail is simply rendered again when needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache folder cannot be listed. Files that
+    /// cannot be removed are skipped.
+    pub fn clean(&self, needed: &[Photo], max_bytes: u64) -> io::Result<CleanReport> {
+        let needed: HashSet<PathBuf> = needed.iter().map(|photo| self.path_for(photo)).collect();
+        let mut report = CleanReport::default();
+        let mut kept = Vec::new();
+        let subfolders = match fs::read_dir(&self.dir) {
+            Ok(entries) => entries,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(report),
+            Err(err) => return Err(err),
+        };
+        for subfolder in subfolders.flatten() {
+            let Ok(files) = fs::read_dir(subfolder.path()) else {
+                continue;
+            };
+            for file in files.flatten() {
+                let path = file.path();
+                if !is_thumbnail_file(&path) {
+                    continue;
+                }
+                let Ok(meta) = file.metadata() else {
+                    continue;
+                };
+                if !needed.contains(&path) {
+                    if fs::remove_file(&path).is_ok() {
+                        report.orphans_removed += 1;
+                    }
+                    continue;
+                }
+                let age = meta.modified().unwrap_or(UNIX_EPOCH);
+                kept.push((age, meta.len(), path));
+            }
+        }
+
+        let mut total: u64 = kept.iter().map(|(_, len, _)| len).sum();
+        kept.sort();
+        for (_, len, path) in kept {
+            if total <= max_bytes {
+                break;
+            }
+            if fs::remove_file(&path).is_ok() {
+                total -= len;
+                report.oldest_removed += 1;
+            }
+        }
+        report.bytes_left = total;
+        Ok(report)
+    }
+}
+
+/// What [`ThumbnailCache::clean`] removed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CleanReport {
+    /// Thumbnails of photos that are no longer known.
+    pub orphans_removed: usize,
+    /// Thumbnails removed, oldest first, to get under the size limit.
+    pub oldest_removed: usize,
+    /// Size of the thumbnails left, in bytes.
+    pub bytes_left: u64,
+}
+
+/// Whether `path` is named like a cached thumbnail: `<2 hex>/<64 hex>.jpg`.
+fn is_thumbnail_file(path: &Path) -> bool {
+    let is_hex = |s: &str, len: usize| s.len() == len && s.bytes().all(|b| b.is_ascii_hexdigit());
+    let name_ok = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .and_then(|n| n.strip_suffix(".jpg"))
+        .is_some_and(|stem| is_hex(stem, 64));
+    let folder_ok = path
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|n| n.to_str())
+        .is_some_and(|n| is_hex(n, 2));
+    name_ok && folder_ok
 }
 
 /// Writes `bytes` to a temporary file next to `path` and renames it into
