@@ -99,7 +99,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 ## Roadmap
 
-The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every concept is committed to the repo, also drafts and work in progress (`docs/slices/NN-name.md` with status 📝 draft, ideas in `docs/ideas/`). Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
+The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every concept is committed to the repo, also drafts and work in progress (`docs/slices/NN-name.md` with status 📝 draft, ideas in `docs/ideas/`); the roadmap keeps only a one-line summary with the link, never the details. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
 
 ## Commands
 

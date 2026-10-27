@@ -2,7 +2,7 @@
 
 Work is split into vertical slices. Each slice goes through all layers (core → Tauri → UI) and ends with something the user can try in the running app. Ship one slice at a time; the user tests it before the next one starts.
 
-Every concept lives in the repo, also unfinished ones: as soon as a slice has more than a one-line description, its draft goes into `docs/slices/NN-name.md` (status 📝 draft), and ideas into `docs/ideas/`. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
+Every concept lives in the repo, also unfinished ones: as soon as a slice has more than a one-line description, its draft goes into `docs/slices/NN-name.md` (status 📝 draft), and ideas into `docs/ideas/`. The roadmap then keeps only a one-line summary and the link; details are never duplicated here. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
 
 **Status:** ⬜ not started · 📝 concept drafted or planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
 
@@ -82,26 +82,13 @@ SQLite cache of scan results: on start Sito reopens the last folder at once from
 *Try:* restart Sito (the last folder opens at once), rescan a large folder twice, move a folder, rescan, and check that the cache folder stays under 500 MB.
 
 ### 📝 10. Third-party license notices
-The installer ships compiled copies of the Rust crates and bundled npm packages, whose licenses (MIT, Apache-2.0, BSD, zlib, …) require their notices to go along. A `THIRD-PARTY-NOTICES` file is generated at build time (`cargo-about` for Rust, a Vite license plugin for the UI bundle), included in the installer, and opened from a „Licencje” link in the app. CI fails when a dependency brings a license that is not on the reviewed list.
-
-*Try:* open „Licencje” in the installed app and find React and `image` with their license texts. Draft: [slices/10-third-party-notices.md](slices/10-third-party-notices.md)
+Ship the license notices of the bundled libraries with the installer, shown from a „Licencje” link. Concept: [slices/10-third-party-notices.md](slices/10-third-party-notices.md)
 
 ### 📝 11. User feedback 1
-Changes from the first user test (2026-10-27):
-1. **Portrait photos** fill the viewer's full height, letterboxed at the sides.
-2. **"Odrzuć"** is clearly separated from "Cofnij" and has a solid red background.
-3. **Accept a photo:** a "Zaakceptuj" button (and key) marks a photo as accepted, e.g. as the first pick in a large series; a green check mark shows on its thumbnails (timeline and series strip), not on the photo itself. Stored in SQLite.
-4. **Current photo in the series strip:** a more prominent marker than the thin blue frame.
-5. **Series strip follows:** stepping to the next photo of a long series scrolls the strip so the current thumbnail stays visible.
-6. **Several cameras at one event:** when cameras' clocks are slightly off, their series interleave (2 photos outside, 2 inside from another camera, back outside). Series are split by camera, even if their times overlap. To decide when planning: how overlapping series are ordered (e.g. by their newest photo) and how the header marks that a series overlaps another.
-7. **About:** an „O programie” entry showing the version number (and links to the license and the third-party notices from slice 10).
-
-*Try:* a portrait photo fills the viewer's height; accept the best shot of a big series and see the check mark; step through a long series and watch the strip follow; open the party folder shot with several cameras and check each camera's series stays together. Draft: [slices/11-user-feedback-1.md](slices/11-user-feedback-1.md)
+Findings from the first user test: portrait photos, the reject button, accepting photos, the series strip, series from several cameras, „O programie”. Concept: [slices/11-user-feedback-1.md](slices/11-user-feedback-1.md)
 
 ### 📝 12. Zoom in the viewer
-Zoom into the photo in the viewer (mouse wheel, pinch on touchpad, keys) and pan around, to compare sharpness and faces at 100 %. Stepping to another photo keeps the zoom and position, so the same detail can be compared across a series.
-
-*Try:* zoom into a face, step through the series and compare the same spot in every shot. Draft: [slices/12-viewer-zoom.md](slices/12-viewer-zoom.md)
+Zoom and pan in the viewer, kept while stepping through a series to compare the same detail. Concept: [slices/12-viewer-zoom.md](slices/12-viewer-zoom.md)
 
 ### ⬜ 13. Edit series
 Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, ungroup a series completely, or "cut here" to split a series that chains several moments (e.g. a long event shot in quick succession) into two at a chosen photo. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
@@ -152,4 +139,4 @@ UI translations in English and German next to Polish (`en.json`, `de.json`), wit
 Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
 
 ### ⬜ 23. Google Photos (to be decided)
-Work on photos stored in Google Photos without downloading the whole library. Since March 2025 the official API only allows a hand-picked batch (Picker API) and cannot trash anything. **Preferred direction: a standalone Android app** (Tauri mobile, reusing the core and much of the UI) working on the phone's own photos, with the system trash and undo. Also wanted: the desktop app working directly on a phone attached over USB. Android phones connect over MTP, which on Windows has no drive letter, so this needs the Windows Portable Devices API for reading, thumbnails and moving files into `Odrzucone` on the phone (macOS has no built-in MTP support). Still to verify: whether Google Photos follows trashing done on the phone. Options and open questions: [ideas/google-photos.md](ideas/google-photos.md). Scope still to be decided.
+Work on photos in Google Photos or on the phone without downloading the whole library; preferred direction: a standalone Android app, plus the desktop app on a phone over USB. Concept: [ideas/google-photos.md](ideas/google-photos.md)
