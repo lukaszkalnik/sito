@@ -33,7 +33,8 @@
     "fileDate": "data pliku",
     "fileDateHint": "Brak daty w EXIF – użyto daty modyfikacji pliku.",
     "thumbnailError": "Nie udało się wczytać miniatury.",
-    "rootFolder": "folder główny"
+    "rootFolder": "folder główny",
+    "open": "Otwórz {{name}}"
   },
   "view": {
     "label": "Widok",

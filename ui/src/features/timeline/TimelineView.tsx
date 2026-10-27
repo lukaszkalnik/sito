@@ -1,7 +1,8 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ScanSummary, Series } from '../../api/scan';
+import { openViewer, sendViewerContext } from '../../api/viewer';
 import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
 import type { TimelineMode } from './layout';
 import { TimelineGrid } from './TimelineGrid';
@@ -111,6 +112,13 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
   const timeline = useTimelineEntries(summary, gap);
   const [mode, setMode] = useState<TimelineMode>('series');
 
+  // An open viewer steps through the same photos as this view.
+  useEffect(() => {
+    void sendViewerContext({ mode, gap }).catch(() => {
+      // No viewer window is open; it gets the view when it opens.
+    });
+  }, [mode, gap]);
+
   const changeGap = (seconds: number) => {
     setChosen({ path, gap: seconds });
     saveGap(path, seconds);
@@ -159,6 +167,11 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
             series={timeline.series}
             mode={mode}
             scanId={summary.scanId}
+            onOpen={(entry) =>
+              void openViewer({ id: entry.id, scanId: summary.scanId, mode, gap }).catch(
+                (err: unknown) => console.error('Cannot open the viewer', err),
+              )
+            }
           />
         )
       )}

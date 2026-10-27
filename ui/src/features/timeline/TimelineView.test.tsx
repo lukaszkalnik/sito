@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSeries, getTimeline, type Series, type TimelineEntry } from '../../api/scan';
 import '../../i18n';
+import { sendViewerContext } from '../../api/viewer';
 import { loadGap, saveGap } from './gapSetting';
 import { TimelineView } from './TimelineView';
 
@@ -11,6 +12,10 @@ vi.mock('../../api/scan', async (importActual) => ({
   ...(await importActual<typeof import('../../api/scan')>()),
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
+}));
+vi.mock('../../api/viewer', () => ({
+  openViewer: vi.fn(() => Promise.resolve()),
+  sendViewerContext: vi.fn(() => Promise.resolve()),
 }));
 
 const mockedTimeline = vi.mocked(getTimeline);
@@ -97,6 +102,19 @@ describe('TimelineView', () => {
     renderView(2);
 
     expect(screen.getByRole('button', { name: 'Zwiększ odstęp' })).toBeDisabled();
+  });
+
+  it('keeps an open viewer in step with the view and gap', async () => {
+    mockedTimeline.mockResolvedValue(entries(4));
+    mockedSeries.mockResolvedValue(pairs(1));
+    renderView(4);
+    expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'series', gap: 10 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Wszystkie zdjęcia' }));
+    expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'all', gap: 10 });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Zmniejsz odstęp' }));
+    expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'all', gap: 9 });
   });
 
   it('starts other folders at the default gap', async () => {

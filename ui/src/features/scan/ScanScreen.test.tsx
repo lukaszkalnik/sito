@@ -21,6 +21,10 @@ vi.mock('../../api/scan', async (importActual) => ({
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
+vi.mock('../../api/viewer', () => ({
+  openViewer: vi.fn(() => Promise.resolve()),
+  sendViewerContext: vi.fn(() => Promise.resolve()),
+}));
 
 const mockedPick = vi.mocked(pickFolder);
 const mockedScan = vi.mocked(scanFolder);

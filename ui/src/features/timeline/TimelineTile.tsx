@@ -17,10 +17,12 @@ interface TimelineTileProps {
   scanId: number;
   /** Show the photo's folder, to tell same-named photos from different folders apart. */
   showFolder: boolean;
+  /** Opens the photo full size. */
+  onOpen: (entry: TimelineEntry) => void;
 }
 
 /** One photo on the timeline: its thumbnail with capture time, file name and folder. */
-export function TimelineTile({ entry, scanId, showFolder }: TimelineTileProps) {
+export function TimelineTile({ entry, scanId, showFolder, onOpen }: TimelineTileProps) {
   const { t } = useTranslation();
   const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
   const src = thumbnailUrl(scanId, entry.id);
@@ -84,6 +86,13 @@ export function TimelineTile({ entry, scanId, showFolder }: TimelineTileProps) {
           {t('timeline.fileDate')}
         </span>
       )}
+      {/* Covers the whole tile, so a click or Enter anywhere opens the photo. */}
+      <button
+        type="button"
+        className="timeline-tile-open"
+        aria-label={t('timeline.open', { name: entry.name })}
+        onClick={() => onOpen(entry)}
+      />
     </li>
   );
 }

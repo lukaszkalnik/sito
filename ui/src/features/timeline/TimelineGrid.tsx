@@ -61,10 +61,12 @@ interface TimelineGridProps {
   series: readonly Series[];
   mode: TimelineMode;
   scanId: number;
+  /** Opens a photo full size. */
+  onOpen: (entry: TimelineEntry) => void;
 }
 
 /** Virtualized grid of photos grouped by day and series; renders only visible rows. */
-export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProps) {
+export function TimelineGrid({ entries, series, mode, scanId, onOpen }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
   const rows = useMemo(
@@ -124,6 +126,7 @@ export function TimelineGrid({ entries, series, mode, scanId }: TimelineGridProp
                       entry={entry}
                       scanId={scanId}
                       showFolder={showFolder}
+                      onOpen={onOpen}
                     />
                   ))}
                 </ul>

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { mockTauri, type TauriMock } from './tauri-mock';
+import { invokedCommands, mockTauri, type TauriMock } from './tauri-mock';
 import { photoY, topPhoto } from './timeline-helpers';
 
 const PHOTOS = 10000;
@@ -95,4 +95,18 @@ test('keeps the scroll position when switching views', async ({ page }) => {
   await page.getByRole('button', { name: 'Serie' }).click();
 
   await expect.poll(() => photoY(page, inSeries.name)).toBe(inSeries.y);
+});
+
+test('opens a photo in the viewer with the current view and gap', async ({ page }) => {
+  await openTimeline(page, EVERY_TENTH);
+
+  await page.getByRole('button', { name: 'Otwórz IMG_09999.jpg' }).click();
+  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await page.getByRole('button', { name: 'Otwórz IMG_09997.jpg' }).click();
+
+  const opened = (await invokedCommands(page)).filter((c) => c.cmd === 'open_viewer');
+  expect(opened.map((c) => c.args)).toEqual([
+    { request: { id: 1, scanId: 1, mode: 'series', gap: 10 } },
+    { request: { id: 3, scanId: 1, mode: 'all', gap: 10 } },
+  ]);
 });

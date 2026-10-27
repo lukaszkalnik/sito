@@ -22,7 +22,7 @@ const entry: TimelineEntry = {
 function renderTile(scanId = 3) {
   const { container, rerender } = render(
     <ul>
-      <TimelineTile entry={entry} scanId={scanId} showFolder />
+      <TimelineTile entry={entry} scanId={scanId} showFolder onOpen={vi.fn()} />
     </ul>,
   );
   const image = () => container.querySelector('img');
@@ -54,17 +54,30 @@ describe('TimelineTile', () => {
   ])('shows the folder %j to tell same-named photos apart', (relativeDir, text) => {
     render(
       <ul>
-        <TimelineTile entry={{ ...entry, relativeDir }} scanId={3} showFolder />
+        <TimelineTile entry={{ ...entry, relativeDir }} scanId={3} showFolder onOpen={vi.fn()} />
       </ul>,
     );
 
     expect(screen.getByTestId('timeline-tile-folder')).toHaveTextContent(text);
   });
 
+  it('opens the photo when clicked', () => {
+    const onOpen = vi.fn();
+    render(
+      <ul>
+        <TimelineTile entry={entry} scanId={3} showFolder={false} onOpen={onOpen} />
+      </ul>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Otwórz IMG_7.jpg' }));
+
+    expect(onOpen).toHaveBeenCalledWith(entry);
+  });
+
   it('hides the folder when all photos share it', () => {
     render(
       <ul>
-        <TimelineTile entry={entry} scanId={3} showFolder={false} />
+        <TimelineTile entry={entry} scanId={3} showFolder={false} onOpen={vi.fn()} />
       </ul>,
     );
 
@@ -111,7 +124,7 @@ describe('TimelineTile', () => {
 
     rerender(
       <ul>
-        <TimelineTile entry={entry} scanId={4} showFolder />
+        <TimelineTile entry={entry} scanId={4} showFolder onOpen={vi.fn()} />
       </ul>,
     );
 
