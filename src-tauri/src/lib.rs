@@ -7,7 +7,6 @@ mod thumbnails;
 mod window_fit;
 
 use tauri::Manager;
-use tauri_plugin_window_state::StateFlags;
 
 /// Builds and runs the Tauri application.
 ///
@@ -18,10 +17,14 @@ use tauri_plugin_window_state::StateFlags;
 pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        // Remembers the size and position of both windows across launches.
+        // Remembers the size and position of both windows across launches. The
+        // windows are placed by `window_fit::show_placed` instead of the plugin, whose
+        // own restore runs later on the main thread and would move a shown window.
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                .with_state_flags(window_fit::STATE_FLAGS)
+                .skip_initial_state("main")
+                .skip_initial_state(commands::viewer::LABEL)
                 .build(),
         )
         .manage(state::AppState::default())
@@ -48,11 +51,9 @@ pub fn run() -> tauri::Result<()> {
                 }
             };
             app.manage(thumbnails::Thumbnails::new(cache_dir)?);
-            // The main window exists (and has its remembered state) by now.
-            if let Some(main) = app.get_webview_window("main")
-                && let Err(err) = window_fit::fit_to_screen(&main)
-            {
-                log::warn!("cannot fit the main window to the screen: {err}");
+            // The main window is created hidden from the config.
+            if let Some(main) = app.get_webview_window("main") {
+                window_fit::show_placed(&main);
             }
             Ok(())
         })

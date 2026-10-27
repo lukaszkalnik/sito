@@ -1,8 +1,50 @@
-//! Keeps windows inside the visible part of the screen (the monitor's work
-//! area, which excludes the taskbar), whether they open at their default size
-//! or at a size and position remembered from a larger or disconnected monitor.
+//! Places windows when they open: at their remembered size and position, and
+//! inside the visible part of the screen (the monitor's work area, which
+//! excludes the taskbar), even when they were remembered on a larger or
+//! disconnected monitor.
 
 use tauri::{PhysicalPosition, PhysicalSize, Runtime, WebviewWindow};
+use tauri_plugin_window_state::{StateFlags, WindowExt};
+
+/// What the window-state plugin remembers of each window.
+pub const STATE_FLAGS: StateFlags = StateFlags::SIZE
+    .union(StateFlags::POSITION)
+    .union(StateFlags::MAXIMIZED);
+
+/// How far (physical pixels) a window may reach outside the work area before
+/// it is moved. Windows 10/11 frames have invisible resize borders of about
+/// 7 px per side (more on high-DPI screens), so a window placed against a screen
+/// edge measures slightly larger than what is visible.
+const BORDER_SLACK: i64 = 16;
+
+/// Restores `window`'s remembered size and position, keeps it on screen, and
+/// shows it. The window must have been created hidden, so it never visibly jumps.
+pub fn show_placed<R: Runtime>(window: &WebviewWindow<R>) {
+    if let Err(err) = window.restore_state(STATE_FLAGS) {
+        log::warn!("cannot restore the {} window's size: {err}", window.label());
+    }
+    if let Err(err) = fit_to_screen(window) {
+        log::warn!(
+            "cannot fit the {} window to the screen: {err}",
+            window.label()
+        );
+    }
+    if let Err(err) = window.show() {
+        log::warn!("cannot show the {} window: {err}", window.label());
+    }
+}
+
+/// Whether `window` lies within `area`, allowing it to reach `slack` pixels
+/// past each edge.
+#[must_use]
+pub fn fits_within(window: Rect, area: Rect, slack: i64) -> bool {
+    let (wx, wy) = (i64::from(window.x), i64::from(window.y));
+    let (ax, ay) = (i64::from(area.x), i64::from(area.y));
+    wx >= ax - slack
+        && wy >= ay - slack
+        && wx + i64::from(window.width) <= ax + i64::from(area.width) + slack
+        && wy + i64::from(window.height) <= ay + i64::from(area.height) + slack
+}
 
 /// A rectangle in physical pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,12 +75,9 @@ fn clamp_start(start: i32, len: u32, area_start: i32, area_len: u32) -> i32 {
 }
 
 /// Shrinks and moves `window` so it lies within the work area of its monitor
-/// (or the primary monitor if it is on none). Maximized windows are left alone.
-///
-/// # Errors
-///
-/// Returns an error if the window cannot be measured, moved or resized.
-pub fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
+/// (or the primary monitor if it is on none). Maximized windows and windows
+/// that only overlap by their invisible borders are left alone.
+fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     if window.is_maximized()? {
         return Ok(());
     }
@@ -60,10 +99,10 @@ pub fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()>
         width: outer.width,
         height: outer.height,
     };
-    let fitted = fit_into(current, area);
-    if fitted == current {
+    if fits_within(current, area, BORDER_SLACK) {
         return Ok(());
     }
+    let fitted = fit_into(current, area);
     // `set_size` sets the inner size, so keep the frame's extra size out of it.
     let inner = window.inner_size()?;
     let frame_width = outer.width.saturating_sub(inner.width);
@@ -87,6 +126,37 @@ mod tests {
         width: 1920,
         height: 1032,
     };
+
+    #[test]
+    fn a_window_against_the_edges_fits_despite_its_invisible_borders() {
+        // Snapped to the left half: the frame reaches 7 px past the left and
+        // bottom edges of the work area.
+        let window = Rect {
+            x: -7,
+            y: 0,
+            width: 974,
+            height: 1039,
+        };
+        assert!(fits_within(window, AREA, BORDER_SLACK));
+    }
+
+    #[test]
+    fn a_window_clearly_outside_does_not_fit() {
+        let below_taskbar = Rect {
+            x: 100,
+            y: 400,
+            width: 1200,
+            height: 800,
+        };
+        let on_another_monitor = Rect {
+            x: 2500,
+            y: 0,
+            width: 800,
+            height: 600,
+        };
+        assert!(!fits_within(below_taskbar, AREA, BORDER_SLACK));
+        assert!(!fits_within(on_another_monitor, AREA, BORDER_SLACK));
+    }
 
     #[test]
     fn leaves_a_window_that_fits() {

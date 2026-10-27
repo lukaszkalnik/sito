@@ -102,3 +102,4 @@ Your decisions:
 ## Follow-up after testing v0.6.0
 - Both windows opened partly below the taskbar and not at the top of the screen. Now they open centred and are shrunk and moved into the monitor's work area (`src-tauri/src/window_fit.rs`).
 - Both windows remember their size, position and maximized state across launches (`tauri-plugin-window-state`). A remembered state is fitted to the screen too, e.g. after disconnecting a monitor.
+- v0.6.1 still made the viewer jump: the plugin restores a window's state in a task queued on the main thread, after the window is already shown and fitted. Now both windows are created hidden; `window_fit::show_placed` restores the remembered state, fits it to the screen (allowing for the invisible resize borders of Windows frames) and only then shows the window.
