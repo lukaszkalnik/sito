@@ -4,6 +4,7 @@
 //! storage and actions) and must not depend on Tauri or any UI code.
 
 pub mod metadata;
+pub mod reject;
 pub mod scan;
 pub mod series;
 pub mod thumbnail;
