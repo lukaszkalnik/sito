@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 use super::scan::CommandError;
+use crate::window_fit;
 
 /// Label of the viewer window.
 pub const LABEL: &str = "viewer";
@@ -75,7 +76,9 @@ pub async fn open_viewer(
         window.show().map_err(|err| internal("show", &err))?;
         window.set_focus().map_err(|err| internal("focus", &err))?;
     } else {
-        WebviewWindowBuilder::new(
+        // The window-state plugin restores the last size and position while the
+        // window is built; either way it must end up fully on screen.
+        let window = WebviewWindowBuilder::new(
             &app,
             LABEL,
             WebviewUrl::App("index.html?window=viewer".into()),
@@ -83,8 +86,12 @@ pub async fn open_viewer(
         .title("Sito")
         .inner_size(1200.0, 800.0)
         .min_inner_size(480.0, 360.0)
+        .center()
         .build()
         .map_err(|err| internal("open", &err))?;
+        if let Err(err) = window_fit::fit_to_screen(&window) {
+            log::warn!("cannot fit the viewer window to the screen: {err}");
+        }
     }
     Ok(())
 }

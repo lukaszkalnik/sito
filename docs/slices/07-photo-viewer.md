@@ -98,3 +98,7 @@ Your decisions:
 ## Risks / notes
 - **Very large JPEGs** (50 MP+) display at full resolution in the webview. That is fine for viewing, but decoding takes a moment, so the previous photo stays visible until the new one has loaded (no white flash).
 - **Recycle Bin restore** depends on the `trash` crate's Windows support (`os_limited`). I'll verify it on CI and locally at the start of slice 8, before building the UI on it.
+
+## Follow-up after testing v0.6.0
+- Both windows opened partly below the taskbar and not at the top of the screen. Now they open centred and are shrunk and moved into the monitor's work area (`src-tauri/src/window_fit.rs`).
+- Both windows remember their size, position and maximized state across launches (`tauri-plugin-window-state`). A remembered state is fitted to the screen too, e.g. after disconnecting a monitor.

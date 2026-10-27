@@ -4,8 +4,10 @@ mod commands;
 mod photos;
 mod state;
 mod thumbnails;
+mod window_fit;
 
 use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
 
 /// Builds and runs the Tauri application.
 ///
@@ -16,6 +18,12 @@ use tauri::Manager;
 pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        // Remembers the size and position of both windows across launches.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                .build(),
+        )
         .manage(state::AppState::default())
         .manage(commands::viewer::ViewerState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
@@ -40,6 +48,12 @@ pub fn run() -> tauri::Result<()> {
                 }
             };
             app.manage(thumbnails::Thumbnails::new(cache_dir)?);
+            // The main window exists (and has its remembered state) by now.
+            if let Some(main) = app.get_webview_window("main")
+                && let Err(err) = window_fit::fit_to_screen(&main)
+            {
+                log::warn!("cannot fit the main window to the screen: {err}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
