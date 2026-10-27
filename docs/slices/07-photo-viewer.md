@@ -1,6 +1,6 @@
 # Slice 7 – Photo viewer
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (v0.6.0)
 
 Planned together with [slice 8](08-trash-with-undo.md).
 
