@@ -19,10 +19,10 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 5 | [Time series](slices/05-time-series.md) | ✅ |
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | 🧪 |
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | 🧪 |
-| 8 | [Move to trash with undo](slices/08-trash-with-undo.md) | 📝 |
+| 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | 📝 |
 | 9 | Persistence | ⬜ |
 | 10 | Edit series | ⬜ |
-| 11 | "Rejected" folder option | ⬜ |
+| 11 | Move to trash option | ⬜ |
 | 12 | Sharpness suggestion | ⬜ |
 | 13 | Exposure and weights | ⬜ |
 | 14 | Split by content | ⬜ |
@@ -65,10 +65,10 @@ Click a thumbnail to open the photo full size in a separate, resizable window (r
 
 *Try:* open a photo from a series, click through the strip, step past the end of the series.
 
-### 📝 8. Move to trash with undo
-A delete button (and the Delete key) in the viewer moves the photo to the system trash at once and shows the next one. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) restores the last trashed photos to where they were. Plan: [slices/08-trash-with-undo.md](slices/08-trash-with-undo.md)
+### 📝 8. Reject into "Odrzucone" with undo
+A reject button (and the Delete key) in the viewer moves the photo at once into an `Odrzucone` subfolder of its own folder and shows the next one. Scans skip `Odrzucone` folders by default, so rejected photos disappear from the timeline. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) moves the last rejected photos back. Plan: [slices/08-reject-with-undo.md](slices/08-reject-with-undo.md)
 
-*Try:* trash a few photos from a test folder, undo, verify the files are back.
+*Try:* reject a few photos from a test folder, check the `Odrzucone` subfolders, rescan (they stay hidden), undo, verify the files are back.
 
 ### ⬜ 9. Persistence
 SQLite cache of scan results and series edits; rescans are fast and work survives a restart. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under a size limit.
@@ -80,10 +80,10 @@ Fix false positives and misses by hand: remove a photo from a series, add a phot
 
 *Try:* cut a chained series into its real moments, ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
 
-### ⬜ 11. "Rejected" folder option
-Setting: instead of the system trash, move rejected photos into a "Rejected" subfolder of the scanned folder (logged and undoable like the trash).
+### ⬜ 11. Move to trash option
+Setting: instead of the `Odrzucone` folder, move rejected photos to the system trash (logged and undoable via the Recycle Bin). Off by default.
 
-*Try:* switch the option on, reject a few photos, check the subfolder, undo.
+*Try:* switch the option on, reject a few photos, find them in the Recycle Bin, undo.
 
 ### ⬜ 12. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.

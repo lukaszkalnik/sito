@@ -2,7 +2,7 @@
 
 **Status:** 🧪 ready for testing (v0.6.0)
 
-Planned together with [slice 8](08-trash-with-undo.md).
+Planned together with [slice 8](08-reject-with-undo.md) (since changed to an `Odrzucone` folder instead of the trash).
 
 ## Context
 
