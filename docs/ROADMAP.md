@@ -20,7 +20,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | ✅ |
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
 | 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | ✅ |
-| 9 | [Persistence](slices/09-persistence.md) | 🚧 |
+| 9 | [Persistence](slices/09-persistence.md) | ✅ |
 | 10 | User feedback 1 | ⬜ |
 | 11 | Zoom in the viewer | ⬜ |
 | 12 | Edit series | ⬜ |
@@ -75,7 +75,7 @@ A reject button (and the Delete key) in the viewer moves the photo at once into 
 
 *Try:* reject a few photos from a test folder, check the `Odrzucone` subfolders, rescan (they stay hidden), undo, verify the files are back.
 
-### 🚧 9. Persistence
+### ✅ 9. Persistence
 SQLite cache of scan results: on start Sito reopens the last folder at once from the cache and checks it for changes in the background; picking a folder seen before is near-instant. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under 500 MB. Plan: [slices/09-persistence.md](slices/09-persistence.md)
 
 *Try:* restart Sito (the last folder opens at once), rescan a large folder twice, move a folder, rescan, and check that the cache folder stays under 500 MB.

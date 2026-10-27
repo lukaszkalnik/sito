@@ -1,6 +1,6 @@
 # Slice 9 – Persistence
 
-**Status:** 🚧 in progress
+**Status:** ✅ done (tested by the user on 2026-10-27 with a debug build; released as v0.8.0)
 
 ## Context
 
@@ -87,3 +87,7 @@ Your decisions:
 - **Network or removable drives:** if the last folder is unreachable at start, Sito shows the start screen with the usual „Nie znaleziono wybranego folderu." message.
 - **Time-zone or EXIF reader changes:** a `CACHE_VERSION` stored in the database invalidates all rows when the reading logic changes.
 - **Undo after refresh:** ids of restored photos still come from `Scan::restore`, which works unchanged on a refreshed scan.
+
+## Follow-up during testing
+- After a fast scroll the thumbnails where the scroll stopped took 10 s or more: the two render workers served requests in arrival order. They now take the newest request first (`src-tauri/src/lifo_pool.rs`); thumbnails scrolled past are still rendered and cached afterwards. Real cancelling is not possible, since Tauri does not report requests the webview dropped.
+- Debug builds (used for testing during a slice) now optimize the image libraries, so their thumbnails are as fast as in a release.
