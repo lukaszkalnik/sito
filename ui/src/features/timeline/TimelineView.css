@@ -51,6 +51,24 @@
   accent-color: var(--accent);
 }
 
+.timeline-gap-step {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.timeline-gap-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .timeline-gap-value {
   min-width: 2.5rem;
   font-variant-numeric: tabular-nums;

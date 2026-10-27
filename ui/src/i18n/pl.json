@@ -53,6 +53,8 @@
   "gap": {
     "label": "Odstęp w serii",
     "value": "{{seconds}} s",
+    "decrease": "Zmniejsz odstęp",
+    "increase": "Zwiększ odstęp",
     "hint": "Zdjęcia zrobione w tym odstępie czasu tworzą serię."
   }
 }

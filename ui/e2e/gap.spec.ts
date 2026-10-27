@@ -46,6 +46,13 @@ test('regroups the series when the gap changes', async ({ page }) => {
 
   await expect(page.getByText('Nie znaleziono serii zdjęć.')).toBeVisible();
 
+  await page.getByRole('button', { name: 'Zwiększ odstęp' }).click();
+  await page.getByRole('button', { name: 'Zwiększ odstęp' }).click();
+  await page.getByRole('button', { name: 'Zwiększ odstęp' }).click();
+
+  await expect(slider(page)).toHaveValue('5');
+  await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
+
   await slider(page).fill('60');
 
   await expect(page.getByRole('status')).toContainText('1 seria (1000 zdjęć).');

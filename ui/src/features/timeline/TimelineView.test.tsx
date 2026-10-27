@@ -69,6 +69,36 @@ describe('TimelineView', () => {
     expect(loadGap('C:\\Zdjęcia')).toBe(30);
   });
 
+  it('steps the gap by one second with the buttons, within the range', async () => {
+    saveGap('C:\\Zdjęcia', 2);
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(pairs(1));
+    renderView(2);
+    const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
+    const decrease = screen.getByRole('button', { name: 'Zmniejsz odstęp' });
+    const increase = screen.getByRole('button', { name: 'Zwiększ odstęp' });
+
+    await userEvent.click(decrease);
+    expect(slider).toHaveValue('1');
+    expect(decrease).toBeDisabled();
+    expect(loadGap('C:\\Zdjęcia')).toBe(1);
+
+    await userEvent.click(increase);
+    await userEvent.click(increase);
+    expect(slider).toHaveValue('3');
+    expect(decrease).toBeEnabled();
+    expect(mockedSeries).toHaveBeenLastCalledWith(3);
+  });
+
+  it('cannot go above the largest gap', () => {
+    saveGap('C:\\Zdjęcia', 60);
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(pairs(1));
+    renderView(2);
+
+    expect(screen.getByRole('button', { name: 'Zwiększ odstęp' })).toBeDisabled();
+  });
+
   it('starts other folders at the default gap', async () => {
     saveGap('D:\\Inne', 4);
     mockedTimeline.mockResolvedValue(entries(2));

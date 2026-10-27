@@ -66,6 +66,15 @@ function GapSlider({ gap, onChange }: { gap: number; onChange: (gap: number) => 
   return (
     <div className="timeline-gap" title={t('gap.hint')}>
       <label htmlFor={id}>{t('gap.label')}</label>
+      <button
+        type="button"
+        className="timeline-gap-step"
+        aria-label={t('gap.decrease')}
+        disabled={gap <= MIN_GAP}
+        onClick={() => onChange(gap - 1)}
+      >
+        −
+      </button>
       <input
         id={id}
         type="range"
@@ -76,6 +85,15 @@ function GapSlider({ gap, onChange }: { gap: number; onChange: (gap: number) => 
         aria-valuetext={t('gap.value', { seconds: gap })}
         onChange={(event) => onChange(Number(event.target.value))}
       />
+      <button
+        type="button"
+        className="timeline-gap-step"
+        aria-label={t('gap.increase')}
+        disabled={gap >= MAX_GAP}
+        onClick={() => onChange(gap + 1)}
+      >
+        +
+      </button>
       <span className="timeline-gap-value" aria-hidden="true">
         {t('gap.value', { seconds: gap })}
       </span>
