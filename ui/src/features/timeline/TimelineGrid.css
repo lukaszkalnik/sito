@@ -70,6 +70,15 @@
   padding-bottom: 8px;
   border-radius: 8px;
   background: var(--series-bg);
+  /* An outline that takes no space, so blocks keep their computed widths. */
+  box-shadow: inset 0 0 0 1px var(--series-border);
+}
+
+/* Single photos next to blocks: no tint, but an empty header-high space so
+   their tiles line up with the blocks' tiles. */
+.timeline-singles {
+  flex: none;
+  padding-top: 32px;
 }
 
 .timeline-block .timeline-series {

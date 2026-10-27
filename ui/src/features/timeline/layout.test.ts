@@ -76,7 +76,11 @@ describe('buildRows', () => {
       if (r.kind === 'day') return r.date;
       if (r.kind === 'series') return `series:${r.entries.map((e) => e.id).join(',')}`;
       if (r.kind === 'blocks') {
-        return `blocks:${r.blocks.map((b) => b.map((e) => e.id).join(',')).join('|')}`;
+        // Groups of single photos are marked with '·'.
+        const groups = r.groups.map(
+          (g) => `${g.series ? '' : '·'}${g.entries.map((e) => e.id).join(',')}`,
+        );
+        return `blocks:${groups.join('|')}`;
       }
       return r.entries.map((e) => (r.inSeries ? `*${e.id}` : e.id));
     });
@@ -157,7 +161,7 @@ describe('buildRows', () => {
     ]);
   });
 
-  it('keeps blocks apart when single photos or a new day come between them', () => {
+  it('lets single photos flow between blocks, but starts a new row for a new day', () => {
     const mixed = [
       entry(0, '2024-06-02T12:00:01'),
       entry(1, '2024-06-02T12:00:00'),
@@ -171,11 +175,31 @@ describe('buildRows', () => {
 
     expect(shape(buildRows(mixed, pairsOf, 6, 'all'))).toEqual([
       '2024-06-02',
-      'blocks:0,1',
-      [2],
-      'blocks:3,4',
+      'blocks:0,1|·2|3,4',
       '2024-06-01',
       'blocks:5,6',
+    ]);
+  });
+
+  it('wraps single photos after a block onto the next row when they do not fit', () => {
+    const photos = [
+      entry(0, '2024-06-01T12:00:01'),
+      entry(1, '2024-06-01T12:00:00'),
+      ...[2, 3, 4, 5].map((id) => entry(id, `2024-06-01T1${9 - id}:00:00`)),
+    ];
+    // Three columns (512 px): a block of two (344 px) leaves room for no
+    // single photo (8 px gap + 176 px); the singles fill the next row.
+    expect(shape(buildRows(photos, [{ start: 0, len: 2 }], 3, 'all'))).toEqual([
+      '2024-06-01',
+      'blocks:0,1',
+      [2, 3, 4],
+      [5],
+    ]);
+    // Four columns (680 px): one single fits next to the block, not two.
+    expect(shape(buildRows(photos, [{ start: 0, len: 2 }], 4, 'all'))).toEqual([
+      '2024-06-01',
+      'blocks:0,1|·2',
+      [3, 4, 5],
     ]);
   });
 

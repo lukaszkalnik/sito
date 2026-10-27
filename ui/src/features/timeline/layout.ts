@@ -23,13 +23,20 @@ export const BLOCK_GAP = TILE_GAP;
 /** Height of a row of series blocks: header, one row of tiles and the block's bottom padding. */
 export const BLOCK_ROW_HEIGHT = SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT + SERIES_END_SPACE;
 
+/** Photos side by side in a row of blocks: one short series, or single photos. */
+export interface RowGroup {
+  entries: TimelineEntry[];
+  /** A series (a tinted block with a header), or consecutive single photos. */
+  series: boolean;
+}
+
 /** One row of the virtualized timeline. */
 export type TimelineRow =
   | { kind: 'day'; key: string; date: string }
   | { kind: 'series'; key: string; entries: TimelineEntry[] }
   | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean }
-  /** Short series side by side, each in its own block with a header. */
-  | { kind: 'blocks'; key: string; blocks: TimelineEntry[][] };
+  /** Short series, each in its own block with a header, mixed with single photos. */
+  | { kind: 'blocks'; key: string; groups: RowGroup[] };
 
 /** Width in pixels of a series block of `len` tiles, padding included. */
 export function blockWidth(len: number): number {
@@ -42,7 +49,7 @@ export function tilesOf(row: TimelineRow): { entries: TimelineEntry[]; offset: n
     case 'tiles':
       return { entries: row.entries, offset: 0 };
     case 'blocks':
-      return { entries: row.blocks.flat(), offset: SERIES_ROW_HEIGHT };
+      return { entries: row.groups.flatMap((g) => g.entries), offset: SERIES_ROW_HEIGHT };
     default:
       return { entries: [], offset: 0 };
   }
@@ -69,12 +76,13 @@ export function dayOf(entry: TimelineEntry): string {
 
 /**
  * Splits entries (sorted newest first) into rows: a header for every day,
- * then that day's photos in rows of `columns` tiles. A series that fits on
- * one row becomes a block, and consecutive blocks share a row while they fit
- * into `width` pixels; a longer series starts on a new row under its own
- * header. A series belongs to the day of its newest photo, so one crossing
- * midnight is never split. In `series` mode photos outside series (and days
- * without series) are left out.
+ * then that day's photos flowing into rows `width` pixels wide. A series that
+ * fits on one row becomes a block with its own header and flows along with
+ * single photos and other blocks; a longer series starts on a new row under
+ * its own header. A row of single photos only stays a plain, lower row of
+ * `columns` tiles. A series belongs to the day of its newest photo, so one
+ * crossing midnight is never split. In `series` mode photos outside series
+ * (and days without series) are left out.
  */
 export function buildRows(
   entries: readonly TimelineEntry[],
@@ -86,20 +94,52 @@ export function buildRows(
   const seriesAt = new Map(series.map((s) => [s.start, s]));
   const rows: TimelineRow[] = [];
   let currentDay: string | null = null;
-  let singles: TimelineEntry[] = [];
-  // The row of blocks being filled and its used width, while it is the last row.
-  let open: { row: Extract<TimelineRow, { kind: 'blocks' }>; used: number } | null = null;
+  // The row being filled and its used width, until it is closed.
+  let open: { groups: RowGroup[]; used: number } | null = null;
 
-  const pushBlock = (members: TimelineEntry[]) => {
+  const closeRow = () => {
+    if (!open) return;
+    const { groups } = open;
+    const first = groups[0]?.entries[0]?.id;
+    if (groups.some((g) => g.series)) {
+      rows.push({ kind: 'blocks', key: `blocks-${first}`, groups });
+    } else {
+      const photos = groups.flatMap((g) => g.entries);
+      rows.push({
+        kind: 'tiles',
+        key: `tiles-${first}`,
+        entries: photos,
+        inSeries: false,
+        seriesEnd: false,
+      });
+    }
+    open = null;
+  };
+
+  const placeSeries = (members: TimelineEntry[]) => {
     const needed = blockWidth(members.length);
-    if (open && rows[rows.length - 1] === open.row && open.used + BLOCK_GAP + needed <= width) {
-      open.row.blocks.push(members);
+    if (open && open.used + BLOCK_GAP + needed <= width) {
+      open.groups.push({ entries: members, series: true });
       open.used += BLOCK_GAP + needed;
       return;
     }
-    const row = { kind: 'blocks' as const, key: `blocks-${members[0]?.id}`, blocks: [members] };
-    rows.push(row);
-    open = { row, used: needed };
+    closeRow();
+    open = { groups: [{ entries: members, series: true }], used: needed };
+  };
+
+  const placeSingle = (photo: TimelineEntry) => {
+    const last = open?.groups[open.groups.length - 1];
+    // Next to other single photos a tile costs one column; after a block it
+    // starts its own group, with its own padding.
+    const needed = last && !last.series ? TILE_WIDTH + TILE_GAP : BLOCK_GAP + blockWidth(1);
+    if (open && last && open.used + needed <= width) {
+      if (last.series) open.groups.push({ entries: [photo], series: false });
+      else last.entries.push(photo);
+      open.used += needed;
+      return;
+    }
+    closeRow();
+    open = { groups: [{ entries: [photo], series: false }], used: blockWidth(1) };
   };
 
   const pushTiles = (photos: TimelineEntry[], inSeries: boolean) => {
@@ -114,14 +154,10 @@ export function buildRows(
       });
     }
   };
-  const flushSingles = () => {
-    pushTiles(singles, false);
-    singles = [];
-  };
   const enterDay = (entry: TimelineEntry) => {
     const date = dayOf(entry);
     if (date === currentDay) return;
-    flushSingles();
+    closeRow();
     rows.push({ kind: 'day', key: `day-${date}`, date });
     currentDay = date;
   };
@@ -132,11 +168,11 @@ export function buildRows(
     const s = seriesAt.get(i);
     if (s) {
       enterDay(entry);
-      flushSingles();
       const members = entries.slice(i, i + s.len);
       if (members.length <= columns) {
-        pushBlock(members);
+        placeSeries(members);
       } else {
+        closeRow();
         rows.push({ kind: 'series', key: `series-${entry.id}`, entries: members });
         pushTiles(members, true);
       }
@@ -144,12 +180,12 @@ export function buildRows(
     } else {
       if (mode === 'all') {
         enterDay(entry);
-        singles.push(entry);
+        placeSingle(entry);
       }
       i++;
     }
   }
-  flushSingles();
+  closeRow();
   return rows;
 }
 

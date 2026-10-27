@@ -6,7 +6,8 @@
   --tile-bg: #eef2f2;
   --badge-bg: #fde68a;
   --badge-text: #713f12;
-  --series-bg: #e0ecff;
+  --series-bg: #d3e3ff;
+  --series-border: #9ab8f0;
   --series-text: #1e3a8a;
   --accent: #2563eb;
 
@@ -30,7 +31,8 @@
     --tile-bg: #23262d;
     --badge-bg: #713f12;
     --badge-text: #fde68a;
-    --series-bg: #1c2a44;
+    --series-bg: #22355a;
+    --series-border: #3f5f9c;
     --series-text: #bfdbfe;
     --accent: #60a5fa;
   }

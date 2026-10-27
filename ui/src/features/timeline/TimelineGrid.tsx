@@ -192,11 +192,10 @@ export function TimelineGrid({
               )}
               {row.kind === 'blocks' && (
                 <div className="timeline-blocks">
-                  {row.blocks.map((members) => (
-                    <section key={members[0]?.id} className="timeline-block">
-                      <SeriesHeader entries={members} />
+                  {row.groups.map((group) => {
+                    const tiles = (
                       <ul className="timeline-tiles">
-                        {members.map((entry) => (
+                        {group.entries.map((entry) => (
                           <TimelineTile
                             key={entry.id}
                             entry={entry}
@@ -207,8 +206,19 @@ export function TimelineGrid({
                           />
                         ))}
                       </ul>
-                    </section>
-                  ))}
+                    );
+                    const key = group.entries[0]?.id;
+                    return group.series ? (
+                      <section key={key} className="timeline-block">
+                        <SeriesHeader entries={group.entries} />
+                        {tiles}
+                      </section>
+                    ) : (
+                      <div key={key} className="timeline-singles">
+                        {tiles}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
