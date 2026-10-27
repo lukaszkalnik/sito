@@ -18,7 +18,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
 | 5 | [Time series](slices/05-time-series.md) | ✅ |
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | 🧪 |
-| 7 | [Photo viewer](slices/07-photo-viewer.md) | 🧪 |
+| 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
 | 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | 📝 |
 | 9 | Persistence | ⬜ |
 | 10 | Edit series | ⬜ |
@@ -61,7 +61,7 @@ Change the gap (1–60 s, remembered per folder) and the series regroup instantl
 
 *Try:* find the gap value that works for your photos.
 
-### 🧪 7. Photo viewer
+### ✅ 7. Photo viewer
 Click a thumbnail to open the photo full size in a separate, resizable window (reused for the next photo). If the photo is part of a series, the series thumbnails are shown underneath and open in the same window. Previous/next (buttons and ← →) follow the current view and cross series boundaries. Plan: [slices/07-photo-viewer.md](slices/07-photo-viewer.md)
 
 *Try:* open a photo from a series, click through the strip, step past the end of the series.
