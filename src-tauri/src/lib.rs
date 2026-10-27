@@ -39,7 +39,8 @@ pub fn run() -> tauri::Result<()> {
         })
         .invoke_handler(tauri::generate_handler![
             commands::scan::start_scan,
-            commands::scan::get_timeline
+            commands::scan::get_timeline,
+            commands::series::get_series
         ])
         .run(tauri::generate_context!())
 }
