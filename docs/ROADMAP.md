@@ -16,17 +16,18 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 2 | [Installable app](slices/02-installable-app.md) | ✅ |
 | 3 | [Timeline](slices/03-timeline.md) | ✅ |
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
-| 5 | [Time series](slices/05-time-series.md) | 🧪 |
+| 5 | [Time series](slices/05-time-series.md) | ✅ |
 | 6 | Time-gap slider | ⬜ |
 | 7 | Compare and decide | ⬜ |
 | 8 | Quarantine with undo | ⬜ |
 | 9 | Persistence | ⬜ |
-| 10 | Sharpness suggestion | ⬜ |
-| 11 | Exposure and weights | ⬜ |
-| 12 | Split by content | ⬜ |
-| 13 | Series without EXIF date | ⬜ |
-| 14 | Faces and eyes | ⬜ |
-| 15 | macOS polish | ⬜ |
+| 10 | Edit series | ⬜ |
+| 11 | Sharpness suggestion | ⬜ |
+| 12 | Exposure and weights | ⬜ |
+| 13 | Split by content | ⬜ |
+| 14 | Series without EXIF date | ⬜ |
+| 15 | Faces and eyes | ⬜ |
+| 16 | macOS polish | ⬜ |
 
 ### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
@@ -48,7 +49,7 @@ Real thumbnails in the timeline: generated in the background, cached on disk, lo
 
 *Try:* scroll fast through 10,000+ photos; thumbnails fill in without freezing, and a second visit is instant.
 
-### 🧪 5. Time series
+### ✅ 5. Time series
 Photos grouped into series by a fixed time gap; single photos hidden; series count shown. Toggle between "Serie" (series only) and "Wszystkie zdjęcia" (full timeline with series marked). Only photos with an EXIF date form series. Plan: [slices/05-time-series.md](slices/05-time-series.md)
 
 *Try:* check whether the series match what you remember shooting.
@@ -73,30 +74,35 @@ SQLite cache of scan results and decisions; rescans are fast and decisions survi
 
 *Try:* rescan a large folder twice, restart mid-review; move a folder, rescan, and check that the cache folder does not keep growing.
 
-### ⬜ 10. Sharpness suggestion
+### ⬜ 10. Edit series
+Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, or ungroup a series completely. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
+
+*Try:* ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
+
+### ⬜ 11. Sharpness suggestion
 Sharpness score per photo; the sharpest photo in each series is highlighted as suggested; debug panel shows scores.
 
 *Try:* do the suggestions match your pick?
 
-### ⬜ 11. Exposure and weights
+### ⬜ 12. Exposure and weights
 Exposure score added; score weights adjustable in settings.
 
 *Try:* tune weights on series with exposure differences.
 
-### ⬜ 12. Split by content
+### ⬜ 13. Split by content
 Embedding model (downloaded on first launch, checksum-verified) splits series with different subjects; similarity slider.
 
 *Try:* series with mixed subjects get split.
 
-### ⬜ 13. Series without EXIF date
-Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 12).
+### ⬜ 14. Series without EXIF date
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 13).
 
 *Try:* a folder of WhatsApp images forms only the series that really belong together.
 
-### ⬜ 14. Faces and eyes
+### ⬜ 15. Faces and eyes
 Face and eye-state score (closed eyes penalized).
 
 *Try:* series of portraits pick shots with open eyes.
 
-### ⬜ 15. macOS polish
+### ⬜ 16. macOS polish
 Signing, notarization, macOS-specific fixes.

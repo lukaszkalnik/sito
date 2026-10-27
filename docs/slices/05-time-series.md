@@ -1,6 +1,6 @@
 # Slice 5 – Time series
 
-**Status:** 🧪 ready for testing (v0.4.0)
+**Status:** ✅ done (tested by the user on 2026-10-27 with v0.4.0)
 
 ## Context
 
@@ -22,7 +22,7 @@ User decisions:
   - two neighbours belong together when both have `TimeSource::Exif` and their times differ by at most `max_gap` (inclusive)
   - a file-dated photo always ends a series, so series stay contiguous ranges
   - runs of length 1 are dropped
-  - chaining means a series can be long, e.g. 40 photos 5 s apart during an event; slice 12 (split by content) handles that
+  - chaining means a series can be long, e.g. 40 photos 5 s apart during an event; slice 13 (split by content) handles that
 - Unit tests:
   - empty and single photo
   - a gap of exactly `max_gap` stays together, `max_gap + 1 s` splits
@@ -79,4 +79,4 @@ User decisions:
 ## Risks / notes
 - **Wrong gap:** a fixed 10 s may merge unrelated shots or split slow retakes. That's expected here; slice 6 adds the slider for tuning.
 - **Phone clock jumps** (time zone change while travelling) only shift times; they don't break grouping, because neighbours come from the same phone.
-- **Two phones at the same event** (different cameras) can interleave into one series. That's acceptable for now; content splitting comes in slice 12.
+- **Two phones at the same event** (different cameras) can interleave into one series. That's acceptable for now; content splitting comes in slice 13, manual fixes in slice 10.
