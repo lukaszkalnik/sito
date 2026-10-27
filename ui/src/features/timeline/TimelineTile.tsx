@@ -1,0 +1,76 @@
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import type { TimelineEntry } from '../../api/scan';
+import { thumbnailUrl } from '../../api/thumbnails';
+import { timeOf } from './format';
+import { useMountedFor } from './useMountedFor';
+
+/** How long a tile must stay on screen before its thumbnail is requested. */
+export const THUMBNAIL_DELAY_MS = 150;
+
+type ThumbnailStatus = 'loading' | 'loaded' | 'error';
+
+interface TimelineTileProps {
+  entry: TimelineEntry;
+  scanId: number;
+}
+
+/** One photo on the timeline: its thumbnail with capture time and file name. */
+export function TimelineTile({ entry, scanId }: TimelineTileProps) {
+  const { t } = useTranslation();
+  const showThumbnail = useMountedFor(THUMBNAIL_DELAY_MS);
+  const src = thumbnailUrl(scanId, entry.id);
+  // Remembers which URL the status belongs to, so a reused tile starts fresh.
+  const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
+  const status = result?.src === src ? result.status : 'loading';
+
+  return (
+    <li
+      className={`timeline-tile timeline-tile--${status}`}
+      title={entry.relativePath}
+      data-testid="timeline-tile"
+    >
+      {showThumbnail && status !== 'error' && (
+        <img
+          className="timeline-tile-image"
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setResult({ src, status: 'loaded' })}
+          onError={() => setResult({ src, status: 'error' })}
+        />
+      )}
+      {status === 'error' && (
+        <svg
+          className="timeline-tile-broken"
+          role="img"
+          aria-label={t('timeline.thumbnailError')}
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+        >
+          <title>{t('timeline.thumbnailError')}</title>
+          <path
+            d="M4 5h16v14H4zM4 15l5-5 4 4 2-2 5 5M3 3l18 18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      <span className="timeline-tile-caption">
+        <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
+        <span className="timeline-tile-name">{entry.name}</span>
+      </span>
+      {entry.fromFileDate && (
+        <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
+          {t('timeline.fileDate')}
+        </span>
+      )}
+    </li>
+  );
+}

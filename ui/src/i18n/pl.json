@@ -31,6 +31,7 @@
     "loading": "Wczytywanie osi czasu…",
     "loadError": "Nie udało się wczytać osi czasu. Spróbuj ponownie wybrać folder.",
     "fileDate": "data pliku",
-    "fileDateHint": "Brak daty w EXIF – użyto daty modyfikacji pliku."
+    "fileDateHint": "Brak daty w EXIF – użyto daty modyfikacji pliku.",
+    "thumbnailError": "Nie udało się wczytać miniatury."
   }
 }

@@ -1,10 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import type { TimelineEntry } from '../../api/scan';
-import { formatDay, timeOf } from './format';
+import { formatDay } from './format';
 import { buildRows, columnsFor, rowHeight } from './layout';
+import { TimelineTile } from './TimelineTile';
 import './TimelineGrid.css';
 
 /** Tracks an element's content width; 0 until it has been measured. */
@@ -23,8 +23,13 @@ function useElementWidth(ref: React.RefObject<HTMLElement | null>): number {
 }
 
 /** Virtualized grid of photos grouped by day; renders only visible rows. */
-export function TimelineGrid({ entries }: { entries: readonly TimelineEntry[] }) {
-  const { t } = useTranslation();
+export function TimelineGrid({
+  entries,
+  scanId,
+}: {
+  entries: readonly TimelineEntry[];
+  scanId: number;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
   const rows = useMemo(() => buildRows(entries, columnsFor(width)), [entries, width]);
@@ -63,20 +68,7 @@ export function TimelineGrid({ entries }: { entries: readonly TimelineEntry[] })
               ) : (
                 <ul className="timeline-tiles">
                   {row.entries.map((entry) => (
-                    <li
-                      key={entry.id}
-                      className="timeline-tile"
-                      title={entry.relativePath}
-                      data-testid="timeline-tile"
-                    >
-                      <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
-                      <span className="timeline-tile-name">{entry.name}</span>
-                      {entry.fromFileDate && (
-                        <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
-                          {t('timeline.fileDate')}
-                        </span>
-                      )}
-                    </li>
+                    <TimelineTile key={entry.id} entry={entry} scanId={scanId} />
                   ))}
                 </ul>
               )}

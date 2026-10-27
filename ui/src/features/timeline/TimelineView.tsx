@@ -45,7 +45,9 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
           {t('timeline.loadError')}
         </p>
       )}
-      {timeline.status === 'ready' && <TimelineGrid entries={timeline.entries} />}
+      {timeline.status === 'ready' && (
+        <TimelineGrid entries={timeline.entries} scanId={summary.scanId} />
+      )}
     </main>
   );
 }

@@ -9,7 +9,7 @@ test('picks a folder, shows both progress phases and then the timeline', async (
       { phase: 'searching', found: 120 },
       { phase: 'reading', done: 200, total: 1234 },
     ],
-    scanResult: { ok: { photosFound: 1234, unreadableEntries: 0, withoutExifDate: 3 } },
+    scanResult: { ok: { scanId: 1, photosFound: 1234, unreadableEntries: 0, withoutExifDate: 3 } },
     timeline: { count: 1234, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
   });
   await page.goto('/');
@@ -40,7 +40,7 @@ test('does nothing when the folder dialog is cancelled', async ({ page }) => {
   await mockTauri(page, {
     pickedFolder: null,
     scanProgress: [],
-    scanResult: { ok: { photosFound: 0, unreadableEntries: 0, withoutExifDate: 0 } },
+    scanResult: { ok: { scanId: 1, photosFound: 0, unreadableEntries: 0, withoutExifDate: 0 } },
   });
   await page.goto('/');
 

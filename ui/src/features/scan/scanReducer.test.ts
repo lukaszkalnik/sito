@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { initialScanState, scanReducer, type ScanState } from './scanReducer';
 
-const summary = { photosFound: 3, unreadableEntries: 0, withoutExifDate: 0 };
+const summary = { scanId: 1, photosFound: 3, unreadableEntries: 0, withoutExifDate: 0 };
 const scanning: ScanState = {
   status: 'scanning',
   path: 'C:\\Photos',

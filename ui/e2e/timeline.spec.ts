@@ -8,7 +8,9 @@ test.beforeEach(async ({ page }) => {
   await mockTauri(page, {
     pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
-    scanResult: { ok: { photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 } },
+    scanResult: {
+      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 },
+    },
     // One photo every 20 minutes, newest on Saturday 1 June 2024 at noon:
     // 10 000 photos span about 139 days, back to mid-January 2024.
     timeline: { count: PHOTOS, newest: '2024-06-01T12:00:00', stepSeconds: 1200, fileDateEvery: 7 },

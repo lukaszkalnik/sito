@@ -37,6 +37,7 @@
 
 .timeline-tile {
   position: relative;
+  color: var(--text);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -49,6 +50,47 @@
   background: var(--tile-bg);
   font-size: 0.8rem;
   overflow: hidden;
+}
+
+.timeline-tile-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+
+.timeline-tile--loaded .timeline-tile-image {
+  opacity: 1;
+}
+
+.timeline-tile-broken {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  opacity: 0.6;
+}
+
+.timeline-tile-caption {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Over a photo the caption needs its own contrast, whatever the theme. */
+.timeline-tile--loaded .timeline-tile-caption {
+  margin: -8px;
+  padding: 16px 8px 8px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 65%));
+  color: #fff;
+}
+
+.timeline-tile--loaded .timeline-tile-time {
+  color: #fff;
 }
 
 .timeline-tile-time {

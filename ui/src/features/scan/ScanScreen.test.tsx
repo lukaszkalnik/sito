@@ -26,6 +26,7 @@ const mockedTimeline = vi.mocked(getTimeline);
 
 function summary(photosFound: number, extra: { unreadable?: number; withoutExif?: number } = {}) {
   return {
+    scanId: 1,
     photosFound,
     unreadableEntries: extra.unreadable ?? 0,
     withoutExifDate: extra.withoutExif ?? 0,

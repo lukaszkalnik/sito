@@ -7,6 +7,8 @@ export type ScanProgress =
 
 /** Result of a finished scan. Mirrors `ScanSummaryDto`. */
 export interface ScanSummary {
+  /** Identifies the scan; changes with every scan, also across app launches. */
+  scanId: number;
   photosFound: number;
   unreadableEntries: number;
   withoutExifDate: number;

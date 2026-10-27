@@ -4,6 +4,7 @@ type Progress =
   { phase: 'searching'; found: number } | { phase: 'reading'; done: number; total: number };
 
 interface Summary {
+  scanId: number;
   photosFound: number;
   unreadableEntries: number;
   withoutExifDate: number;
@@ -57,6 +58,10 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     }
 
     const internals = {
+      // Windows-style URLs, as Tauri builds them for custom protocols there.
+      convertFileSrc(filePath: string, protocol: string) {
+        return `http://${protocol}.localhost/${encodeURIComponent(filePath)}`;
+      },
       transformCallback(callback: (payload: unknown) => void) {
         const id = nextId++;
         callbacks.set(id, callback);
