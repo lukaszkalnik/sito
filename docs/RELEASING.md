@@ -28,10 +28,12 @@ gh run download <run-id> --name sito-windows-latest --dir D:\Lukasz\tools\instal
 ## Installing on Windows
 
 1. Download `Sito_X.Y.Z_x64-setup.exe` from the [releases page](https://github.com/lukaszkalnik/sito/releases), or with `gh release download vX.Y.Z --pattern "*setup.exe"`.
-2. Run it. No admin rights are needed: Sito installs for the current user only (`%LOCALAPPDATA%\Sito`), adds a Start menu entry and, if ticked on the last page, a desktop shortcut.
+2. Run it. No admin rights are needed: Sito installs for the current user only (`%LOCALAPPDATA%\Sito`), adds a Start menu entry and, only if you tick it on the last page (unticked by default), a desktop shortcut.
 3. The installer is not code-signed, so Windows SmartScreen shows "Windows protected your PC" ("System Windows ochronił ten komputer"). Click **More info** ("Więcej informacji"), then **Run anyway** ("Uruchom mimo to").
 
-**Updating:** run the newer installer; it replaces the old version in place. There is no built-in updater yet.
+**Updating:** run the newer installer; it replaces the old version in place. "Nie odinstalowuj" (keep the installed version and install over it) is preselected. There is no built-in updater yet.
+
+**Installer template:** `src-tauri/installer/installer.nsi` is a copy of Tauri's NSIS template with two changes marked `Sito:` (those two defaults). After updating `@tauri-apps/cli`, re-copy the upstream template for the new version and re-apply them.
 
 **Uninstalling:** Settings → Apps → Installed apps → Sito → Uninstall.
 
