@@ -118,7 +118,7 @@ Face and eye-state score (closed eyes penalized).
 *Try:* series of portraits pick shots with open eyes.
 
 ### ⬜ 18. English and German UI
-UI translations in English and German next to Polish (`en.json`, `de.json`), with dates and numbers formatted for the chosen language (`en-GB`/`de-DE`) and correct plural rules. The language follows the system language by default and can be changed in settings; a test checks that every key exists in all three files.
+UI translations in English and German next to Polish (`en.json`, `de.json`), with dates and numbers formatted for the chosen language (`en-GB`/`de-DE`) and correct plural rules. The language follows the system language by default and can be changed in settings; a test checks that every key exists in all three files. The rejected folder is named in the chosen language too (`Odrzucone` / `Rejected` / `Abgelehnt`); scans recognise all three names, so photos rejected under one language stay rejected after switching.
 
 *Try:* switch the system language (or the setting) to English and German and check all screens, plurals and dates.
 
