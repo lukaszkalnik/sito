@@ -28,6 +28,8 @@ pub struct Photo {
     pub path: PathBuf,
     /// File size in bytes.
     pub size: u64,
+    /// Last modification time of the file, if the file system reports one.
+    pub modified: Option<SystemTime>,
     /// Capture time as local wall-clock time.
     pub taken_at: NaiveDateTime,
     /// Where [`Photo::taken_at`] came from.
@@ -127,6 +129,7 @@ fn to_photo(file: &FoundFile) -> Photo {
     Photo {
         path: file.path.clone(),
         size: file.size,
+        modified: file.modified,
         taken_at,
         time_source,
         orientation: meta.orientation,

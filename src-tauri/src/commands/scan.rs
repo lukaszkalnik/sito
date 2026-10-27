@@ -187,6 +187,7 @@ mod tests {
         Photo {
             path: PathBuf::from(path),
             size: 1,
+            modified: None,
             taken_at: NaiveDate::from_ymd_opt(2024, 6, 1)
                 .unwrap()
                 .and_hms_opt(12, 0, 5)

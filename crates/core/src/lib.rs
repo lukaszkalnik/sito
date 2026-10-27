@@ -5,4 +5,5 @@
 
 pub mod metadata;
 pub mod scan;
+pub mod thumbnail;
 pub mod timeline;
