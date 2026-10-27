@@ -16,7 +16,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 2 | [Installable app](slices/02-installable-app.md) | ✅ |
 | 3 | [Timeline](slices/03-timeline.md) | ✅ |
 | 4 | [Thumbnails](slices/04-thumbnails.md) | ✅ |
-| 5 | Time series | ⬜ |
+| 5 | [Time series](slices/05-time-series.md) | 🚧 |
 | 6 | Time-gap slider | ⬜ |
 | 7 | Compare and decide | ⬜ |
 | 8 | Quarantine with undo | ⬜ |
@@ -24,8 +24,9 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 10 | Sharpness suggestion | ⬜ |
 | 11 | Exposure and weights | ⬜ |
 | 12 | Split by content | ⬜ |
-| 13 | Faces and eyes | ⬜ |
-| 14 | macOS polish | ⬜ |
+| 13 | Series without EXIF date | ⬜ |
+| 14 | Faces and eyes | ⬜ |
+| 15 | macOS polish | ⬜ |
 
 ### ✅ 1. Count photos
 Pick a folder → the app shows how many photos it found (recursive scan, JPEG only, hidden and `.nomedia` folders skipped, progress while scanning). Plan: [slices/01-count-photos.md](slices/01-count-photos.md)
@@ -47,8 +48,8 @@ Real thumbnails in the timeline: generated in the background, cached on disk, lo
 
 *Try:* scroll fast through 10,000+ photos; thumbnails fill in without freezing, and a second visit is instant.
 
-### ⬜ 5. Time series
-Photos grouped into series by a fixed time gap; single photos hidden; series count shown.
+### 🚧 5. Time series
+Photos grouped into series by a fixed time gap; single photos hidden; series count shown. Toggle between "Serie" (series only) and "Wszystkie zdjęcia" (full timeline with series marked). Only photos with an EXIF date form series. Plan: [slices/05-time-series.md](slices/05-time-series.md)
 
 *Try:* check whether the series match what you remember shooting.
 
@@ -87,10 +88,15 @@ Embedding model (downloaded on first launch, checksum-verified) splits series wi
 
 *Try:* series with mixed subjects get split.
 
-### ⬜ 13. Faces and eyes
+### ⬜ 13. Series without EXIF date
+Photos dated only by the file (WhatsApp, downloads, copies) often share a copy or download time, so time alone is unreliable for them. Group them by time plus image similarity (embeddings from slice 12).
+
+*Try:* a folder of WhatsApp images forms only the series that really belong together.
+
+### ⬜ 14. Faces and eyes
 Face and eye-state score (closed eyes penalized).
 
 *Try:* series of portraits pick shots with open eyes.
 
-### ⬜ 14. macOS polish
+### ⬜ 15. macOS polish
 Signing, notarization, macOS-specific fixes.
