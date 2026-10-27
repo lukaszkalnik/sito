@@ -16,3 +16,24 @@ missing_debug_implementations = "warn"
 pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
+
+# Unoptimized image decoding is many times slower, which made debug builds
+# (used for testing during a slice) render thumbnails far slower than the
+# release. Optimize just the image-related dependencies in dev builds.
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.jpeg-decoder]
+opt-level = 3
+
+[profile.dev.package.zune-jpeg]
+opt-level = 3
+
+[profile.dev.package.zune-core]
+opt-level = 3
+
+[profile.dev.package.blake3]
+opt-level = 3
+
+[profile.dev.package.nom-exif]
+opt-level = 3
