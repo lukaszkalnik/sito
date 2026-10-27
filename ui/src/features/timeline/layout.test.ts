@@ -5,6 +5,8 @@ import {
   anchoredScrollTop,
   buildRows,
   columnsFor,
+  DAY_ROW_HEIGHT,
+  revealScrollTop,
   rowHeight,
   SERIES_END_SPACE,
   SERIES_PADDING,
@@ -340,5 +342,28 @@ describe('anchoredScrollTop with blocks', () => {
     const scrollTop = tileTop(narrow, 2) - 10;
 
     expect(anchoredScrollTop(narrow, wide, scrollTop)).toBe(tileTop(wide, 2) - 10);
+  });
+});
+
+describe('revealScrollTop', () => {
+  const photos = Array.from({ length: 20 }, (_, id) =>
+    entry(id, `2024-06-01T12:${String(59 - id).padStart(2, '0')}:00`),
+  );
+  // One column: a day header, then one row per photo.
+  const rows = buildRows(photos, [], 1, 'all');
+  const topOf = (id: number) => DAY_ROW_HEIGHT + id * TILE_ROW_HEIGHT;
+
+  it('leaves the view alone when the photo is fully visible', () => {
+    expect(revealScrollTop(rows, 3, topOf(2), 600)).toBe(topOf(2));
+  });
+
+  it('centres a photo that is above or below the view', () => {
+    const tile = TILE_ROW_HEIGHT - TILE_GAP;
+    expect(revealScrollTop(rows, 15, 0, 600)).toBe(topOf(15) - (600 - tile) / 2);
+    expect(revealScrollTop(rows, 1, topOf(10), 600)).toBe(0);
+  });
+
+  it('is null for a photo the rows do not show', () => {
+    expect(revealScrollTop(rows, 99, 0, 600)).toBeNull();
   });
 });

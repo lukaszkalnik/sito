@@ -1,6 +1,7 @@
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import type { Undone } from '../../api/reject';
 import type { ScanSummary, Series } from '../../api/scan';
 import { openViewer, sendViewerContext } from '../../api/viewer';
 import { Toast } from '../reject/Toast';
@@ -126,7 +127,11 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
     saveGap(path, seconds);
   };
 
-  const { canUndo, undo, toast } = useUndo();
+  // A restored photo is scrolled into view and highlighted.
+  const [reveal, setReveal] = useState<number | null>(null);
+  const showRestored = useCallback((undone: Undone) => setReveal(undone.id), []);
+  const revealed = useCallback(() => setReveal(null), []);
+  const { canUndo, undo, toast } = useUndo(showRestored);
   // Rejected photos leave the timeline, so the count follows it once loaded.
   const photos = timeline.status === 'ready' ? timeline.entries.length : summary.photosFound;
 
@@ -181,6 +186,8 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
             series={timeline.series}
             mode={mode}
             scanId={summary.scanId}
+            reveal={reveal}
+            onRevealed={revealed}
             onOpen={(entry) =>
               void openViewer({ id: entry.id, scanId: summary.scanId, mode, gap }).catch(
                 (err: unknown) => console.error('Cannot open the viewer', err),

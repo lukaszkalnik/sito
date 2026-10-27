@@ -210,3 +210,28 @@ export function anchoredScrollTop(
   }
   return newTotal;
 }
+
+/**
+ * Scroll position that shows the photo `id` in a view `viewHeight` pixels
+ * tall: the current `scrollTop` if the photo is already fully visible, else
+ * one with the photo in the middle. `null` if the rows do not show the photo.
+ */
+export function revealScrollTop(
+  rows: readonly TimelineRow[],
+  id: number,
+  scrollTop: number,
+  viewHeight: number,
+): number | null {
+  const tileHeight = TILE_ROW_HEIGHT - TILE_GAP;
+  let start = 0;
+  for (const row of rows) {
+    const { entries, offset } = tilesOf(row);
+    if (entries.some((entry) => entry.id === id)) {
+      const top = start + offset;
+      if (top >= scrollTop && top + tileHeight <= scrollTop + viewHeight) return scrollTop;
+      return Math.max(0, Math.round(top - (viewHeight - tileHeight) / 2));
+    }
+    start += rowHeight(row);
+  }
+  return null;
+}

@@ -19,10 +19,18 @@ interface TimelineTileProps {
   showFolder: boolean;
   /** Opens the photo full size. */
   onOpen: (entry: TimelineEntry) => void;
+  /** Briefly marked, e.g. right after it was restored. */
+  highlighted?: boolean;
 }
 
 /** One photo on the timeline: its thumbnail with capture time, file name and folder. */
-export function TimelineTile({ entry, scanId, showFolder, onOpen }: TimelineTileProps) {
+export function TimelineTile({
+  entry,
+  scanId,
+  showFolder,
+  onOpen,
+  highlighted = false,
+}: TimelineTileProps) {
   const { t } = useTranslation();
   const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
   const src = thumbnailUrl(scanId, entry.id);
@@ -35,7 +43,7 @@ export function TimelineTile({ entry, scanId, showFolder, onOpen }: TimelineTile
 
   return (
     <li
-      className={`timeline-tile timeline-tile--${status}${seenBefore ? ' timeline-tile--instant' : ''}`}
+      className={`timeline-tile timeline-tile--${status}${seenBefore ? ' timeline-tile--instant' : ''}${highlighted ? ' timeline-tile--highlighted' : ''}`}
       title={entry.relativePath}
       data-testid="timeline-tile"
     >

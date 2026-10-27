@@ -93,6 +93,23 @@ test('undoes a rejection from the main window', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
 });
 
+test('scrolls to and highlights a photo restored from the main window', async ({ page }) => {
+  await servePixels(page);
+  // The rejected photo is near the end of the timeline, out of view.
+  await mockTauri(page, { ...BASE, rejected: [28] });
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await expect(page.getByText('IMG_00030.jpg', { exact: true })).toBeVisible();
+  const restored = page.getByTestId('timeline-tile').filter({ hasText: 'IMG_00002.jpg' });
+  await expect(restored).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Cofnij' }).click();
+
+  await expect(restored).toBeInViewport();
+  await expect(restored).toHaveClass(/timeline-tile--highlighted/);
+});
+
 test('keeps a series of two as a series when one of its photos is rejected', async ({ page }) => {
   // Pairs of photos 2 s apart, 10 minutes between pairs: series at ids 0–1, 2–3, …
   await servePixels(page);

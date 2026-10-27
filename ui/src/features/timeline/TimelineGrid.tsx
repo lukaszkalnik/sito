@@ -9,6 +9,7 @@ import {
   blockWidth,
   buildRows,
   columnsFor,
+  revealScrollTop,
   rowHeight,
   spansSeveralFolders,
   totalHeight,
@@ -67,10 +68,27 @@ interface TimelineGridProps {
   scanId: number;
   /** Opens a photo full size. */
   onOpen: (entry: TimelineEntry) => void;
+  /** A photo to scroll into view and highlight once the rows show it, e.g. one just restored. */
+  reveal?: number | null;
+  /** Called when `reveal` was shown (or could not be). */
+  onRevealed?: () => void;
 }
 
+/** How long a revealed photo stays highlighted. */
+export const HIGHLIGHT_MS = 1500;
+/** How long to wait for a revealed photo to appear in the rows. */
+const REVEAL_WAIT_MS = 2000;
+
 /** Virtualized grid of photos grouped by day and series; renders only visible rows. */
-export function TimelineGrid({ entries, series, mode, scanId, onOpen }: TimelineGridProps) {
+export function TimelineGrid({
+  entries,
+  series,
+  mode,
+  scanId,
+  onOpen,
+  reveal = null,
+  onRevealed,
+}: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
   const rows = useMemo(() => {
@@ -112,6 +130,29 @@ export function TimelineGrid({ entries, series, mode, scanId, onOpen }: Timeline
     }
   }, [rows, virtualizer]);
 
+  // Scrolls to a photo to reveal as soon as the rows show it. The rows may
+  // still be the old ones (a restored photo arrives with the next reload), so
+  // it waits a moment before giving up.
+  const [highlighted, setHighlighted] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (reveal === null || !element) return;
+    const target = revealScrollTop(rows, reveal, element.scrollTop, element.clientHeight);
+    if (target === null) {
+      const timer = setTimeout(() => onRevealed?.(), REVEAL_WAIT_MS);
+      return () => clearTimeout(timer);
+    }
+    element.scrollTop = target;
+    lastScrollTop.current = element.scrollTop;
+    setHighlighted(reveal);
+    onRevealed?.();
+  }, [rows, reveal, onRevealed]);
+  useEffect(() => {
+    if (highlighted === null) return;
+    const timer = setTimeout(() => setHighlighted(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlighted]);
+
   return (
     <div
       ref={scrollRef}
@@ -144,6 +185,7 @@ export function TimelineGrid({ entries, series, mode, scanId, onOpen }: Timeline
                       scanId={scanId}
                       showFolder={showFolder}
                       onOpen={onOpen}
+                      highlighted={entry.id === highlighted}
                     />
                   ))}
                 </ul>
@@ -161,6 +203,7 @@ export function TimelineGrid({ entries, series, mode, scanId, onOpen }: Timeline
                             scanId={scanId}
                             showFolder={showFolder}
                             onOpen={onOpen}
+                            highlighted={entry.id === highlighted}
                           />
                         ))}
                       </ul>
