@@ -19,7 +19,7 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 5 | [Time series](slices/05-time-series.md) | ✅ |
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | ✅ |
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
-| 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | 🧪 |
+| 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | ✅ |
 | 9 | Persistence | ⬜ |
 | 10 | Edit series | ⬜ |
 | 11 | Move to trash option | ⬜ |
@@ -68,7 +68,7 @@ Click a thumbnail to open the photo full size in a separate, resizable window (r
 
 *Try:* open a photo from a series, click through the strip, step past the end of the series.
 
-### 🧪 8. Reject into "Odrzucone" with undo
+### ✅ 8. Reject into "Odrzucone" with undo
 A reject button (and the Delete key) in the viewer moves the photo at once into an `Odrzucone` subfolder of its own folder and shows the next one of its series. Photos in `Odrzucone` folders are hidden but still shape the series, so a series sorted down to one photo stays a series; short series are packed side by side. Every move is logged in SQLite; "Cofnij" (Ctrl+Z) moves the last rejected photos back. Plan: [slices/08-reject-with-undo.md](slices/08-reject-with-undo.md)
 
 *Try:* reject a few photos from a test folder, check the `Odrzucone` subfolders, rescan (they stay hidden), undo, verify the files are back.
@@ -127,4 +127,4 @@ UI translations in English and German next to Polish (`en.json`, `de.json`), wit
 Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
 
 ### ⬜ 20. Google Photos (to be decided)
-Work on photos stored in Google Photos without downloading the whole library. Since March 2025 the official API only allows a hand-picked batch (Picker API) and cannot trash anything. **Preferred direction: a standalone Android app** (Tauri mobile, reusing the core and much of the UI) working on the phone's own photos, with the system trash and undo. Still to verify: whether Google Photos follows trashing done on the phone. Options and open questions: [ideas/google-photos.md](ideas/google-photos.md). Scope still to be decided.
+Work on photos stored in Google Photos without downloading the whole library. Since March 2025 the official API only allows a hand-picked batch (Picker API) and cannot trash anything. **Preferred direction: a standalone Android app** (Tauri mobile, reusing the core and much of the UI) working on the phone's own photos, with the system trash and undo. Also wanted: the desktop app working directly on a phone attached over USB. Android phones connect over MTP, which on Windows has no drive letter, so this needs the Windows Portable Devices API for reading, thumbnails and moving files into `Odrzucone` on the phone (macOS has no built-in MTP support). Still to verify: whether Google Photos follows trashing done on the phone. Options and open questions: [ideas/google-photos.md](ideas/google-photos.md). Scope still to be decided.
