@@ -156,7 +156,7 @@ fn is_skipped_dir(entry: &DirEntry) -> bool {
 }
 
 /// Whether a folder between `root` and the file at `path` is a [`REJECTED_DIR`].
-fn is_in_rejected_dir(path: &Path, root: &Path) -> bool {
+pub(crate) fn is_in_rejected_dir(path: &Path, root: &Path) -> bool {
     path.strip_prefix(root)
         .ok()
         .and_then(Path::parent)

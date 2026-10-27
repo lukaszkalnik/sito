@@ -1,6 +1,7 @@
 //! All photos of a folder tree, with capture times, sorted newest first.
 
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -8,7 +9,8 @@ use chrono::{DateTime, Local, NaiveDateTime};
 use rayon::prelude::*;
 
 use crate::metadata::{Orientation, read_photo_metadata};
-use crate::scan::{FoundFile, ScanError, find_photos};
+use crate::photo_cache::{CacheError, PhotoCache};
+use crate::scan::{FoundFile, ScanError, find_photos, is_in_rejected_dir};
 
 /// Number of photos whose metadata is read between two progress reports.
 const READ_CHUNK: usize = 200;
@@ -132,6 +134,26 @@ pub enum TimelineProgress {
 /// inspected.
 pub fn build_timeline(
     root: &Path,
+    on_progress: impl FnMut(TimelineProgress),
+) -> Result<Timeline, ScanError> {
+    build_timeline_cached(root, None, on_progress)
+}
+
+/// Like [`build_timeline`], but takes photos whose size and modification time
+/// are unchanged from `cache` instead of reading them, and stores what it
+/// read; photos under `root` that are gone are removed from the cache. Only
+/// the photos that really need reading count in the reading progress.
+///
+/// The cache only speeds things up: if it cannot be read or written, every
+/// photo is read as without one.
+///
+/// # Errors
+///
+/// Returns an error if `root` does not exist, is not a folder, or cannot be
+/// inspected.
+pub fn build_timeline_cached(
+    root: &Path,
+    cache: Option<&mut PhotoCache>,
     mut on_progress: impl FnMut(TimelineProgress),
 ) -> Result<Timeline, ScanError> {
     let found = find_photos(root, |p| {
@@ -140,20 +162,57 @@ pub fn build_timeline(
         });
     })?;
 
-    let total = found.photos.len() as u64;
+    let known: HashMap<PathBuf, Photo> = cache
+        .as_deref()
+        .and_then(|cache| cache.photos_under(root).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|photo| (photo.path.clone(), photo))
+        .collect();
+    let cached = |file: &FoundFile| {
+        known
+            .get(&file.path)
+            .filter(|photo| photo.size == file.size && photo.modified == file.modified)
+            .cloned()
+    };
+
     let mut photos = Vec::with_capacity(found.photos.len());
+    let mut to_read = Vec::new();
+    for file in found.photos.iter().chain(&found.rejected) {
+        match cached(file) {
+            Some(photo) => photos.push(photo),
+            None => to_read.push(file),
+        }
+    }
+
+    let total = to_read.len() as u64;
+    let mut read = Vec::with_capacity(to_read.len());
     on_progress(TimelineProgress::Reading { done: 0, total });
-    for chunk in found.photos.chunks(READ_CHUNK) {
-        photos.par_extend(chunk.par_iter().map(to_photo));
+    for chunk in to_read.chunks(READ_CHUNK) {
+        read.par_extend(chunk.par_iter().map(|file| to_photo(file)));
         on_progress(TimelineProgress::Reading {
-            done: photos.len() as u64,
+            done: read.len() as u64,
             total,
         });
     }
 
+    if let Some(cache) = cache {
+        // Failing to cache only means reading these photos again next time.
+        let _ = cache.store(&read);
+        let present: HashSet<PathBuf> = found
+            .photos
+            .iter()
+            .chain(&found.rejected)
+            .map(|file| file.path.clone())
+            .collect();
+        let _ = cache.forget_missing(root, &present);
+    }
+
+    photos.extend(read);
+    let (mut rejected, mut photos): (Vec<Photo>, Vec<Photo>) = photos
+        .into_iter()
+        .partition(|photo| is_in_rejected_dir(&photo.path, root));
     photos.sort_by(compare_photos);
-    // Usually few; read after the shown photos, without progress reports.
-    let mut rejected: Vec<Photo> = found.rejected.par_iter().map(to_photo).collect();
     rejected.sort_by(compare_photos);
 
     Ok(Timeline {
@@ -161,6 +220,28 @@ pub fn build_timeline(
         photos,
         rejected,
         unreadable_entries: found.unreadable_entries,
+    })
+}
+
+/// The timeline of `root` as last scanned, from `cache` alone without
+/// touching any file, so a folder can be shown at once while it is rescanned.
+/// Empty if the folder was never scanned.
+///
+/// # Errors
+///
+/// Returns an error if the cache cannot be read.
+pub fn cached_timeline(root: &Path, cache: &PhotoCache) -> Result<Timeline, CacheError> {
+    let (mut rejected, mut photos): (Vec<Photo>, Vec<Photo>) = cache
+        .photos_under(root)?
+        .into_iter()
+        .partition(|photo| is_in_rejected_dir(&photo.path, root));
+    photos.sort_by(compare_photos);
+    rejected.sort_by(compare_photos);
+    Ok(Timeline {
+        root: root.to_path_buf(),
+        photos,
+        rejected,
+        unreadable_entries: 0,
     })
 }
 

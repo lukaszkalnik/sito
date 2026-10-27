@@ -5,6 +5,7 @@
 
 pub mod actions;
 pub mod metadata;
+pub mod photo_cache;
 pub mod reject;
 pub mod scan;
 pub mod series;
