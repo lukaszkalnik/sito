@@ -20,9 +20,9 @@ Plan each slice in plan mode first and save the approved plan as `docs/slices/NN
 | 6 | [Time-gap slider](slices/06-time-gap-slider.md) | ✅ |
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
 | 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | ✅ |
-| 9 | Persistence | ⬜ |
+| 9 | [Persistence](slices/09-persistence.md) | 🚧 |
 | 10 | Edit series | ⬜ |
-| 11 | Move to trash option | ⬜ |
+| 11 | Settings: trash, cache location and size | ⬜ |
 | 12 | Show and restore rejected photos | ⬜ |
 | 13 | Sharpness suggestion | ⬜ |
 | 14 | Exposure and weights | ⬜ |
@@ -73,20 +73,20 @@ A reject button (and the Delete key) in the viewer moves the photo at once into 
 
 *Try:* reject a few photos from a test folder, check the `Odrzucone` subfolders, rescan (they stay hidden), undo, verify the files are back.
 
-### ⬜ 9. Persistence
-SQLite cache of scan results and series edits; rescans are fast and work survives a restart. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under a size limit.
+### 🚧 9. Persistence
+SQLite cache of scan results: on start Sito reopens the last folder at once from the cache and checks it for changes in the background; picking a folder seen before is near-instant. Also cleans up the thumbnail cache: removes thumbnails no known photo points to any more (edited, moved or deleted photos) and keeps the cache under 500 MB. Plan: [slices/09-persistence.md](slices/09-persistence.md)
 
-*Try:* rescan a large folder twice, restart mid-review; move a folder, rescan, and check that the cache folder does not keep growing.
+*Try:* restart Sito (the last folder opens at once), rescan a large folder twice, move a folder, rescan, and check that the cache folder stays under 500 MB.
 
 ### ⬜ 10. Edit series
 Fix false positives and misses by hand: remove a photo from a series, add a photo to a neighbouring series, ungroup a series completely, or "cut here" to split a series that chains several moments (e.g. a long event shot in quick succession) into two at a chosen photo. Edits are stored in SQLite (slice 9), survive rescans and win over automatic grouping.
 
 *Try:* cut a chained series into its real moments, ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
 
-### ⬜ 11. Move to trash option
-Setting: instead of the `Odrzucone` folder, move rejected photos to the system trash (logged and undoable via the Recycle Bin). Off by default.
+### ⬜ 11. Settings: trash, cache location and size
+A settings screen with: moving rejected photos to the system trash instead of the `Odrzucone` folder (logged and undoable via the Recycle Bin; off by default); where the cache lives (thumbnails and `photos.db`; the existing cache is moved over); and the thumbnail cache size limit (default 500 MB).
 
-*Try:* switch the option on, reject a few photos, find them in the Recycle Bin, undo.
+*Try:* switch the trash option on, reject a few photos, find them in the Recycle Bin, undo; move the cache to another drive and check Sito still starts instantly.
 
 ### ⬜ 12. Show and restore rejected photos
 Option to show photos from `Odrzucone` folders in the timeline and the viewer, visually weaker (faded, marked "odrzucone") so they do not get in the way. A rejected photo can be restored: moved back from `Odrzucone` to its folder (logged and undoable).
