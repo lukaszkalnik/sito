@@ -1,7 +1,7 @@
 //! Moving rejected photos into the [`REJECTED_DIR`] subfolder of their own
 //! folder, and back. Files are only ever moved, never deleted or overwritten.
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -45,19 +45,30 @@ pub struct Rejected {
 }
 
 /// Moves the photo at `path` into the [`REJECTED_DIR`] subfolder of its
-/// folder, creating the folder if needed. A file already there with the same
-/// name is kept: the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
+/// folder: [`prepare`] followed by [`complete`].
 ///
 /// # Errors
 ///
 /// Returns an error if the folder cannot be created or the file cannot be moved.
 pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| RejectError::NoParent(path.to_path_buf()))?;
-    let name = path
-        .file_name()
-        .ok_or_else(|| RejectError::NoParent(path.to_path_buf()))?;
+    let rejected = prepare(path)?;
+    complete(path, &rejected)?;
+    Ok(rejected)
+}
+
+/// Creates the [`REJECTED_DIR`] subfolder of the folder of `path` if needed
+/// and picks the photo's path in it, without moving anything yet, so the move
+/// can be logged before it happens. A file already there with the same name
+/// is kept: the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
+///
+/// # Errors
+///
+/// Returns an error if `path` has no folder or file name, or the folder cannot
+/// be created.
+pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
+    let no_parent = || RejectError::NoParent(path.to_path_buf());
+    let parent = path.parent().ok_or_else(no_parent)?;
+    let name = path.file_name().ok_or_else(no_parent)?;
     let dir = parent.join(REJECTED_DIR);
     let created_dir = !dir.is_dir();
     fs::create_dir_all(&dir).map_err(|source| RejectError::Io {
@@ -65,12 +76,38 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
         to: dir.clone(),
         source,
     })?;
-    let target = free_name(&dir, name);
-    move_file(path, &target)?;
+    let target = free_name(&dir, name).ok_or_else(|| RejectError::Occupied(dir.join(name)))?;
     Ok(Rejected {
         path: target,
         created_dir,
     })
+}
+
+/// Moves the photo at `path` to where [`prepare`] put it. If that fails, a
+/// [`REJECTED_DIR`] folder that `prepare` created is removed again while empty.
+///
+/// # Errors
+///
+/// Returns [`RejectError::Occupied`] if the target exists by now, or an error
+/// if the file cannot be moved.
+pub fn complete(path: &Path, rejected: &Rejected) -> Result<(), RejectError> {
+    let result = if rejected.path.exists() {
+        Err(RejectError::Occupied(rejected.path.clone()))
+    } else {
+        move_file(path, &rejected.path)
+    };
+    if result.is_err() {
+        abandon(rejected);
+    }
+    result
+}
+
+/// Undoes [`prepare`] for a photo that will not be moved: removes the
+/// [`REJECTED_DIR`] folder again if `prepare` created it and it is still empty.
+pub fn abandon(rejected: &Rejected) {
+    if rejected.created_dir {
+        remove_if_empty(rejected.path.parent());
+    }
 }
 
 /// Moves a rejected photo from `from` back to `to`, its path before it was
@@ -89,32 +126,44 @@ pub fn restore(from: &Path, to: &Path, remove_empty_dir: bool) -> Result<(), Rej
         return Err(RejectError::Occupied(to.to_path_buf()));
     }
     move_file(from, to)?;
-    if remove_empty_dir && let Some(dir) = from.parent() {
-        // `remove_dir` only removes an empty folder; it never deletes files.
-        let _ = fs::remove_dir(dir);
+    if remove_empty_dir {
+        remove_if_empty(from.parent());
     }
     Ok(())
 }
 
-/// `dir/name`, or the first free `dir/<stem> (n).<ext>` if that exists.
-fn free_name(dir: &Path, name: &std::ffi::OsStr) -> PathBuf {
+/// Removes the folder `dir` if it is empty; a folder with files stays.
+fn remove_if_empty(dir: Option<&Path>) {
+    if let Some(dir) = dir {
+        // `remove_dir` only removes an empty folder; it never deletes files.
+        let _ = fs::remove_dir(dir);
+    }
+}
+
+/// `dir/name`, or the first free `dir/<stem> (n).<ext>` if that exists;
+/// `None` if no name is free. Non-Unicode names are kept as they are.
+fn free_name(dir: &Path, name: &OsStr) -> Option<PathBuf> {
     let first = dir.join(name);
     if !first.exists() {
-        return first;
+        return Some(first);
     }
     let as_path = Path::new(name);
-    let stem = as_path.file_stem().unwrap_or(name).to_string_lossy();
-    let ext = as_path.extension().map(|e| e.to_string_lossy());
+    let stem = as_path.file_stem().unwrap_or(name);
+    let ext = as_path.extension();
     (2..=u32::MAX)
-        .map(|n| {
-            let mut candidate = OsString::from(format!("{stem} ({n})"));
-            if let Some(ext) = &ext {
-                candidate.push(format!(".{ext}"));
-            }
-            dir.join(candidate)
-        })
+        .map(|n| dir.join(numbered_name(stem, n, ext)))
         .find(|candidate| !candidate.exists())
-        .unwrap_or(first)
+}
+
+/// `<stem> (n).<ext>`, or `<stem> (n)` without an extension.
+fn numbered_name(stem: &OsStr, n: u32, ext: Option<&OsStr>) -> OsString {
+    let mut name = stem.to_os_string();
+    name.push(format!(" ({n})"));
+    if let Some(ext) = ext {
+        name.push(".");
+        name.push(ext);
+    }
+    name
 }
 
 fn move_file(from: &Path, to: &Path) -> Result<(), RejectError> {

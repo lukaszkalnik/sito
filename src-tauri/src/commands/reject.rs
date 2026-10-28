@@ -107,12 +107,18 @@ fn reject_in(
     let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
 
-    let rejected = reject::reject(&path).map_err(move_failed)?;
-    if let Err(err) = log.record_reject(&path, &rejected.path) {
-        // Without a log entry it could not be undone: move it back.
-        log::warn!("cannot log the rejection of {}: {err}", path.display());
-        reject::restore(&rejected.path, &path, rejected.created_dir).map_err(move_failed)?;
-        return Err(CommandError::Internal);
+    let rejected = reject::prepare(&path).map_err(move_failed)?;
+    // Logged before the move, so a crash in between never leaves an untracked
+    // move; undo skips an entry whose photo never arrived.
+    let action = log.record_reject(&path, &rejected.path).map_err(|err| {
+        reject::abandon(&rejected);
+        log_failed(&err)
+    })?;
+    if let Err(err) = reject::complete(&path, &rejected) {
+        if let Err(err) = log.forget(action) {
+            log::warn!("cannot remove the log entry of a failed move: {err}");
+        }
+        return Err(move_failed(err));
     }
     if rejected.created_dir
         && let Some(dir) = rejected.path.parent()
@@ -366,6 +372,22 @@ mod tests {
 
         assert_eq!(undone.name, OLDER);
         assert!(dir.path().join(OLDER).exists());
+    }
+
+    #[test]
+    fn a_move_interrupted_after_logging_is_skipped_by_undo() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let actions = started(&dir.path().join("sito.db"));
+        // The app stopped after logging the rejection, before moving the photo.
+        let photo = dir.path().join(NEWER);
+        let log = actions.log.as_ref().unwrap();
+        log.record_reject(&photo, &dir.path().join("Odrzucone").join(NEWER))
+            .unwrap();
+
+        assert_eq!(undo_in(&mut scan, &actions), Err(CommandError::Missing));
+        assert_eq!(undo_in(&mut scan, &actions), Ok(None));
+        assert!(photo.exists());
     }
 
     #[test]

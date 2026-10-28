@@ -138,7 +138,9 @@ impl PhotoCache {
         Ok(photos)
     }
 
-    /// Stores `photos`, replacing earlier entries for the same paths.
+    /// Stores `photos`, replacing earlier entries for the same paths. Photos
+    /// whose path is not valid Unicode are left out (they are read on every
+    /// scan) rather than stored under a changed path.
     ///
     /// # Errors
     ///
@@ -152,8 +154,11 @@ impl PhotoCache {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             )?;
             for photo in photos {
+                let Some(path) = photo.path.to_str() else {
+                    continue;
+                };
                 insert.execute(params![
-                    photo.path.to_string_lossy(),
+                    path,
                     i64::try_from(photo.size).unwrap_or(i64::MAX),
                     photo.modified.and_then(to_nanos),
                     photo.taken_at.format(TIME_FORMAT).to_string(),
@@ -185,11 +190,9 @@ impl PhotoCache {
             .filter(|path| !found.contains(path))
             .collect();
         let transaction = self.conn.transaction()?;
-        for path in &gone {
-            transaction.execute(
-                "DELETE FROM photos WHERE path = ?1",
-                params![path.to_string_lossy()],
-            )?;
+        // Cached paths are always valid Unicode (see `store`).
+        for path in gone.iter().filter_map(|path| path.to_str()) {
+            transaction.execute("DELETE FROM photos WHERE path = ?1", params![path])?;
         }
         transaction.commit()?;
         Ok(())

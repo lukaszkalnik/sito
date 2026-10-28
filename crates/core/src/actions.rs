@@ -9,8 +9,14 @@ use thiserror::Error;
 
 /// Error while reading or writing the action log.
 #[derive(Debug, Error)]
-#[error("action log: {0}")]
-pub struct LogError(#[from] rusqlite::Error);
+pub enum LogError {
+    /// The database refused the operation.
+    #[error("action log: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+    /// The path is not valid Unicode, so it cannot be stored without changing it.
+    #[error("action log: {0} is not a valid Unicode path")]
+    NonUnicodePath(PathBuf),
+}
 
 /// A photo moved into the rejected folder that has not been undone yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,31 +56,36 @@ impl ActionLog {
         Self::init(Connection::open_in_memory()?)
     }
 
-    fn init(conn: Connection) -> Result<Self, LogError> {
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS actions (
-                 id        INTEGER PRIMARY KEY,
-                 at        TEXT NOT NULL,
-                 kind      TEXT NOT NULL,
-                 from_path TEXT NOT NULL,
-                 to_path   TEXT NOT NULL,
-                 undone_at TEXT
-             );",
-        )?;
+    fn init(mut conn: Connection) -> Result<Self, LogError> {
+        migrate(&mut conn)?;
         Ok(Self { conn })
     }
 
-    /// Records that the photo at `from` was moved to `to`; returns the action id.
+    /// Records that the photo at `from` is moved to `to`; returns the action id.
+    /// Call it before moving, and [`forget`](Self::forget) the entry if the
+    /// move then fails, so no move is ever left out of the log.
     ///
     /// # Errors
     ///
-    /// Returns an error if the entry cannot be written.
+    /// Returns an error if a path is not valid Unicode or the entry cannot be
+    /// written.
     pub fn record_reject(&self, from: &Path, to: &Path) -> Result<i64, LogError> {
         self.conn.execute(
             "INSERT INTO actions (at, kind, from_path, to_path) VALUES (?1, ?2, ?3, ?4)",
-            params![now(), KIND_REJECT, path_text(from), path_text(to)],
+            params![now(), KIND_REJECT, path_text(from)?, path_text(to)?],
         )?;
         Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Removes the entry `id` of an action that did not happen after all.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the entry cannot be removed.
+    pub fn forget(&self, id: i64) -> Result<(), LogError> {
+        self.conn
+            .execute("DELETE FROM actions WHERE id = ?1", params![id])?;
+        Ok(())
     }
 
     /// The newest rejection not yet undone whose photo came from inside
@@ -141,8 +152,35 @@ fn now() -> String {
     Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string()
 }
 
-/// Paths are stored as text; Windows file names that are not valid Unicode
-/// (practically never seen) would be stored lossily.
-fn path_text(path: &Path) -> String {
-    path.to_string_lossy().into_owned()
+/// Schema changes of the log, applied in order. `PRAGMA user_version` holds
+/// how many have been applied. Never edit or reorder an entry; append a new one.
+const MIGRATIONS: &[&str] = &["CREATE TABLE IF NOT EXISTS actions (
+         id        INTEGER PRIMARY KEY,
+         at        TEXT NOT NULL,
+         kind      TEXT NOT NULL,
+         from_path TEXT NOT NULL,
+         to_path   TEXT NOT NULL,
+         undone_at TEXT
+     );"];
+
+/// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one
+/// transaction.
+fn migrate(conn: &mut Connection) -> Result<(), LogError> {
+    let applied: u32 = conn.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+    let transaction = conn.transaction()?;
+    let mut version = applied;
+    for migration in MIGRATIONS.iter().skip(applied as usize) {
+        transaction.execute_batch(migration)?;
+        version += 1;
+    }
+    transaction.pragma_update(None, "user_version", version)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+/// The path as text. Paths that are not valid Unicode (practically never seen
+/// on Windows or macOS) are refused instead of being stored changed.
+fn path_text(path: &Path) -> Result<&str, LogError> {
+    path.to_str()
+        .ok_or_else(|| LogError::NonUnicodePath(path.to_path_buf()))
 }

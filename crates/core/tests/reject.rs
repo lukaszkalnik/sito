@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::Path;
 
-use sito_core::reject::{RejectError, reject, restore};
+use sito_core::reject::{RejectError, abandon, complete, prepare, reject, restore};
 use tempfile::TempDir;
 
 fn write(path: &Path, content: &str) {
@@ -146,4 +146,73 @@ fn reports_a_photo_that_cannot_be_moved() {
     let err = reject(&dir.path().join("missing.jpg")).unwrap_err();
 
     assert!(matches!(err, RejectError::Io { .. }));
+}
+
+#[test]
+fn prepare_picks_the_target_without_moving() {
+    let dir = TempDir::new().unwrap();
+    let photo = dir.path().join("IMG_1.jpg");
+    write(&photo, "photo");
+
+    let prepared = prepare(&photo).unwrap();
+
+    assert_eq!(prepared.path, dir.path().join("Odrzucone/IMG_1.jpg"));
+    assert!(photo.exists());
+    assert!(!prepared.path.exists());
+    complete(&photo, &prepared).unwrap();
+    assert!(!photo.exists());
+    assert_eq!(fs::read_to_string(&prepared.path).unwrap(), "photo");
+}
+
+#[test]
+fn complete_refuses_a_target_taken_since_prepare() {
+    let dir = TempDir::new().unwrap();
+    let photo = dir.path().join("IMG_1.jpg");
+    write(&photo, "new");
+    let prepared = prepare(&photo).unwrap();
+    write(&prepared.path, "other");
+
+    assert!(matches!(
+        complete(&photo, &prepared),
+        Err(RejectError::Occupied(_))
+    ));
+    assert_eq!(fs::read_to_string(&photo).unwrap(), "new");
+    assert_eq!(fs::read_to_string(&prepared.path).unwrap(), "other");
+}
+
+#[test]
+fn abandon_removes_only_a_folder_prepare_created() {
+    let dir = TempDir::new().unwrap();
+    let photo = dir.path().join("IMG_1.jpg");
+    write(&photo, "photo");
+
+    abandon(&prepare(&photo).unwrap());
+    assert!(!dir.path().join("Odrzucone").exists());
+
+    fs::create_dir(dir.path().join("Odrzucone")).unwrap();
+    abandon(&prepare(&photo).unwrap());
+    assert!(dir.path().join("Odrzucone").is_dir());
+    assert!(photo.exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn keeps_non_unicode_names_when_numbering() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let dir = TempDir::new().unwrap();
+    let name = OsStr::from_bytes(b"IMG_\xff.jpg");
+    let photo = dir.path().join(name);
+    write(&photo, "new");
+    write(&dir.path().join("Odrzucone").join(name), "old");
+
+    let rejected = reject(&photo).unwrap();
+
+    assert_eq!(
+        rejected.path,
+        dir.path()
+            .join("Odrzucone")
+            .join(OsStr::from_bytes(b"IMG_\xff (2).jpg"))
+    );
 }

@@ -99,3 +99,55 @@ fn keeps_the_log_across_reopening() {
         Path::new(&photo("IMG_1.jpg"))
     );
 }
+
+#[test]
+fn forgets_an_action_that_did_not_happen() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let id = record(&log, "IMG_1.jpg");
+
+    log.forget(id).unwrap();
+
+    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+}
+
+#[test]
+fn upgrades_a_log_written_before_migrations() {
+    let dir = TempDir::new().unwrap();
+    let db = dir.path().join("sito.db");
+    // The schema as created before `user_version` was used.
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE actions (
+             id INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,
+             from_path TEXT NOT NULL, to_path TEXT NOT NULL, undone_at TEXT
+         );
+         INSERT INTO actions (at, kind, from_path, to_path)
+             VALUES ('2024-06-01T12:00:00.000+02:00', 'reject', 'a', 'b');",
+    )
+    .unwrap();
+    drop(conn);
+
+    let log = ActionLog::open(&db).unwrap();
+
+    assert!(log.last_undoable(Path::new("a")).unwrap().is_some());
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    let version: u32 = conn
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(version, 1);
+}
+
+#[cfg(unix)]
+#[test]
+fn refuses_a_path_that_is_not_unicode() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let log = ActionLog::open_in_memory().unwrap();
+    let path = root().join(OsStr::from_bytes(b"IMG_\xff.jpg"));
+
+    assert!(matches!(
+        log.record_reject(&path, &rejected("IMG_1.jpg")),
+        Err(sito_core::actions::LogError::NonUnicodePath(_))
+    ));
+}

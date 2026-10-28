@@ -166,6 +166,31 @@ fn stores_every_field() {
     assert_eq!(back, photos);
 }
 
+#[cfg(unix)]
+#[test]
+fn leaves_out_paths_that_are_not_unicode() {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    let photo = Photo {
+        path: PathBuf::from(OsStr::from_bytes(b"IMG_\xff.jpg")),
+        size: 1,
+        modified: None,
+        taken_at: NaiveDate::from_ymd_opt(2024, 6, 1)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap(),
+        time_source: TimeSource::Exif,
+        orientation: Orientation::NORMAL,
+        camera: None,
+    };
+
+    cache.store(&[photo]).unwrap();
+
+    assert_eq!(cache.all().unwrap(), Vec::new());
+}
+
 #[test]
 fn keeps_its_contents_across_reopening() {
     let dir = gallery();
