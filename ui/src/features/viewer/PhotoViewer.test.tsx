@@ -125,6 +125,28 @@ describe('PhotoViewer', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
   });
 
+  it('hides the previous photo when the next one cannot be loaded', () => {
+    const props = {
+      entries,
+      series,
+      mode: 'all' as const,
+      scanId: 3,
+      onShow: vi.fn(),
+      onClose: vi.fn(),
+      onReject: vi.fn(),
+      canUndo: false,
+      onUndo: vi.fn(),
+    };
+    const { rerender } = render(<PhotoViewer {...props} position={2} />);
+    fireEvent.load(screen.getByTestId('viewer-photo-loading'));
+
+    rerender(<PhotoViewer {...props} position={3} />);
+    fireEvent.error(screen.getByTestId('viewer-photo-loading'));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
+    expect(screen.queryByRole('img', { name: /IMG_\d\.jpg/ })).toBeNull();
+  });
+
   it('steps to the previous and next photo with buttons and arrow keys', async () => {
     const { onShow } = renderViewer(2);
 

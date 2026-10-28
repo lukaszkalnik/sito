@@ -29,7 +29,8 @@ interface PhotoViewerProps {
 
 /**
  * The photo at full size. The previous photo stays until the next one has
- * loaded, so stepping through large photos never flashes an empty window.
+ * loaded, so stepping through large photos never flashes an empty window;
+ * if the next one cannot be loaded, only the error is shown.
  */
 function FullPhoto({ src, alt }: { src: string; alt: string }) {
   const { t } = useTranslation();
@@ -38,7 +39,7 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
 
   return (
     <div className="viewer-photo-area">
-      {loaded !== null && <img className="viewer-photo" src={loaded} alt={alt} />}
+      {loaded !== null && failed !== src && <img className="viewer-photo" src={loaded} alt={alt} />}
       {loaded !== src && failed !== src && (
         <img
           className="viewer-photo viewer-photo--loading"
