@@ -1,6 +1,6 @@
 # Slice 11 – Showcase screenshots for the README
 
-**Status:** 🧪 ready for testing (how to regenerate the screenshots: [docs/images/README.md](../images/README.md))
+**Status:** ✅ done (checked by the user on 2026-10-28; how to regenerate the screenshots: [docs/images/README.md](../images/README.md))
 
 ## Context
 
