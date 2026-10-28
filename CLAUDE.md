@@ -44,15 +44,16 @@ Apply these rules both when **writing** and when **reviewing** code (including y
 
 ### Structure
 
-- **Package by feature first, then by layer.** Top-level folders/modules are features (`scan`, `timeline`, `series`, `reject`, `viewer`, ...), not technical kinds. Inside a feature, split by layer only when it grows:
+- **Package by feature first, then by layer.** Top-level folders/modules are features (`scan`, `timeline`, `series`, `reject`, `viewer`, ...), not technical kinds (`api/`, `utils/`, `types/`). Inside a feature, split by layer only when it grows:
   - **UI** (presentation): React components, CSS. Rust side: Tauri commands in `src-tauri/src/commands/<feature>.rs`.
   - **Domain** (pure logic): types, rules, reducers, calculations. No I/O, no framework imports; this is where most unit tests live.
-  - **Data** (I/O): SQLite, file system, Tauri `invoke` wrappers, `localStorage`.
-  - Dependencies point inward: UI → Domain ← Data. Domain never imports UI or Data code.
-  - The crate layering stays: `core` (domain + data, no Tauri) ← `src-tauri` (thin adapter) ← `ui` (presentation).
-- **Small, focused files.** One concept per file. Roughly: aim for < 300 lines; past ~400 lines, split by sub-concept (Rust: turn `foo.rs` into `foo/mod.rs` + submodules). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
-- **Small functions.** A function does one thing at one level of abstraction; aim for < 30–40 lines. Extract private helpers with descriptive names instead of comments explaining blocks.
-- **Public surface stays minimal.** Rust: `pub(crate)`/private by default, re-export the intended API from `lib.rs`/`mod.rs`. TypeScript: export only what other modules use; no barrel files that re-export everything.
+  - **Data** (I/O): SQLite, file system, Tauri `invoke`/`listen` wrappers (`features/<name>/api.ts`), `localStorage`.
+  - Allowed dependencies: UI uses Domain and Data; Data uses Domain; Domain uses neither.
+  - Across crates: `ui` calls `src-tauri`, which calls `core`. `core` (domain + data) depends on neither and never on Tauri.
+- **Small, focused files.** One concept per file. Aim for < 300 lines; past ~400 lines, split by sub-concept (Rust: keep `foo.rs` and put submodules in `foo/`, no `mod.rs`). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
+- **Small functions.** A function does one thing at one level of abstraction; aim for < 50 lines. Extract private helpers with descriptive names instead of comments explaining blocks.
+- **Public surface stays minimal.** Rust: private/`pub(crate)` by default, re-export the intended API from `lib.rs`. TypeScript: export only what other modules use; no barrel files that re-export everything.
+- **Known deviations** (fix when touching them, in a `refactor:` commit): `ui/src/api/` (move wrappers into their features), `src-tauri/src/photos.rs` and `thumbnails.rs` (by technical kind), `src-tauri/src/state.rs` and `commands/reject.rs` (over 400 lines).
 
 ### Complexity
 
@@ -71,25 +72,81 @@ Apply these rules both when **writing** and when **reviewing** code (including y
 - Model states with **enums / discriminated unions**, not combinations of booleans and optionals. Bad: `{ loading: boolean; error?: string; data?: T }`. Good: `type State = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "done"; data: T }`.
 - Rust: enums with data (`enum Decision { Keep, Reject { moved_to: PathBuf } }`), exhaustive `match` (no `_ =>` catch-all over own enums, so new variants cause compile errors). TypeScript: discriminated unions with a `kind` field, exhaustive `switch` ending in an `assertNever(x: never)` check.
 - **Newtypes** for values that must not be mixed up (`PhotoId(i64)`, `SeriesId`, durations vs. timestamps). Parse and validate at the boundary (`TryFrom`, constructors returning `Result`), then trust the type inside.
+- **Dates and times:** EXIF times have no time zone. Keep them as `chrono::NaiveDateTime`, never convert through the machine's local time zone implicitly, and use distinct types for points in time and durations.
 - Prefer immutable data: `readonly` fields/arrays in TS, no `mut` unless needed in Rust.
+
+### Comments
+
+- **Doc comments** (`///`, `//!`, `/** */`) say **what** a function, type or module does or represents: its contract, inputs, outputs, errors, units and invariants. They do **not** say where or by whom it is used; callers change and such comments go stale.
+- **Inline comments** explain **why** (a non-obvious decision, a workaround, a platform quirk), never restate what the code does.
+- Every public item in `core` has a doc comment. No commented-out code.
+
+### Safe file operations
+
+- Files are only ever **moved**, never deleted or overwritten. If the destination name exists, pick a new name.
+- A move across drives (where `rename` fails) must copy, verify the copy (size + hash), and only then remove the original; otherwise fail visibly.
+- Write the undo log entry **before** the move, in the same SQLite transaction as related changes, so a crash never leaves an untracked move.
+- Handle paths as `Path`/`PathBuf`, never via lossy string conversion; support non-ASCII (Polish) names and long Windows paths.
+
+### Scale and performance
+
+- Assume galleries of 50 000+ photos. Never hold all decoded images in memory; stream or batch work.
+- Keep IPC payloads small: send IDs and metadata, never image bytes (images go through the `thumb:`/`photo:` protocols).
+- Long lists in the UI are virtualized. Long jobs are cancellable and throttle their progress events.
+
+### Persistence (SQLite)
+
+- Schema changes go through numbered migrations (`PRAGMA user_version`), so existing caches survive app updates.
+- Multi-step changes (a move plus its undo entry, a batch of decisions) run in one transaction.
+- SQL lives only in the data layer of `core`.
+
+### Errors
+
+- Commands return **error codes** (serializable enums), not English messages; the UI maps every code to a translated message in `pl.json`.
+- Never swallow an error silently: show it to the user or log it.
+
+### Security and privacy
+
+- No network access except the checksum-verified model download.
+- Tauri capabilities and the CSP stay minimal; every new permission or allowed source needs a stated reason.
+- Logs never contain image data; full paths are logged at debug level only.
+
+### Testing
+
+- Test behaviour, not implementation details. The pure domain layer carries most of the tests.
+- Frontend tests query by role, label or text (Testing Library), not by CSS class.
+- Tests are deterministic: no `sleep`, no real clock or randomness (inject or fake them), file system work in temp dirs, never on real photo folders.
+
+### Accessibility
+
+- Everything is usable by keyboard: native `<button>`/`<input>` elements, visible focus, keyboard shortcuts defined in one place.
+- Icon-only controls have an `aria-label` from the translation file.
+
+### Dependencies
+
+- Add dependencies sparingly; check each license (it ends up in the third-party notices) and prefer well-maintained crates/packages.
+- Commit lockfiles (`Cargo.lock`, `package-lock.json`).
 
 ### Rust best practices
 
-- Errors: `thiserror` enums per module in `core`; propagate with `?`; no `unwrap`/`expect`/`panic!` outside tests (an `expect` with a reason is acceptable only for true invariants). `src-tauri` maps errors to serializable command errors.
+- Errors: `thiserror` enums per module in `core`; propagate with `?`; no `unwrap`/`expect`/`panic!` outside tests. For a true invariant, use `#[expect(clippy::expect_used, reason = "...")]` on the item. `src-tauri` maps errors to serializable command error codes.
 - Borrow over clone: take `&str`/`&Path`/`&[T]` in parameters, return owned values. Use `impl AsRef<Path>` / `impl IntoIterator` where it helps callers.
 - Derive common traits (`Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Default`) where meaningful; implement `From`/`TryFrom` for conversions instead of ad-hoc `to_x` functions.
-- Prefer iterators over index loops; `rayon` only for CPU-heavy work, never across blocking I/O on the async runtime.
-- Tauri commands are thin: parse input, call `core`, map the result. Long work runs off the main thread (`spawn_blocking` / a worker pool) and reports progress via events. Shared state lives in `tauri::State` behind the narrowest lock possible; never hold a lock across an `await` or long computation.
-- Doc comments (`///`) on every public item explain *why* and invariants, not *what*.
+- Prefer iterators over index loops. Use `rayon` for CPU-heavy work. Never block an async command: run file and database work in `spawn_blocking` or the worker pool.
+- Tauri commands are thin: parse input, call `core`, map the result. Long work runs off the main thread and reports progress via events. Shared state lives in `tauri::State` behind the narrowest lock possible; never hold a lock across an `await` or a long computation.
 
 ### TypeScript / React best practices
 
-- Strict TS, no `any`, no non-null `!` assertions without a comment; validate untrusted data (Tauri responses, `localStorage`) at the data layer.
+- Strict TS, no `any`, no non-null `!` assertions without a comment; validate untrusted data (Tauri responses, `localStorage`) in the data layer.
 - Function components; components render, hooks hold logic. Move non-trivial logic into pure functions (reducers, selectors) next to the feature so it is testable without React.
 - Derive values instead of storing them in state; keep state minimal and as local as possible. Use `useReducer` with a discriminated-union state for multi-step flows.
 - Effects only for synchronizing with external systems (Tauri events, timers, DOM); always clean up listeners and subscriptions.
 - Stable `key`s from IDs (never array indices for dynamic lists); memoize (`useMemo`, `useCallback`, `memo`) only where profiling or large lists justify it.
-- All Tauri `invoke`/`listen` calls go through typed wrappers in the data layer (`ui/src/api/` or the feature's data module), so components never call Tauri directly and e2e tests can mock them.
+- All Tauri `invoke`/`listen` calls go through typed wrappers in the data layer, so components never call Tauri directly and e2e tests can mock them.
+
+### Python
+
+- Dev scripts (`scripts/`) follow PEP 8 with type hints.
 
 ## Tech stack
 
