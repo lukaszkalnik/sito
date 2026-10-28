@@ -68,7 +68,7 @@ jobs:
           releaseDraft: true
           args: ${{ matrix.args }}
 
-      - name: Smoke-test the installer (install, launch, uninstall)
+      - name: Smoke-test the installer (install, launch, open the viewer, uninstall)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
@@ -90,6 +90,32 @@ jobs:
           Start-Sleep -Seconds 10
           if ($app.HasExited) { throw "App exited early with code $($app.ExitCode)" }
           Stop-Process -Id $app.Id -Force
+
+          # SITO_SMOKE_TEST=1 opens the viewer like a click on a photo, then
+          # closes both windows and exits (src-tauri/src/smoke.rs). A freeze while
+          # opening a window (v0.6.2) shows up as a timeout here.
+          $stateFile = Join-Path $env:APPDATA 'io.github.lukaszkalnik.sito\.window-state.json'
+          Remove-Item $stateFile -ErrorAction SilentlyContinue
+          Write-Host 'Opening the viewer'
+          $env:SITO_SMOKE_TEST = '1'
+          $app = Start-Process $exe.FullName -PassThru
+          $env:SITO_SMOKE_TEST = $null
+          $null = $app.Handle  # without it, ExitCode stays empty after the exit
+          if (-not $app.WaitForExit(60000)) {
+            Stop-Process -Id $app.Id -Force
+            throw 'App froze while opening or closing the viewer (no exit within 60 s)'
+          }
+          switch ($app.ExitCode) {
+            0 { }
+            2 { throw 'Viewer window could not be opened' }
+            3 { throw 'Viewer window was opened but not shown' }
+            default { throw "Viewer smoke run failed with exit code $($app.ExitCode)" }
+          }
+          if (-not (Test-Path $stateFile)) { throw "Window state not saved to $stateFile" }
+          $state = Get-Content $stateFile -Raw | ConvertFrom-Json
+          foreach ($label in 'main', 'viewer') {
+            if (-not $state.$label) { throw "Window state has no '$label' window" }
+          }
 
           Write-Host 'Uninstalling'
           Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait

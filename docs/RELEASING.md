@@ -4,7 +4,7 @@ Installers are built by GitHub Actions (`.github/workflows/release.yml`), never 
 
 ## Test build (no release)
 
-Run the Release workflow manually. It builds the installers, smoke-tests the Windows installer, and attaches them to the workflow run as artifacts.
+Run the Release workflow manually. It builds the installers, smoke-tests the Windows installer (install, launch, open the viewer, uninstall), and attaches them to the workflow run as artifacts.
 
 ```bash
 gh workflow run release.yml --ref main

@@ -60,13 +60,15 @@ impl ViewerState {
 /// Shows a photo in the viewer window, opening the window if needed.
 // Creating a window from a synchronous command can deadlock on Windows.
 #[tauri::command]
-pub async fn open_viewer(
-    request: ViewerRequest,
-    app: AppHandle,
-    viewer: State<'_, ViewerState>,
-) -> Result<(), CommandError> {
+pub async fn open_viewer(request: ViewerRequest, app: AppHandle) -> Result<(), CommandError> {
+    show(&app, request)
+}
+
+/// Shows `request` in the viewer window, creating and placing the window if
+/// needed. Must not be called on the main thread, which it waits for.
+pub fn show(app: &AppHandle, request: ViewerRequest) -> Result<(), CommandError> {
     // Kept until the window takes it, in case it is still loading.
-    viewer.set(request);
+    app.state::<ViewerState>().set(request);
     if let Some(window) = app.get_webview_window(LABEL) {
         app.emit_to(LABEL, SHOW_EVENT, request)
             .map_err(|err| internal("emit", &err))?;
@@ -78,7 +80,7 @@ pub async fn open_viewer(
     } else {
         // Created hidden and shown once placed, so it never visibly jumps.
         let window = WebviewWindowBuilder::new(
-            &app,
+            app,
             LABEL,
             WebviewUrl::App("index.html?window=viewer".into()),
         )

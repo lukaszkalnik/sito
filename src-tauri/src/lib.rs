@@ -4,6 +4,7 @@ mod commands;
 mod lifo_pool;
 mod photo_cache;
 mod photos;
+mod smoke;
 mod state;
 mod thumbnails;
 mod window_fit;
@@ -66,6 +67,9 @@ pub fn run() -> tauri::Result<()> {
             // The main window is created hidden from the config.
             if let Some(main) = app.get_webview_window("main") {
                 window_fit::show_placed(&main);
+            }
+            if smoke::enabled(std::env::var_os(smoke::ENV).as_deref()) {
+                smoke::spawn(app.handle().clone());
             }
             Ok(())
         })
