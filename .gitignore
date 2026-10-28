@@ -22,3 +22,6 @@ Thumbs.db
 
 # Local Claude Code settings
 .claude/settings.local.json
+
+# Demo gallery for the README screenshots (scripts/make-demo-gallery.py)
+/demo/

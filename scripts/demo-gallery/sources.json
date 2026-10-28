@@ -1,0 +1,155 @@
+{
+  "license": {
+    "name": "Unsplash License",
+    "url": "https://unsplash.com/license",
+    "checked": "2026-10-28",
+    "summary": "Free to download, copy, modify and distribute, also commercially, without permission or attribution. Not allowed: selling unmodified photos, or compiling them to replicate a similar or competing service."
+  },
+  "photos": {
+    "party-courtyard": {
+      "unsplash": "fIHozNWfcvs",
+      "cdn": "photo-1517457373958-b7bdd4587205",
+      "author": "Samantha Gades",
+      "profile": "srosinger3997"
+    },
+    "party-kitchen": {
+      "unsplash": "ZrhtQyGFG6s",
+      "cdn": "photo-1519671282429-b44660ead0a7",
+      "author": "Kelsey Chance",
+      "profile": "kchance8"
+    },
+    "party-doorway": {
+      "unsplash": "dJ2W7tb21q8",
+      "cdn": "photo-1764174861962-5b109301b1ad",
+      "author": "Patrick Marion",
+      "profile": "patrickmarion03"
+    },
+    "party-toast": {
+      "unsplash": "wYOPqmtDD0w",
+      "cdn": "photo-1533777419517-3e4017e2e15a",
+      "author": "Pablo Merchán Montes",
+      "profile": "pablomerchanm"
+    },
+    "party-sparklers": {
+      "unsplash": "S2YssLw97l4",
+      "cdn": "photo-1439539698758-ba2680ecadb9",
+      "author": "Andreas Rønningen",
+      "profile": "andozo"
+    },
+    "dog-collie-green-ball": {
+      "unsplash": "urs_y9NwFcc",
+      "cdn": "photo-1568393691622-c7ba131d63b4",
+      "author": "Anna Dudkova",
+      "profile": "annadudkova"
+    },
+    "dog-collie-running": {
+      "unsplash": "GuE_qLQ_Ej8",
+      "cdn": "photo-1620325698009-4163b8f6d501",
+      "author": "Andy Powell",
+      "profile": "dina0312"
+    },
+    "dog-two-playing": {
+      "unsplash": "AlRhopd1riM",
+      "cdn": "photo-1722257401181-a04cc4df36f8",
+      "author": "Oskar Kadaksoo",
+      "profile": "oskark"
+    },
+    "dog-poodle-jump": {
+      "unsplash": "cp2HCVzguw4",
+      "cdn": "photo-1583091618471-56becbdb1c00",
+      "author": "Afra Ramió",
+      "profile": "afrarpics"
+    },
+    "lake-pier": {
+      "unsplash": "qkfxBc2NQ18",
+      "cdn": "photo-1495616811223-4d98c6e9c869",
+      "author": "Johannes Plenio",
+      "profile": "jplenio"
+    },
+    "lake-sun-clouds": {
+      "unsplash": "5C0X9h3UiuI",
+      "cdn": "photo-1563306712-558ad59a1a01",
+      "author": "Dave Hoefler",
+      "profile": "iamthedave"
+    },
+    "lake-mountains": {
+      "unsplash": "DTMhL0OpXjQ",
+      "cdn": "photo-1600672196900-c98c011a0977",
+      "author": "Chris Stenger",
+      "profile": "chrisstenger"
+    },
+    "lake-ducks": {
+      "unsplash": "ccrGNt6GHOE",
+      "cdn": "photo-1759447667268-1c9c745f9029",
+      "author": "Arne Lindgren",
+      "profile": "stoneskipper"
+    },
+    "lake-aerial": {
+      "unsplash": "aT3VvFtsEQ8",
+      "cdn": "photo-1569302911021-297d2362e3d3",
+      "author": "Devin H",
+      "profile": "devin_photography"
+    },
+    "city-narrow-street": {
+      "unsplash": "AB0Ndb2UtnA",
+      "cdn": "photo-1578771792482-1e7eb2b8b447",
+      "author": "Sander Jeurissen",
+      "profile": "snader86"
+    },
+    "city-warsaw-1": {
+      "unsplash": "-ApfiJWI8sQ",
+      "cdn": "photo-1677706805889-8a61971c520f",
+      "author": "Kate Bezzubets",
+      "profile": "k8_bzz"
+    },
+    "city-warsaw-2": {
+      "unsplash": "OnZwdXaOYQ4",
+      "cdn": "photo-1677706735483-77fcd417af19",
+      "author": "Kate Bezzubets",
+      "profile": "k8_bzz"
+    },
+    "city-blue-sky": {
+      "unsplash": "gpyIYl3Ky9E",
+      "cdn": "photo-1722079063099-aa6049ccdc41",
+      "author": "Gavin Li",
+      "profile": "gavin_leee"
+    }
+  },
+  "shots": [
+    { "photo": "city-narrow-street", "at": "2024-06-08T10:41:05", "camera": "pixel" },
+    { "photo": "city-warsaw-1", "at": "2024-06-08T11:12:30", "camera": "pixel" },
+    { "photo": "city-warsaw-2", "at": "2024-06-08T11:12:34", "camera": "pixel" },
+    { "photo": "city-warsaw-2", "at": "2024-06-08T11:12:37", "camera": "pixel", "edit": { "zoom": 1.06, "shiftX": 0.02 } },
+    { "photo": "city-blue-sky", "at": "2024-06-08T11:58:10", "camera": "pixel" },
+
+    { "photo": "dog-collie-running", "at": "2024-06-15T09:20:02", "camera": "samsung" },
+    { "photo": "dog-collie-running", "at": "2024-06-15T09:20:04", "camera": "samsung", "edit": { "zoom": 1.04, "shiftX": 0.02 } },
+    { "photo": "dog-collie-running", "at": "2024-06-15T09:20:05", "camera": "samsung", "edit": { "brightness": 1.25 } },
+    { "photo": "dog-collie-running", "at": "2024-06-15T09:20:09", "camera": "samsung", "edit": { "zoom": 1.02, "blur": 2.5 } },
+    { "photo": "dog-collie-green-ball", "at": "2024-06-15T09:31:40", "camera": "samsung" },
+    { "photo": "dog-poodle-jump", "at": "2024-06-15T09:45:12", "camera": "samsung" },
+    { "photo": "dog-two-playing", "at": "2024-06-15T09:52:01", "camera": "samsung" },
+    { "photo": "dog-two-playing", "at": "2024-06-15T09:52:03", "camera": "samsung", "edit": { "zoom": 1.05, "shiftX": -0.02, "shiftY": 0.01 } },
+
+    { "photo": "lake-pier", "at": "2024-06-15T20:47:30", "camera": "pixel" },
+    { "photo": "lake-mountains", "at": "2024-06-15T21:03:11", "camera": "pixel" },
+    { "photo": "lake-mountains", "at": "2024-06-15T21:03:12", "camera": "pixel", "edit": { "brightness": 0.7 } },
+    { "photo": "lake-mountains", "at": "2024-06-15T21:03:13", "camera": "pixel", "edit": { "brightness": 1.35 } },
+    { "photo": "lake-mountains", "at": "2024-06-15T21:03:19", "camera": "pixel", "edit": { "zoom": 1.08, "shiftY": -0.02 } },
+    { "photo": "lake-ducks", "at": "2024-06-15T21:15:40", "camera": "pixel" },
+    { "photo": "lake-sun-clouds", "at": "2024-06-15T21:22:02", "camera": "pixel" },
+    { "photo": "lake-sun-clouds", "at": "2024-06-15T21:22:06", "camera": "pixel", "edit": { "zoom": 1.05, "brightness": 0.9 } },
+    { "photo": "lake-sun-clouds", "at": "2024-06-15T21:22:08", "camera": "pixel", "edit": { "blur": 1.5 } },
+    { "photo": "lake-aerial", "at": "2024-06-15T21:40:00", "camera": "pixel" },
+
+    { "photo": "party-doorway", "at": "2024-06-22T18:05:10", "camera": "samsung" },
+    { "photo": "party-kitchen", "at": "2024-06-22T18:40:33", "camera": "samsung" },
+    { "photo": "party-toast", "at": "2024-06-22T19:30:01", "camera": "samsung" },
+    { "photo": "party-toast", "at": "2024-06-22T19:30:02", "camera": "samsung", "edit": { "zoom": 1.03, "shiftX": 0.01 } },
+    { "photo": "party-toast", "at": "2024-06-22T19:30:04", "camera": "samsung", "edit": { "brightness": 1.15 } },
+    { "photo": "party-toast", "at": "2024-06-22T19:30:07", "camera": "samsung", "edit": { "blur": 1.8 } },
+    { "photo": "party-courtyard", "at": "2024-06-22T21:10:45", "camera": "samsung" },
+    { "photo": "party-courtyard", "at": "2024-06-22T21:10:49", "camera": "samsung", "edit": { "zoom": 1.06, "shiftY": 0.02 } },
+    { "photo": "party-sparklers", "at": "2024-06-22T22:35:20", "camera": "samsung" }
+  ]
+}
