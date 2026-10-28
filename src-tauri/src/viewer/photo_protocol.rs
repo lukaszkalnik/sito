@@ -1,10 +1,12 @@
-//! `photo://` protocol: serves the original files of the current scan's photos
-//! for the full-size viewer.
+//! `photo://` protocol: serves the current scan's photos for the full-size
+//! viewer as JPEGs: a JPEG's own bytes, a RAW file's embedded preview.
 //!
 //! URL: `photo://localhost/<photo id>?scan=<scan id>` (macOS) or
-//! `http://photo.localhost/<photo id>?scan=<scan id>` (Windows). The bytes
-//! are served unchanged; the webview applies the EXIF orientation itself.
+//! `http://photo.localhost/<photo id>?scan=<scan id>` (Windows). The webview
+//! applies the EXIF orientation itself.
 
+use sito_core::display::{DisplayError, display_jpeg};
+use sito_core::metadata::Orientation;
 use std::path::Path;
 
 use tauri::http::{Request, Response, StatusCode};
@@ -28,16 +30,24 @@ pub fn handle<R: Runtime>(
         responder.respond(error_response(StatusCode::NOT_FOUND));
         return;
     };
-    tauri::async_runtime::spawn_blocking(move || responder.respond(read_photo(&photo.path)));
+    tauri::async_runtime::spawn_blocking(move || {
+        responder.respond(read_photo(&photo.path, photo.orientation));
+    });
 }
 
 /// The response for the photo file at `path`.
-fn read_photo(path: &Path) -> Response<Vec<u8>> {
-    match std::fs::read(path) {
+fn read_photo(path: &Path, orientation: Orientation) -> Response<Vec<u8>> {
+    match display_jpeg(path, orientation) {
         Ok(bytes) => jpeg_response(bytes),
         Err(err) => {
-            log::warn!("cannot read {}: {err}", path.display());
-            error_response(StatusCode::NOT_FOUND)
+            log::warn!("cannot show {}: {err}", path.display());
+            let status = match err {
+                DisplayError::Io { .. } => StatusCode::NOT_FOUND,
+                DisplayError::Raw { .. } | DisplayError::NotAPhoto(_) => {
+                    StatusCode::UNSUPPORTED_MEDIA_TYPE
+                }
+            };
+            error_response(status)
         }
     }
 }
@@ -54,7 +64,7 @@ mod tests {
         let path = dir.path().join("IMG_1.jpg");
         std::fs::write(&path, [0xFF, 0xD8, 0xFF, 0xD9]).unwrap();
 
-        let response = read_photo(&path);
+        let response = read_photo(&path, Orientation::NORMAL);
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers()[CONTENT_TYPE], "image/jpeg");
@@ -65,7 +75,7 @@ mod tests {
     fn missing_file_is_not_found() {
         let dir = tempfile::tempdir().unwrap();
 
-        let response = read_photo(&dir.path().join("gone.jpg"));
+        let response = read_photo(&dir.path().join("gone.jpg"), Orientation::NORMAL);
 
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }

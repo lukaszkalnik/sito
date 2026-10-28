@@ -114,10 +114,11 @@ pub fn photo_kind(path: &Path) -> Option<PhotoKind> {
     RawFormat::from_path(path).map(PhotoKind::Raw)
 }
 
-/// Returns `true` if the path has a photo extension (`.jpg` or `.jpeg`, any case).
+/// Returns `true` if the path has the extension of a photo Sito reads
+/// (JPEG or a RAW format, any letter case).
 #[must_use]
 pub fn is_photo(path: &Path) -> bool {
-    photo_kind(path) == Some(PhotoKind::Jpeg)
+    photo_kind(path).is_some()
 }
 
 /// Recursively finds the photos under `root`.
@@ -295,12 +296,31 @@ mod tests {
     fn recognizes_jpeg_extensions_case_insensitively() {
         for name in ["a.jpg", "B.JPEG", "c.Jpg", "dir/d.jpeg"] {
             assert!(is_photo(Path::new(name)), "{name} should be a photo");
+            assert_eq!(photo_kind(Path::new(name)), Some(PhotoKind::Jpeg));
+        }
+    }
+
+    #[test]
+    fn recognizes_raw_extensions() {
+        for name in [
+            "P1010001.ORF",
+            "a.cr2",
+            "b.NEF",
+            "c.arw",
+            "d.rw2",
+            "e.raf",
+            "f.dng",
+        ] {
+            assert!(
+                matches!(photo_kind(Path::new(name)), Some(PhotoKind::Raw(_))),
+                "{name} should be a RAW photo"
+            );
         }
     }
 
     #[test]
     fn rejects_other_extensions() {
-        for name in ["d.png", "e.heic", "f.dng", "noext", ".jpg", "g.jpg.txt"] {
+        for name in ["d.png", "e.heic", "f.cr3", "noext", ".jpg", "g.jpg.txt"] {
             assert!(!is_photo(Path::new(name)), "{name} should not be a photo");
         }
     }

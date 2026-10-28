@@ -86,3 +86,18 @@ fn the_preview_for_viewing_carries_the_orientation() {
     let orientation = read_exif_metadata(&file).orientation;
     assert_eq!(orientation, Orientation::from_exif(6));
 }
+
+#[test]
+fn raw_files_are_on_the_timeline_with_their_capture_times() {
+    let timeline = sito_core::timeline::build_timeline(&fixture(""), |_| {}).unwrap();
+
+    assert_eq!(timeline.photos.len(), FILES.len() + 1);
+    for photo in &timeline.photos {
+        assert_eq!(
+            photo.time_source,
+            sito_core::timeline::TimeSource::Exif,
+            "{}",
+            photo.path.display()
+        );
+    }
+}

@@ -6,6 +6,7 @@
 #![warn(missing_docs)]
 
 pub mod actions;
+pub mod display;
 pub mod metadata;
 pub mod photo_cache;
 pub mod raw;
