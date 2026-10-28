@@ -12,12 +12,13 @@ import {
 /** How long a toast stays on screen. */
 export const TOAST_MS = 5000;
 
-/** A short message about the last action, optionally offering "Cofnij". */
+/**
+ * A short message about the last action: plain `info`, `undoable` (with a
+ * "Cofnij" button) or an `error` (announced as an alert).
+ */
 export interface ToastMessage {
   text: string;
-  /** Show a "Cofnij" button in the toast. */
-  offerUndo?: boolean;
-  error?: boolean;
+  kind: 'info' | 'undoable' | 'error';
 }
 
 /** Whether there is anything to undo, refreshed whenever any window rejects or restores. */
@@ -88,11 +89,11 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     try {
       const undone = await undoReject();
       if (undone) {
-        setToast({ text: t('undo.done', { name: undone.name }) });
+        setToast({ text: t('undo.done', { name: undone.name }), kind: 'info' });
         onUndone?.(undone);
       }
     } catch (error) {
-      setToast({ text: t(undoErrorKey(error)), error: true });
+      setToast({ text: t(undoErrorKey(error)), kind: 'error' });
     } finally {
       busy.current = false;
     }

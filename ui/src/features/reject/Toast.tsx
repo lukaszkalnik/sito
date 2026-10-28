@@ -11,12 +11,12 @@ export function Toast({ message, onUndo }: { message: ToastMessage | null; onUnd
     <div className="toast-area" aria-live="polite">
       {message && (
         <div
-          className={`toast${message.error ? ' toast--error' : ''}`}
+          className={`toast${message.kind === 'error' ? ' toast--error' : ''}`}
           data-testid="toast"
-          role={message.error ? 'alert' : undefined}
+          role={message.kind === 'error' ? 'alert' : undefined}
         >
           <span>{message.text}</span>
-          {message.offerUndo && (
+          {message.kind === 'undoable' && (
             <button type="button" onClick={onUndo}>
               {t('undo.button')}
             </button>

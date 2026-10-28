@@ -29,7 +29,8 @@ export function useScan(): { state: ScanState; chooseAndScan: () => Promise<void
     let path: string | null;
     try {
       path = await pickFolder();
-    } catch {
+    } catch (err) {
+      console.error('Cannot open the folder picker', err);
       path = null;
     }
     if (path === null) {

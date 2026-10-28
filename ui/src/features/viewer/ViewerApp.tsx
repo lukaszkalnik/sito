@@ -63,9 +63,9 @@ function useReject({ request, entries, series, onShowId, undo }: ReadyViewerProp
     try {
       const rejected = await rejectPhoto(entry.id);
       onShowId(after === null ? NO_PHOTO : (entries[after]?.id ?? NO_PHOTO));
-      showToast({ text: t('reject.done', { name: rejected.name }), offerUndo: true });
+      showToast({ text: t('reject.done', { name: rejected.name }), kind: 'undoable' });
     } catch {
-      showToast({ text: t('reject.failed'), error: true });
+      showToast({ text: t('reject.failed'), kind: 'error' });
     } finally {
       rejecting.current = false;
     }

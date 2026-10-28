@@ -29,7 +29,7 @@ describe('useUndo', () => {
     });
 
     await waitFor(() => expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg' }));
-    expect(result.current.toast).toEqual({ text: 'Przywrócono IMG_4.jpg' });
+    expect(result.current.toast).toEqual({ text: 'Przywrócono IMG_4.jpg', kind: 'info' });
   });
 
   it.each([
@@ -42,7 +42,7 @@ describe('useUndo', () => {
 
     await act(() => result.current.undo());
 
-    expect(result.current.toast).toEqual({ text, error: true });
+    expect(result.current.toast).toEqual({ text, kind: 'error' });
   });
 
   it('does nothing when there is nothing to undo', async () => {
