@@ -51,7 +51,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
   - **Domain** (pure logic): types, rules, reducers, calculations. No I/O, no framework imports; this is where most unit tests live.
   - **Data** (I/O): SQLite, file system, Tauri `invoke`/`listen` wrappers (`ui/src/features/<name>/api.ts`), `localStorage`.
   - Allowed dependencies: UI uses Domain and Data; Data uses Domain; Domain uses neither.
-  - Code shared by several features gets a module named for what it is, not a kind folder (`src-tauri/src/error.rs`, `protocol.rs`); app shell code (`lib.rs`, `window_fit.rs`, `smoke.rs`) stays at the top.
+  - Code shared by several features gets a module named for what it is, not a kind folder (`src-tauri/src/error.rs`, `protocol.rs`, `ui/src/shortcuts/`); app shell code (`lib.rs`, `window_fit.rs`, `smoke.rs`) stays at the top.
   - Across crates: `ui` calls `src-tauri`, which calls `core`. `core` (domain + data) depends on neither and never on Tauri.
 - **Small, focused files.** One concept per file. Aim for < 300 lines of non-test code; past ~400 lines, split by sub-concept (Rust unit tests stay in the file's `#[cfg(test)]` module and do not count) (Rust: keep `foo.rs` and put submodules in `foo/`, no `mod.rs`). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
 - **Small functions.** A function does one thing at one level of abstraction; aim for < 50 lines. Extract private helpers with descriptive names instead of comments explaining blocks.
@@ -121,7 +121,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 ### Accessibility
 
-- Everything is usable by keyboard: native `<button>`/`<input>` elements, visible focus. Each feature handles its shortcuts in one hook (e.g. `useViewerKeys`, `useUndoShortcut`).
+- Everything is usable by keyboard: native `<button>`/`<input>` elements, visible focus. Every shortcut is an action in `ui/src/shortcuts/keymap.ts` (one key per action, checked by a test); features bind their handlers with `useShortcuts` and never listen to `keydown` themselves.
 - Icon-only controls have an `aria-label` from the translation file.
 
 ### Dependencies
@@ -200,7 +200,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 - Folder picker, progress bar
 - Group list
-- Side-by-side comparison view. Shortcuts: arrow keys = navigate, Space = keep, X = reject.
+- Side-by-side comparison view. Shortcuts: arrow keys = navigate, Space = keep, Delete = reject.
 - Sliders for time gap and similarity threshold
 - The suggested best photo is highlighted
 

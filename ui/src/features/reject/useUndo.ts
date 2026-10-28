@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { canUndo, onTimelineChanged, rejectErrorCode, undoReject, type Undone } from './api';
 
 /** How long a toast stays on screen. */
@@ -46,20 +47,6 @@ function useToast() {
   return [toast, setToast] as const;
 }
 
-/** Calls `undo` on Ctrl+Z (Cmd+Z on macOS). */
-function useUndoShortcut(undo: () => Promise<void>): void {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        void undo();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undo]);
-}
-
 /** The translation key of the message for a failed undo. */
 function undoErrorKey(error: unknown): string {
   const code = rejectErrorCode(error);
@@ -92,7 +79,8 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
       busy.current = false;
     }
   }, [onUndone, t, setToast]);
-  useUndoShortcut(undo);
+  // Ctrl+Z (Cmd+Z on macOS).
+  useShortcuts({ undo: () => void undo() });
 
   return { canUndo: available, undo, toast, showToast: setToast };
 }

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Series, TimelineEntry } from '../timeline/api';
 import { thumbnailUrl } from '../timeline/thumbnails';
 import { photoUrl, setWindowTitle, type ViewMode } from './api';
+import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
 import { navigationOrder, neighbours, seriesOf } from './navigation';
@@ -56,24 +57,18 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-/** Arrow keys step, Escape closes, Delete rejects. */
+/** Arrow keys step, Escape closes, Delete rejects (keys in `shortcuts/keymap.ts`). */
 function useViewerKeys(
   previous: number | null,
   next: number | null,
   { onShow, onClose, onReject }: Pick<PhotoViewerProps, 'onShow' | 'onClose' | 'onReject'>,
 ): void {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowLeft' && previous !== null) onShow(previous);
-      else if (event.key === 'ArrowRight' && next !== null) onShow(next);
-      else if (event.key === 'Escape') onClose();
-      else if (event.key === 'Delete') onReject();
-      else return;
-      event.preventDefault();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [previous, next, onShow, onClose, onReject]);
+  useShortcuts({
+    previous: previous === null ? null : () => onShow(previous),
+    next: next === null ? null : () => onShow(next),
+    close: onClose,
+    reject: onReject,
+  });
 }
 
 /** Fetches the photos `nextId` and `previousId` ahead of time, so stepping to them is instant. */
