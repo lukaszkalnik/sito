@@ -5,9 +5,12 @@ use std::path::Path;
 use chrono::{Datelike, FixedOffset, NaiveDateTime, NaiveTime};
 use nom_exif::{EntryValue, Exif, ExifDateTime, ExifTag};
 
+use crate::raw::read_raw_metadata;
+use crate::scan::{PhotoKind, photo_kind};
+
 /// Earliest year accepted as a real capture time; older values are treated
 /// as broken (cameras with an unset clock write e.g. `0000:00:00` or 1970).
-const MIN_PLAUSIBLE_YEAR: i32 = 1990;
+pub(crate) const MIN_PLAUSIBLE_YEAR: i32 = 1990;
 
 /// How far a capture time may lie after "now" (clocks of camera and computer
 /// differ a little); later times are camera clock errors.
@@ -75,12 +78,23 @@ pub struct PhotoMetadata {
     pub camera: Option<String>,
 }
 
-/// Reads the metadata of the photo at `path`.
+/// Reads the metadata of the photo at `path`, in the way its kind needs.
 ///
 /// Never fails: files without EXIF, unreadable files and malformed values
 /// all yield [`PhotoMetadata::default`] or partially filled metadata.
 #[must_use]
 pub fn read_photo_metadata(path: &Path) -> PhotoMetadata {
+    match photo_kind(path) {
+        Some(PhotoKind::Raw(format)) => read_raw_metadata(path, format),
+        Some(PhotoKind::Jpeg) | None => read_exif_metadata(path),
+    }
+}
+
+/// Reads the EXIF metadata of a file `nom-exif` understands (JPEG, RAF, …).
+///
+/// Never fails, like [`read_photo_metadata`].
+#[must_use]
+pub fn read_exif_metadata(path: &Path) -> PhotoMetadata {
     match nom_exif::read_exif(path) {
         Ok(exif) => from_exif(&exif),
         Err(_) => PhotoMetadata::default(),
@@ -129,7 +143,12 @@ fn camera(exif: &Exif) -> Option<String> {
             .map(|s| s.trim_matches(|c: char| c == '\0' || c.is_whitespace()))
             .filter(|s| !s.is_empty())
     };
-    match (text(ExifTag::Make), text(ExifTag::Model)) {
+    camera_name(text(ExifTag::Make), text(ExifTag::Model))
+}
+
+/// A camera description from EXIF `Make` and `Model`, e.g. `Google Pixel 8`.
+pub(crate) fn camera_name(make: Option<&str>, model: Option<&str>) -> Option<String> {
+    match (make, model) {
         // Many cameras repeat the make in the model ("Canon Canon EOS R6").
         (Some(make), Some(model)) if model.to_lowercase().starts_with(&make.to_lowercase()) => {
             Some(model.to_owned())

@@ -6,6 +6,7 @@ use std::time::SystemTime;
 
 use walkdir::{DirEntry, WalkDir};
 
+use crate::raw::RawFormat;
 use crate::takeout::{is_sidecar_candidate, pair_sidecars};
 
 /// File name that marks an Android folder as "not gallery media".
@@ -93,12 +94,30 @@ pub enum ScanError {
     },
 }
 
+/// The kind of a photo file, which decides how it is read and shown.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PhotoKind {
+    /// A JPEG (`.jpg`, `.jpeg`).
+    Jpeg,
+    /// A camera RAW file.
+    Raw(RawFormat),
+}
+
+/// The kind of the photo at `path`, by its extension (any letter case), or
+/// `None` if it is not a photo Sito reads.
+#[must_use]
+pub fn photo_kind(path: &Path) -> Option<PhotoKind> {
+    let ext = path.extension()?.to_str()?;
+    if ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg") {
+        return Some(PhotoKind::Jpeg);
+    }
+    RawFormat::from_path(path).map(PhotoKind::Raw)
+}
+
 /// Returns `true` if the path has a photo extension (`.jpg` or `.jpeg`, any case).
 #[must_use]
 pub fn is_photo(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg"))
+    photo_kind(path) == Some(PhotoKind::Jpeg)
 }
 
 /// Recursively finds the photos under `root`.

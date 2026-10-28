@@ -16,6 +16,8 @@ from pathlib import Path
 import piexif
 from PIL import Image
 
+import raw_fixtures
+
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 OUT = FIXTURES / "exif"
 TAKEOUT = FIXTURES / "takeout" / "Album"
@@ -142,6 +144,13 @@ def takeout() -> None:
     )
 
 
+def raw() -> None:
+    """Synthetic RAW files, one per layout (see scripts/raw_fixtures.py)."""
+    for path in raw_fixtures.write_all(FIXTURES / "raw"):
+        print(f"wrote {path.relative_to(FIXTURES.parent)}")
+
+
 if __name__ == "__main__":
     main()
     takeout()
+    raw()

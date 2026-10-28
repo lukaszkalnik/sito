@@ -35,3 +35,18 @@ An album of an unpacked Google Takeout: 16×12 px JPEGs with Takeout date files 
 | `Screenshot_20240604-120000_Some_Long_App.jpg` | none | `…App.jpg.supple.json` | Takeout (truncated name) |
 | `renamed.jpg` | none | `unrelated-name.json` with `title` `renamed.jpg` | Takeout (by title) |
 | `no-sidecar_reset-clock.jpg` | 2000-01-01 00:00:00 | none | file date |
+
+## `raw/`
+
+Tiny synthetic RAW files written by `scripts/raw_fixtures.py`: the TIFF layout of each format with a 64×48 JPEG preview where the real file has its preview (Olympus also a 16×12 thumbnail in IFD1). All have `DateTimeOriginal` 2024-06-10 10:00:00.
+
+| File | Layout | Camera | Orientation |
+|---|---|---|---|
+| `olympus.orf` | `IIRO` magic, preview in the maker note's `CameraSettings` | OLYMPUS IMAGING CORP. E-M10 | 6 |
+| `olympus-no-preview.ORF` | like above, without preview or thumbnail | same | 6 |
+| `canon.cr2` | IFD0 is a JPEG strip (compression 6), `CR` header | Canon EOS 80D | 8 |
+| `nikon.nef` | big-endian, preview JPEG in a sub-IFD | NIKON CORPORATION NIKON D750 | 1 |
+| `sony.arw` | IFD0 `JPEGInterchangeFormat` | SONY ILCE-7M3 | 1 |
+| `panasonic.rw2` | `IIU\0` magic, preview as the value of tag `0x002E` | Panasonic DC-G9 | 1 |
+| `google.dng` | IFD0 preview strip (compression 7), raw data in a sub-IFD that is not a JPEG | Google Pixel 8 | 1 |
+| `fujifilm.raf` | `FUJIFILMCCD-RAW` header pointing to a JPEG with EXIF | FUJIFILM X-T3 | 1 |

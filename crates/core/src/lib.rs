@@ -8,9 +8,11 @@
 pub mod actions;
 pub mod metadata;
 pub mod photo_cache;
+pub mod raw;
 pub mod reject;
 pub mod scan;
 pub mod series;
 pub mod takeout;
 pub mod thumbnail;
+pub mod tiff;
 pub mod timeline;

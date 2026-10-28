@@ -12,6 +12,8 @@ use image::imageops::FilterType;
 use image::{DynamicImage, GrayImage, ImageError, ImageReader, RgbImage};
 
 use crate::metadata::Orientation;
+use crate::raw::{RawError, read_preview};
+use crate::scan::{PhotoKind, photo_kind};
 use crate::timeline::Photo;
 
 /// Default longest edge of a thumbnail in pixels: covers a 160×120 tile on a
@@ -83,7 +85,7 @@ impl ThumbnailCache {
             Err(source) => return Err(ThumbnailError::Io { path, source }),
         }
 
-        let bytes = render_thumbnail(&photo.path, photo.orientation, self.max_edge)?;
+        let bytes = render_photo(&photo.path, photo.orientation, self.max_edge)?;
         // Best effort, see above: a full disk must not hide the thumbnail.
         let _ = store_atomically(&path, &bytes);
         Ok(bytes)
@@ -219,6 +221,15 @@ pub enum ThumbnailError {
         #[source]
         source: ImageError,
     },
+    /// A RAW photo's embedded preview could not be read.
+    #[error("cannot read the preview of {path}")]
+    Raw {
+        /// Photo that failed.
+        path: PathBuf,
+        /// Underlying error.
+        #[source]
+        source: RawError,
+    },
     /// The thumbnail could not be encoded.
     #[error("cannot encode thumbnail of {path}")]
     Encode {
@@ -268,6 +279,34 @@ pub fn render_thumbnail(
     max_edge: u32,
 ) -> Result<Vec<u8>, ThumbnailError> {
     render_image(ImageSource::Path(path), orientation, max_edge)
+}
+
+/// Like [`render_thumbnail`], for a photo of any [`PhotoKind`]: a RAW file
+/// is rendered from its embedded preview.
+///
+/// # Errors
+///
+/// Returns [`ThumbnailError`] if the photo cannot be read or decoded, or a
+/// RAW file has no usable preview.
+pub fn render_photo(
+    path: &Path,
+    orientation: Orientation,
+    max_edge: u32,
+) -> Result<Vec<u8>, ThumbnailError> {
+    match photo_kind(path) {
+        Some(PhotoKind::Raw(format)) => {
+            let preview = read_preview(path, format).map_err(|source| ThumbnailError::Raw {
+                path: path.to_path_buf(),
+                source,
+            })?;
+            let source = ImageSource::Bytes {
+                bytes: &preview,
+                path,
+            };
+            render_image(source, orientation, max_edge)
+        }
+        Some(PhotoKind::Jpeg) | None => render_thumbnail(path, orientation, max_edge),
+    }
 }
 
 /// Like [`render_thumbnail`], for an image from any [`ImageSource`].
