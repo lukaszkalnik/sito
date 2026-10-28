@@ -24,6 +24,10 @@ Picking the best shot of each series automatically (sharpness, exposure, faces) 
 
 Built with Tauri (Rust) and React + TypeScript. See [CLAUDE.md](CLAUDE.md) for architecture, conventions and commands.
 
+## Google Takeout
+
+Photos exported with [Google Takeout](https://takeout.google.com) keep their real dates in JSON files next to each photo, also when the photo itself has none or a wrong one (WhatsApp images, scans dated in Google Photos). Sito reads these dates. Unpack all Takeout zips into one folder on a drive with enough space (the archive is as large as the zips), then open its `Takeout/Google Photos` folder (localised, e.g. `Takeout/Zdjęcia Google`). Sito cannot read the zips directly.
+
 ## Quick start
 
 ```bash

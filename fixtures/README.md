@@ -19,3 +19,19 @@ uv run --with pillow --with piexif scripts/make-fixtures.py
 | `datetime-only_2024-05-30_10-00-00.jpg` | only `DateTime` (IFD0) 2024-05-30 10:00:00 | no camera |
 | `broken-date.jpg` | `DateTimeOriginal` `0000:00:00 00:00:00` (invalid) | – |
 | `no-exif.jpg` | none | – |
+
+## `takeout/Album/`
+
+An album of an unpacked Google Takeout: 16×12 px JPEGs with Takeout date files (`photoTakenTime` in UTC; each also has a `geoData` field that must be ignored) and an album `metadane.json`.
+
+| Photo | EXIF | Date file | Expected |
+|---|---|---|---|
+| `no-exif.jpg` | none | `no-exif.jpg.supplemental-metadata.json`, 2024-06-01 10:00:00 UTC | Takeout |
+| `IMG_1.jpg` | 2024-06-01 12:00:05 | `IMG_1.jpg.supplemental-metadata.json`, 10:00:05 UTC | EXIF (time zone only) |
+| `IMG_1(1).jpg` | none | `IMG_1.jpg.supplemental-metadata(1).json`, 10:00:08 UTC | Takeout (duplicate name) |
+| `scan_1976.jpg` | 2006-03-04 18:22:10 | `scan_1976.jpg.supplemental-metadata.json`, 1976-07-01 10:00:00 UTC | Takeout, corrected |
+| `reset_clock.jpg` | 2000-01-01 00:00:00 | `reset_clock.jpg.supplemental-metadata.json`, 2024-06-02 08:00:00 UTC | Takeout, implausible EXIF |
+| `old_export.jpg` | none | `old_export.jpg.json` | Takeout (older export) |
+| `Screenshot_20240604-120000_Some_Long_App.jpg` | none | `…App.jpg.supple.json` | Takeout (truncated name) |
+| `renamed.jpg` | none | `unrelated-name.json` with `title` `renamed.jpg` | Takeout (by title) |
+| `no-sidecar_reset-clock.jpg` | 2000-01-01 00:00:00 | none | file date |
