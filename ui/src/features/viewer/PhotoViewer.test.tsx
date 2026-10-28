@@ -53,6 +53,42 @@ describe('PhotoViewer', () => {
     vi.clearAllMocks();
   });
 
+  it('says when the date comes from Google Takeout', () => {
+    const datedBy = (timeSource: TimelineEntry['timeSource']) => {
+      cleanup();
+      render(
+        <PhotoViewer
+          entries={[
+            {
+              id: 0,
+              name: 'IMG_0.jpg',
+              relativeDir: '',
+              relativePath: 'IMG_0.jpg',
+              takenAt: '2024-06-01T12:00:09',
+              timeSource,
+            },
+          ]}
+          series={[]}
+          mode="all"
+          scanId={3}
+          position={0}
+          onShow={vi.fn()}
+          onClose={vi.fn()}
+          onReject={vi.fn()}
+          canUndo={false}
+          onUndo={vi.fn()}
+        />,
+      );
+    };
+
+    datedBy('takeout');
+    expect(screen.getByText('data z Google Takeout')).toBeInTheDocument();
+    datedBy('takeoutCorrected');
+    expect(screen.getByText('data poprawiona w Google Photos')).toBeInTheDocument();
+    datedBy('exif');
+    expect(screen.queryByText(/Google/)).not.toBeInTheDocument();
+  });
+
   it('shows the photo with its name, time and folder, and titles the window', () => {
     renderViewer(2);
 

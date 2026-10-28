@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Series, TimelineEntry } from '../timeline/api';
+import type { Series, TimeSource, TimelineEntry } from '../timeline/api';
 import { thumbnailUrl } from '../timeline/thumbnails';
 import { photoUrl, setWindowTitle, type ViewMode } from './api';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
@@ -81,6 +81,20 @@ function usePreload(scanId: number, nextId: number | undefined, previousId: numb
 }
 
 /** Name, date and folder of the photo, with the reject, undo and close buttons. */
+/** Translation keys of the note on where a photo's date comes from; `null` for none. */
+const DATE_SOURCE_NOTES: Readonly<Record<TimeSource, string | null>> = {
+  exif: null,
+  file: null,
+  takeout: 'viewer.takeoutDate',
+  takeoutCorrected: 'viewer.takeoutCorrected',
+};
+
+function DateSource({ source }: { source: TimeSource }) {
+  const { t } = useTranslation();
+  const note = DATE_SOURCE_NOTES[source];
+  return note === null ? null : <span className="viewer-date-source">{t(note)}</span>;
+}
+
 function ViewerBar({
   entry,
   onReject,
@@ -99,6 +113,7 @@ function ViewerBar({
         <span>
           {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
         </span>
+        <DateSource source={entry.timeSource} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
       <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>

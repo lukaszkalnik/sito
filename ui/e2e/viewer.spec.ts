@@ -75,3 +75,33 @@ test('steps to single photos in the all view, without a strip', async ({ page })
   await expect(photo(page, 'IMG_00027.jpg')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Zdjęcia w serii' })).toHaveCount(0);
 });
+
+test('says when a date was corrected in Google Photos', async ({ page }) => {
+  for (const host of ['photo', 'thumb']) {
+    await page.route(`http://${host}.localhost/**`, (route) =>
+      route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }),
+    );
+  }
+  await mockTauri(page, {
+    pickedFolder: null,
+    scanProgress: [],
+    scanResult: { err: { code: 'internal' } },
+    timeline: {
+      entries: [
+        {
+          id: 0,
+          name: 'skan_babcia.jpg',
+          relativeDir: '1976',
+          relativePath: '1976\skan_babcia.jpg',
+          takenAt: '1976-07-01T12:00:00',
+          timeSource: 'takeoutCorrected',
+        },
+      ],
+    },
+    viewerRequest: { id: 0, scanId: 5, mode: 'all', gap: 10 },
+  });
+  await page.goto('/?window=viewer');
+
+  await expect(page.getByText('data poprawiona w Google Photos')).toBeVisible();
+  await expect(page.getByText('1 lipca 1976', { exact: false })).toBeVisible();
+});
