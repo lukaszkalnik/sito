@@ -1,6 +1,6 @@
-# Architecture and domain
+# Domain
 
-How Sito finds photo series and picks the best shot. The rules for writing code are in [CLAUDE.md](../CLAUDE.md); what gets built when is in the [roadmap](ROADMAP.md).
+What Sito works on and how it finds photo series and picks the best shot. The rules for writing code are in [CLAUDE.md](../CLAUDE.md); what gets built when is in the [roadmap](ROADMAP.md).
 
 ## The problem
 

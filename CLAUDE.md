@@ -2,7 +2,7 @@
 
 > "Sito" is Polish for *sieve*: the app sifts through photo series and keeps the best shot.
 
-Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. The domain (what a series is, how photos are grouped, analysed and scored) is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. The domain (what a series is, how photos are grouped, analysed and scored) is described in [docs/DOMAIN.md](docs/DOMAIN.md).
 
 Platforms: developed on Windows, macOS later.
 
@@ -166,7 +166,7 @@ sito/
 ├─ ui/                # React + TypeScript
 │  ├─ src/i18n/pl.json
 │  └─ e2e/            # Playwright tests
-├─ docs/ARCHITECTURE.md # domain and pipeline
+├─ docs/DOMAIN.md     # domain and pipeline
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
 ├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ docs/RELEASING.md  # how to build, release and install
@@ -177,7 +177,7 @@ sito/
 
 ## Architecture
 
-- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. The stages and their algorithms are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. The stages and their algorithms are in [docs/DOMAIN.md](docs/DOMAIN.md).
 - Image work decodes downscaled as early as possible and always respects the EXIF orientation.
 - Derived data (metadata, embeddings, scores) is cached in SQLite keyed by file identity (path + size + mtime), so a rescan only processes new or changed files.
 - Tunable values (thresholds, score weights) are settings, not constants scattered in code.
