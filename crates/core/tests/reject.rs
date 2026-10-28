@@ -61,7 +61,7 @@ fn restores_the_photo_and_removes_the_empty_folder_when_asked() {
     write(&photo, "photo");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, None, true).unwrap();
+    restore(&rejected.path, &photo, &[], true).unwrap();
 
     assert_eq!(fs::read_to_string(&photo).unwrap(), "photo");
     assert!(!dir.path().join("Odrzucone").exists());
@@ -74,7 +74,7 @@ fn keeps_an_empty_folder_that_is_not_to_be_removed() {
     write(&photo, "photo");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, None, false).unwrap();
+    restore(&rejected.path, &photo, &[], false).unwrap();
 
     assert!(photo.exists());
     assert!(dir.path().join("Odrzucone").is_dir());
@@ -90,7 +90,7 @@ fn keeps_the_folder_while_other_photos_are_in_it() {
     let rejected_first = reject(&first).unwrap();
     reject(&second).unwrap();
 
-    restore(&rejected_first.path, &first, None, true).unwrap();
+    restore(&rejected_first.path, &first, &[], true).unwrap();
 
     assert!(first.exists());
     assert!(dir.path().join("Odrzucone/IMG_2.jpg").exists());
@@ -104,7 +104,7 @@ fn restores_a_renamed_photo_under_its_original_name() {
     write(&photo, "mine");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, None, true).unwrap();
+    restore(&rejected.path, &photo, &[], true).unwrap();
 
     assert_eq!(fs::read_to_string(&photo).unwrap(), "mine");
     assert_eq!(
@@ -121,7 +121,7 @@ fn refuses_to_overwrite_a_new_file_with_the_original_name() {
     let rejected = reject(&photo).unwrap();
     write(&photo, "new file");
 
-    let err = restore(&rejected.path, &photo, None, true).unwrap_err();
+    let err = restore(&rejected.path, &photo, &[], true).unwrap_err();
 
     assert!(matches!(err, RejectError::Occupied(path) if path == photo));
     assert_eq!(fs::read_to_string(&photo).unwrap(), "new file");
@@ -134,7 +134,7 @@ fn reports_a_rejected_photo_that_is_gone() {
     let photo = dir.path().join("IMG_1.jpg");
     let gone = dir.path().join("Odrzucone/IMG_1.jpg");
 
-    let err = restore(&gone, &photo, None, true).unwrap_err();
+    let err = restore(&gone, &photo, &[], true).unwrap_err();
 
     assert!(matches!(err, RejectError::Missing(path) if path == gone));
 }
@@ -240,14 +240,14 @@ fn moves_the_takeout_date_file_along_and_back() {
     let moved = dir
         .path()
         .join(format!("Album/Odrzucone/IMG_1.jpg{SIDECAR}"));
-    let sidecar_move = rejected.sidecar.clone().unwrap();
+    let sidecar_move = rejected.extra[0].clone();
     assert_eq!((&sidecar_move.from, &sidecar_move.to), (&sidecar, &moved));
     assert!(!sidecar.exists());
     assert_eq!(fs::read_to_string(&moved).unwrap(), "date");
 
-    let restored = restore(&rejected.path, &photo, rejected.sidecar.as_ref(), true).unwrap();
+    let restored = restore(&rejected.path, &photo, &rejected.extra, true).unwrap();
 
-    assert!(restored.sidecar_error.is_none());
+    assert!(restored.errors.is_empty());
     assert_eq!(fs::read_to_string(&sidecar).unwrap(), "date");
     assert!(photo.exists());
     assert!(!dir.path().join("Album/Odrzucone").exists());
@@ -264,7 +264,7 @@ fn a_renamed_photo_gets_a_date_file_named_after_it() {
     let odrzucone = dir.path().join("Album/Odrzucone");
     assert_eq!(rejected.path, odrzucone.join("IMG_1 (2).jpg"));
     assert_eq!(
-        rejected.sidecar.unwrap().to,
+        rejected.extra[0].to,
         odrzucone.join(format!("IMG_1 (2).jpg{SIDECAR}"))
     );
 }
@@ -288,15 +288,21 @@ fn undo_restores_the_photo_even_without_its_date_file() {
     let dir = TempDir::new().unwrap();
     let (photo, _) = photo_with_sidecar(&dir);
     let rejected = reject(&photo).unwrap();
-    let sidecar_move = rejected.sidecar.clone().unwrap();
+    let sidecar_move = rejected.extra[0].clone();
     fs::rename(&sidecar_move.to, dir.path().join("moved-away.json")).unwrap();
 
-    let restored = restore(&rejected.path, &photo, Some(&sidecar_move), true).unwrap();
+    let restored = restore(
+        &rejected.path,
+        &photo,
+        std::slice::from_ref(&sidecar_move),
+        true,
+    )
+    .unwrap();
 
     assert!(photo.exists());
     assert!(matches!(
-        restored.sidecar_error,
-        Some(RejectError::Missing(_))
+        restored.errors.as_slice(),
+        [RejectError::Missing(_)]
     ));
 }
 
@@ -309,6 +315,84 @@ fn an_edited_copy_leaves_the_shared_date_file_with_its_original() {
 
     let rejected = reject(&copy).unwrap();
 
-    assert_eq!(rejected.sidecar, None);
+    assert_eq!(rejected.extra, []);
     assert_eq!(fs::read_to_string(&sidecar).unwrap(), "date");
+}
+
+/// A RAW+JPEG pair with Takeout date files for both, in `dir/Album`.
+fn pair_with_sidecars(dir: &TempDir) -> (PathBuf, PathBuf) {
+    let jpeg = dir.path().join("Album/P1010001.JPG");
+    let raw = dir.path().join("Album/P1010001.ORF");
+    write(&jpeg, "jpeg");
+    write(&raw, "raw");
+    write(
+        &dir.path().join(format!("Album/P1010001.JPG{SIDECAR}")),
+        "jpeg date",
+    );
+    write(
+        &dir.path().join(format!("Album/P1010001.ORF{SIDECAR}")),
+        "raw date",
+    );
+    (jpeg, raw)
+}
+
+#[test]
+fn rejects_and_restores_every_file_of_a_raw_jpeg_pair() {
+    let dir = TempDir::new().unwrap();
+    let (jpeg, raw) = pair_with_sidecars(&dir);
+    let album = dir.path().join("Album");
+
+    let rejected = reject(&jpeg).unwrap();
+
+    let odrzucone = album.join("Odrzucone");
+    let mut there: Vec<String> = fs::read_dir(&odrzucone)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    there.sort();
+    assert_eq!(
+        there,
+        [
+            "P1010001.JPG",
+            "P1010001.JPG.supplemental-metadata.json",
+            "P1010001.ORF",
+            "P1010001.ORF.supplemental-metadata.json",
+        ]
+    );
+    assert!(!raw.exists());
+
+    let restored = restore(&rejected.path, &jpeg, &rejected.extra, true).unwrap();
+
+    assert!(restored.errors.is_empty());
+    assert_eq!(fs::read_to_string(&raw).unwrap(), "raw");
+    assert_eq!(
+        fs::read_to_string(album.join(format!("P1010001.ORF{SIDECAR}"))).unwrap(),
+        "raw date"
+    );
+    assert!(!odrzucone.exists());
+}
+
+#[test]
+fn a_pair_gets_one_common_number_when_its_names_are_taken() {
+    let dir = TempDir::new().unwrap();
+    let (jpeg, _) = pair_with_sidecars(&dir);
+    write(
+        &dir.path().join("Album/Odrzucone/P1010001.ORF"),
+        "older raw",
+    );
+
+    let rejected = reject(&jpeg).unwrap();
+
+    let odrzucone = dir.path().join("Album/Odrzucone");
+    assert_eq!(rejected.path, odrzucone.join("P1010001 (2).JPG"));
+    assert!(odrzucone.join("P1010001 (2).ORF").is_file());
+    assert!(
+        odrzucone
+            .join(format!("P1010001 (2).ORF{SIDECAR}"))
+            .is_file()
+    );
+    assert_eq!(
+        fs::read_to_string(odrzucone.join("P1010001.ORF")).unwrap(),
+        "older raw"
+    );
 }

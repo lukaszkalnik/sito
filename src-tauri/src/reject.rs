@@ -111,7 +111,7 @@ fn reject_in(
     // Logged before the move, so a crash in between never leaves an untracked
     // move; undo skips an entry whose photo never arrived.
     let action = log
-        .record_reject(&path, &rejected.path, rejected.sidecar.as_ref())
+        .record_reject(&path, &rejected.path, &rejected.extra)
         .map_err(|err| {
             reject::abandon(&rejected);
             log_failed(&err)
@@ -171,16 +171,11 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
         .to
         .parent()
         .is_some_and(|dir| actions.created_dirs.contains(dir));
-    let restored = reject::restore(
-        &action.to,
-        &action.from,
-        action.sidecar.as_ref(),
-        created_here,
-    );
+    let restored = reject::restore(&action.to, &action.from, &action.extra, created_here);
     match restored {
         Ok(restored) => {
-            if let Some(err) = restored.sidecar_error {
-                log::warn!("photo restored, but not its date file: {err}");
+            for err in restored.errors {
+                log::warn!("photo restored, but not this file of it: {err}");
             }
         }
         Err(err) => {
@@ -397,7 +392,7 @@ mod tests {
         // The app stopped after logging the rejection, before moving the photo.
         let photo = dir.path().join(NEWER);
         let log = actions.log.as_ref().unwrap();
-        log.record_reject(&photo, &dir.path().join("Odrzucone").join(NEWER), None)
+        log.record_reject(&photo, &dir.path().join("Odrzucone").join(NEWER), &[])
             .unwrap();
 
         assert_eq!(undo_in(&mut scan, &actions), Err(CommandError::Missing));

@@ -90,7 +90,7 @@ fn a_rejected_and_restored_photo_keeps_its_takeout_date() {
 
     let rejected = reject(&photo).unwrap();
     let in_odrzucone = read_photo(&rejected.path).unwrap();
-    restore(&rejected.path, &photo, rejected.sidecar.as_ref(), true).unwrap();
+    restore(&rejected.path, &photo, &rejected.extra, true).unwrap();
     let back = read_photo(&photo).unwrap();
 
     let year_1976 = NaiveDate::from_ymd_opt(1976, 7, 1).unwrap();

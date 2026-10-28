@@ -7,7 +7,7 @@ use chrono::Local;
 use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
-use crate::reject::SidecarMove;
+use crate::reject::FileMove;
 
 /// Error while reading or writing the action log.
 #[derive(Debug, Error)]
@@ -29,8 +29,8 @@ pub struct RejectAction {
     pub from: PathBuf,
     /// Where the photo is now.
     pub to: PathBuf,
-    /// The photo's Takeout date file, moved along with it.
-    pub sidecar: Option<SidecarMove>,
+    /// The photo's other files, moved along with it.
+    pub extra: Vec<FileMove>,
 }
 
 /// The action log, stored in one `SQLite` file.
@@ -65,8 +65,8 @@ impl ActionLog {
         Ok(Self { conn })
     }
 
-    /// Records that the photo at `from` is moved to `to`, with its date file
-    /// `sidecar` if it has one; returns the action id.
+    /// Records that the photo at `from` is moved to `to`, with its other
+    /// files `extra`; returns the action id.
     /// Call it before moving, and [`forget`](Self::forget) the entry if the
     /// move then fails, so no move is ever left out of the log.
     ///
@@ -78,23 +78,22 @@ impl ActionLog {
         &self,
         from: &Path,
         to: &Path,
-        sidecar: Option<&SidecarMove>,
+        extra: &[FileMove],
     ) -> Result<i64, LogError> {
-        let sidecar_from = sidecar.map(|s| path_text(&s.from)).transpose()?;
-        let sidecar_to = sidecar.map(|s| path_text(&s.to)).transpose()?;
-        self.conn.execute(
-            "INSERT INTO actions (at, kind, from_path, to_path, sidecar_from, sidecar_to)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                now(),
-                KIND_REJECT,
-                path_text(from)?,
-                path_text(to)?,
-                sidecar_from,
-                sidecar_to
-            ],
+        let transaction = self.conn.unchecked_transaction()?;
+        transaction.execute(
+            "INSERT INTO actions (at, kind, from_path, to_path) VALUES (?1, ?2, ?3, ?4)",
+            params![now(), KIND_REJECT, path_text(from)?, path_text(to)?],
         )?;
-        Ok(self.conn.last_insert_rowid())
+        let id = transaction.last_insert_rowid();
+        for file in extra {
+            transaction.execute(
+                "INSERT INTO action_moves (action_id, from_path, to_path) VALUES (?1, ?2, ?3)",
+                params![id, path_text(&file.from)?, path_text(&file.to)?],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(id)
     }
 
     /// Removes the entry `id` of an action that did not happen after all.
@@ -103,8 +102,10 @@ impl ActionLog {
     ///
     /// Returns an error if the entry cannot be removed.
     pub fn forget(&self, id: i64) -> Result<(), LogError> {
-        self.conn
-            .execute("DELETE FROM actions WHERE id = ?1", params![id])?;
+        let transaction = self.conn.unchecked_transaction()?;
+        transaction.execute("DELETE FROM action_moves WHERE action_id = ?1", params![id])?;
+        transaction.execute("DELETE FROM actions WHERE id = ?1", params![id])?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -127,20 +128,40 @@ impl ActionLog {
                 id: row.get(0)?,
                 from: PathBuf::from(row.get::<_, String>(1)?),
                 to: PathBuf::from(row.get::<_, String>(2)?),
-                sidecar: sidecar_from.zip(sidecar_to).map(|(from, to)| SidecarMove {
-                    from: from.into(),
-                    to: to.into(),
-                }),
+                // Entries written before migration 3 keep a date file here.
+                extra: sidecar_from
+                    .zip(sidecar_to)
+                    .map(|(from, to)| FileMove {
+                        from: from.into(),
+                        to: to.into(),
+                    })
+                    .into_iter()
+                    .collect(),
             })
         })?;
         for row in rows {
-            let action = row?;
+            let mut action = row?;
             // Compares whole path components, so `Zdjęcia2` is not inside `Zdjęcia`.
             if action.from.starts_with(under) {
+                action.extra.extend(self.moves_of(action.id)?);
                 return Ok(Some(action));
             }
         }
         Ok(None)
+    }
+
+    /// The other files moved with the action `id`, in the order they moved.
+    fn moves_of(&self, id: i64) -> Result<Vec<FileMove>, LogError> {
+        let mut statement = self.conn.prepare(
+            "SELECT from_path, to_path FROM action_moves WHERE action_id = ?1 ORDER BY rowid",
+        )?;
+        let rows = statement.query_map(params![id], |row| {
+            Ok(FileMove {
+                from: PathBuf::from(row.get::<_, String>(0)?),
+                to: PathBuf::from(row.get::<_, String>(1)?),
+            })
+        })?;
+        Ok(rows.collect::<Result<_, _>>()?)
     }
 
     /// Marks the action `id` as undone, so it is not offered again.
@@ -189,9 +210,16 @@ const MIGRATIONS: &[&str] = &[
          to_path   TEXT NOT NULL,
          undone_at TEXT
      );",
-    // 2: a photo's Google Takeout date file moved along with it.
+    // 2: a photo's Google Takeout date file moved along with it (replaced by 3,
+    // still read for older entries).
     "ALTER TABLE actions ADD COLUMN sidecar_from TEXT;
      ALTER TABLE actions ADD COLUMN sidecar_to TEXT;",
+    // 3: any number of files moved along with a photo.
+    "CREATE TABLE IF NOT EXISTS action_moves (
+         action_id INTEGER NOT NULL REFERENCES actions(id),
+         from_path TEXT NOT NULL,
+         to_path   TEXT NOT NULL
+     );",
 ];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one

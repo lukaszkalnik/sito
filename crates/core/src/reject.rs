@@ -1,5 +1,7 @@
 //! Moving rejected photos into the [`REJECTED_DIR`] subfolder of their own
-//! folder, and back. Files are only ever moved, never deleted or overwritten.
+//! folder, and back, with every file that belongs to the photo (its Takeout
+//! date file, the RAW file of a RAW+JPEG pair and that file's date file).
+//! Files are only ever moved, never deleted or overwritten.
 
 use std::ffi::{OsStr, OsString};
 use std::fs;
@@ -7,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::scan::REJECTED_DIR;
+use crate::scan::{REJECTED_DIR, find_companion};
 use crate::takeout::find_own_sidecar;
 
 /// Name ending given to a date file moved along with its photo, so it pairs
@@ -39,10 +41,10 @@ pub enum RejectError {
     },
 }
 
-/// A photo's Google Takeout date file, moved along with the photo.
+/// One file moved along with a rejected photo.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SidecarMove {
-    /// Where the date file was before the photo was rejected.
+pub struct FileMove {
+    /// Where the file was before the photo was rejected.
     pub from: PathBuf,
     /// Where it is in the [`REJECTED_DIR`] folder.
     pub to: PathBuf,
@@ -56,16 +58,17 @@ pub struct Rejected {
     /// Whether the [`REJECTED_DIR`] folder was created for it (it did not
     /// exist before).
     pub created_dir: bool,
-    /// The photo's Takeout date file, moved along with it.
-    pub sidecar: Option<SidecarMove>,
+    /// The other files of the photo, moved along with it, in the order they
+    /// are moved.
+    pub extra: Vec<FileMove>,
 }
 
 /// What [`restore`] did besides moving the photo back.
 #[derive(Debug, Default)]
 pub struct Restored {
-    /// Why the photo's date file could not be moved back, if it could not;
-    /// the photo is back in any case.
-    pub sidecar_error: Option<RejectError>,
+    /// Why some of the photo's other files could not be moved back; the
+    /// photo is back in any case.
+    pub errors: Vec<RejectError>,
 }
 
 /// Moves the photo at `path` into the [`REJECTED_DIR`] subfolder of its
@@ -73,7 +76,7 @@ pub struct Restored {
 ///
 /// # Errors
 ///
-/// Returns an error if the folder cannot be created or the file cannot be moved.
+/// Returns an error if the folder cannot be created or a file cannot be moved.
 pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
     let rejected = prepare(path)?;
     complete(path, &rejected)?;
@@ -81,13 +84,14 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
 }
 
 /// Creates the [`REJECTED_DIR`] subfolder of the folder of `path` if needed
-/// and picks the photo's path in it, without moving anything yet, so the move
-/// can be logged before it happens. A file already there with the same name
-/// is kept: the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
+/// and picks where the photo and its other files go, without moving anything
+/// yet, so the move can be logged before it happens.
 ///
-/// The photo's own Google Takeout date file goes along, named after the
-/// photo's new name (`<name>.supplemental-metadata.json`); a date file it
-/// shares with other photos (an edited copy's) stays.
+/// Files already there are kept: the photo is then named `<stem> (2).<ext>`,
+/// `(3)` and so on, and the RAW file of a RAW+JPEG pair gets the same number
+/// so the two stay a pair. Their own Google Takeout date files go along,
+/// named after their new names (`<name>.supplemental-metadata.json`); a date
+/// file shared with other photos (an edited copy's) stays.
 ///
 /// # Errors
 ///
@@ -104,24 +108,42 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
         to: dir.clone(),
         source,
     })?;
-    let target = free_name(&dir, name).ok_or_else(|| RejectError::Occupied(dir.join(name)))?;
-    let sidecar = find_own_sidecar(path).and_then(|from| {
-        let mut sidecar_name = target.file_name()?.to_os_string();
-        sidecar_name.push(SIDECAR_SUFFIX);
-        let to = free_name(&dir, &sidecar_name)?;
-        Some(SidecarMove { from, to })
-    });
+
+    let companion = find_companion(path).map(|file| file.path);
+    let mut names = vec![name];
+    names.extend(companion.as_deref().and_then(Path::file_name));
+    let targets = free_names(&dir, &names).ok_or_else(|| RejectError::Occupied(dir.join(name)))?;
+
+    let mut extra = Vec::new();
+    extra.extend(sidecar_move(path, &targets[0], &dir));
+    if let (Some(companion), Some(companion_target)) = (companion, targets.get(1)) {
+        extra.extend(sidecar_move(&companion, companion_target, &dir));
+        extra.push(FileMove {
+            from: companion,
+            to: companion_target.clone(),
+        });
+    }
     Ok(Rejected {
-        path: target,
+        path: targets[0].clone(),
         created_dir,
-        sidecar,
+        extra,
     })
 }
 
-/// Moves the photo at `path`, and its date file, to where [`prepare`] put
-/// them. The date file goes first, so a failure never leaves the photo moved
-/// without it; if the photo then cannot move, its date file is moved back.
-/// After a failure, a [`REJECTED_DIR`] folder that `prepare` created is
+/// The move of the own Takeout date file of the photo file at `path`, which
+/// goes to `target` in `dir`.
+fn sidecar_move(path: &Path, target: &Path, dir: &Path) -> Option<FileMove> {
+    let from = find_own_sidecar(path)?;
+    let mut name = target.file_name()?.to_os_string();
+    name.push(SIDECAR_SUFFIX);
+    let to = free_names(dir, &[&name])?.pop()?;
+    Some(FileMove { from, to })
+}
+
+/// Moves the photo at `path` and its other files to where [`prepare`] put
+/// them. The other files go first and the photo last, so a failure never
+/// leaves the photo moved without them; after a failure, every file already
+/// moved goes back, and a [`REJECTED_DIR`] folder that `prepare` created is
 /// removed again while empty.
 ///
 /// # Errors
@@ -129,29 +151,37 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
 /// Returns [`RejectError::Occupied`] if a target exists by now, or an error
 /// if a file cannot be moved.
 pub fn complete(path: &Path, rejected: &Rejected) -> Result<(), RejectError> {
-    let result = move_with_sidecar(path, rejected);
+    let result = move_all(path, rejected);
     if result.is_err() {
         abandon(rejected);
     }
     result
 }
 
-fn move_with_sidecar(path: &Path, rejected: &Rejected) -> Result<(), RejectError> {
+fn move_all(path: &Path, rejected: &Rejected) -> Result<(), RejectError> {
     if rejected.path.exists() {
         return Err(RejectError::Occupied(rejected.path.clone()));
     }
-    if let Some(sidecar) = &rejected.sidecar {
-        move_to_free(&sidecar.from, &sidecar.to)?;
+    let mut moved: Vec<&FileMove> = Vec::new();
+    let mut result = Ok(());
+    for file in &rejected.extra {
+        result = move_to_free(&file.from, &file.to);
+        if result.is_err() {
+            break;
+        }
+        moved.push(file);
     }
-    let moved = move_file(path, &rejected.path);
-    if moved.is_err()
-        && let Some(sidecar) = &rejected.sidecar
-    {
-        // Best effort: a date file left in the rejected folder only means the
-        // photo shows its own date until it is found again.
-        let _ = move_to_free(&sidecar.to, &sidecar.from);
+    if result.is_ok() {
+        result = move_file(path, &rejected.path);
     }
-    moved
+    if result.is_err() {
+        for file in moved.into_iter().rev() {
+            // Best effort: a file left in the rejected folder is still there
+            // to be found; nothing is lost.
+            let _ = move_to_free(&file.to, &file.from);
+        }
+    }
+    result
 }
 
 /// Undoes [`prepare`] for a photo that will not be moved: removes the
@@ -163,19 +193,19 @@ pub fn abandon(rejected: &Rejected) {
 }
 
 /// Moves a rejected photo from `from` back to `to`, its path before it was
-/// rejected, and then its date file `sidecar` back to where it was. With
+/// rejected, and then its other files `extra` back to where they were. With
 /// `remove_empty_dir`, the [`REJECTED_DIR`] folder it was in is removed if
 /// that leaves it empty; a folder with other files stays.
 ///
 /// # Errors
 ///
 /// Returns [`RejectError::Missing`] if `from` is gone, [`RejectError::Occupied`]
-/// if `to` exists again, or an error if the photo cannot be moved. A date
-/// file that cannot be moved back is reported in [`Restored::sidecar_error`].
+/// if `to` exists again, or an error if the photo cannot be moved. Other
+/// files that cannot be moved back are reported in [`Restored::errors`].
 pub fn restore(
     from: &Path,
     to: &Path,
-    sidecar: Option<&SidecarMove>,
+    extra: &[FileMove],
     remove_empty_dir: bool,
 ) -> Result<Restored, RejectError> {
     if !from.is_file() {
@@ -185,18 +215,21 @@ pub fn restore(
         return Err(RejectError::Occupied(to.to_path_buf()));
     }
     move_file(from, to)?;
-    let sidecar_error = sidecar.and_then(|sidecar| move_back(sidecar).err());
+    let errors = extra
+        .iter()
+        .filter_map(|file| move_back(file).err())
+        .collect();
     if remove_empty_dir {
         remove_if_empty(from.parent());
     }
-    Ok(Restored { sidecar_error })
+    Ok(Restored { errors })
 }
 
-fn move_back(sidecar: &SidecarMove) -> Result<(), RejectError> {
-    if !sidecar.to.is_file() {
-        return Err(RejectError::Missing(sidecar.to.clone()));
+fn move_back(file: &FileMove) -> Result<(), RejectError> {
+    if !file.to.is_file() {
+        return Err(RejectError::Missing(file.to.clone()));
     }
-    move_to_free(&sidecar.to, &sidecar.from)
+    move_to_free(&file.to, &file.from)
 }
 
 /// Moves `from` to `to` unless `to` exists.
@@ -215,30 +248,35 @@ fn remove_if_empty(dir: Option<&Path>) {
     }
 }
 
-/// `dir/name`, or the first free `dir/<stem> (n).<ext>` if that exists;
-/// `None` if no name is free. Non-Unicode names are kept as they are.
-fn free_name(dir: &Path, name: &OsStr) -> Option<PathBuf> {
-    let first = dir.join(name);
-    if !first.exists() {
+/// Free paths in `dir` for files named `names`: the names themselves, or
+/// with the first number that is free for all of them, `<stem> (n).<ext>`;
+/// `None` if there is none. Non-Unicode names are kept as they are.
+fn free_names(dir: &Path, names: &[&OsStr]) -> Option<Vec<PathBuf>> {
+    let all_free = |paths: &Vec<PathBuf>| paths.iter().all(|path| !path.exists());
+    let first: Vec<PathBuf> = names.iter().map(|name| dir.join(name)).collect();
+    if all_free(&first) {
         return Some(first);
     }
-    let as_path = Path::new(name);
-    let stem = as_path.file_stem().unwrap_or(name);
-    let ext = as_path.extension();
     (2..=u32::MAX)
-        .map(|n| dir.join(numbered_name(stem, n, ext)))
-        .find(|candidate| !candidate.exists())
+        .map(|n| {
+            names
+                .iter()
+                .map(|name| dir.join(numbered_name(name, n)))
+                .collect()
+        })
+        .find(all_free)
 }
 
 /// `<stem> (n).<ext>`, or `<stem> (n)` without an extension.
-fn numbered_name(stem: &OsStr, n: u32, ext: Option<&OsStr>) -> OsString {
-    let mut name = stem.to_os_string();
-    name.push(format!(" ({n})"));
-    if let Some(ext) = ext {
-        name.push(".");
-        name.push(ext);
+fn numbered_name(name: &OsStr, n: u32) -> OsString {
+    let as_path = Path::new(name);
+    let mut numbered = as_path.file_stem().unwrap_or(name).to_os_string();
+    numbered.push(format!(" ({n})"));
+    if let Some(ext) = as_path.extension() {
+        numbered.push(".");
+        numbered.push(ext);
     }
-    name
+    numbered
 }
 
 fn move_file(from: &Path, to: &Path) -> Result<(), RejectError> {
