@@ -30,6 +30,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 27 | [TIFF photos](slices/27-tiff-photos.md) | 📝 |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
+| 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
 | 15 | [Settings: trash, cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
