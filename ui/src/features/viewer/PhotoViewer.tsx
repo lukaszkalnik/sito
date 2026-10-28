@@ -239,7 +239,7 @@ export function PhotoViewer(props: PhotoViewerProps) {
         <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
         <StepButton target={next} label={t('viewer.next')} symbol="›" onShow={onShow} />
       </div>
-      {strip && (
+      {strip ? (
         <SeriesStrip
           entries={entries}
           strip={strip}
@@ -247,6 +247,10 @@ export function PhotoViewer(props: PhotoViewerProps) {
           position={position}
           onShow={onShow}
         />
+      ) : (
+        // Keeps the strip's space, so the photo and the step buttons stay
+        // where they are when stepping between series and single photos.
+        <div className="viewer-strip" aria-hidden="true" />
       )}
     </main>
   );

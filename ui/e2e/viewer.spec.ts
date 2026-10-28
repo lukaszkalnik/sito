@@ -106,3 +106,17 @@ test('says when a date was corrected in Google Photos', async ({ page }) => {
   await expect(page.getByText('data poprawiona w Google Photos')).toBeVisible();
   await expect(page.getByText('1 lipca 1976', { exact: false })).toBeVisible();
 });
+
+test('keeps the step buttons in place between series and single photos', async ({ page }) => {
+  // Photo 1 is in a series (with a strip), photo 3 is a single photo.
+  await openViewer(page, 1, 'all');
+  const next = page.getByRole('button', { name: 'Następne zdjęcie' });
+  const inSeries = await next.boundingBox();
+
+  await next.click();
+  await next.click();
+  await expect(page.getByRole('navigation', { name: 'Zdjęcia w serii' })).toHaveCount(0);
+  const single = await next.boundingBox();
+
+  expect(single?.y).toBe(inSeries?.y);
+});

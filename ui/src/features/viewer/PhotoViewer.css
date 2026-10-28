@@ -129,7 +129,10 @@
 
 .viewer-strip {
   display: flex;
+  flex: none;
   gap: 6px;
+  /* One row of strip items (72px plus their 2px borders), with or without items. */
+  min-height: 76px;
   padding: 0.5rem 1rem;
   overflow-x: auto;
 }
