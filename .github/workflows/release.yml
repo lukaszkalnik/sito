@@ -85,18 +85,13 @@ jobs:
             throw "App executable not found in $dir"
           }
 
-          Write-Host "Launching $($exe.FullName)"
-          $app = Start-Process $exe.FullName -PassThru
-          Start-Sleep -Seconds 10
-          if ($app.HasExited) { throw "App exited early with code $($app.ExitCode)" }
-          Stop-Process -Id $app.Id -Force
-
-          # SITO_SMOKE_TEST=1 opens the viewer like a click on a photo, then
-          # closes both windows and exits (src-tauri/src/smoke.rs). A freeze while
-          # opening a window (v0.6.2) shows up as a timeout here.
+          # SITO_SMOKE_TEST=1 starts the app as usual, opens the viewer like a
+          # click on a photo, then closes both windows and exits with 0
+          # (src-tauri/src/smoke.rs). A crash shows up as an exit code, a freeze
+          # while opening a window (v0.6.2) as a timeout.
           $stateFile = Join-Path $env:APPDATA 'io.github.lukaszkalnik.sito\.window-state.json'
           Remove-Item $stateFile -ErrorAction SilentlyContinue
-          Write-Host 'Opening the viewer'
+          Write-Host "Launching $($exe.FullName) and opening the viewer"
           $env:SITO_SMOKE_TEST = '1'
           $app = Start-Process $exe.FullName -PassThru
           $env:SITO_SMOKE_TEST = $null
@@ -109,7 +104,7 @@ jobs:
             0 { }
             2 { throw 'Viewer window could not be opened' }
             3 { throw 'Viewer window was opened but not shown' }
-            default { throw "Viewer smoke run failed with exit code $($app.ExitCode)" }
+            default { throw "App failed with exit code $($app.ExitCode)" }
           }
           if (-not (Test-Path $stateFile)) { throw "Window state not saved to $stateFile" }
           $state = Get-Content $stateFile -Raw | ConvertFrom-Json
