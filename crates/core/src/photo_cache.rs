@@ -1,5 +1,5 @@
 //! Cache of what scans read from photos (capture time, orientation, camera),
-//! in SQLite, so rescanning a folder only reads new or changed files and a
+//! in `SQLite`, so rescanning a folder only reads new or changed files and a
 //! folder can be shown at once from the cache before it is rescanned.
 //!
 //! The cache can always be rebuilt from the photos, so it lives apart from
@@ -27,7 +27,7 @@ const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 #[error("photo cache: {0}")]
 pub struct CacheError(#[from] rusqlite::Error);
 
-/// The photo cache, stored in one SQLite file.
+/// The photo cache, stored in one `SQLite` file.
 #[derive(Debug)]
 pub struct PhotoCache {
     conn: Connection,
@@ -48,7 +48,7 @@ impl PhotoCache {
     ///
     /// # Errors
     ///
-    /// Returns an error if SQLite cannot set up the tables.
+    /// Returns an error if `SQLite` cannot set up the tables.
     pub fn open_in_memory() -> Result<Self, CacheError> {
         Self::init(Connection::open_in_memory()?)
     }

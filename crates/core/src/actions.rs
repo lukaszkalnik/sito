@@ -1,4 +1,4 @@
-//! Log of the file operations Sito performs, in SQLite, so every one of them
+//! Log of the file operations Sito performs, in `SQLite`, so every one of them
 //! can be undone (also after a restart).
 
 use std::path::{Path, PathBuf};
@@ -22,7 +22,7 @@ pub struct RejectAction {
     pub to: PathBuf,
 }
 
-/// The action log, stored in one SQLite file.
+/// The action log, stored in one `SQLite` file.
 #[derive(Debug)]
 pub struct ActionLog {
     conn: Connection,
@@ -44,7 +44,7 @@ impl ActionLog {
     ///
     /// # Errors
     ///
-    /// Returns an error if SQLite cannot set up the table.
+    /// Returns an error if `SQLite` cannot set up the table.
     pub fn open_in_memory() -> Result<Self, LogError> {
         Self::init(Connection::open_in_memory()?)
     }
