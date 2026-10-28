@@ -1,6 +1,6 @@
 # Slice 11 – Showcase screenshots for the README
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (how to regenerate the screenshots: [docs/images/README.md](../images/README.md))
 
 ## Context
 
@@ -50,6 +50,14 @@ Not in scope: a "best photo" highlight. Scoring arrives in slice 17+, so the vie
 
 ### 5. Done
 - The slice adds tooling, not app behaviour, so nothing moves into `docs/domain/`; the regenerate how-to lives in `docs/images/README.md`. Status 🧪 in both files. No release (the app does not change).
+
+### Changes during implementation
+
+- All photos come from Unsplash: its search page is browsable, while scripted downloads from unsplash.com hit a bot check; the builder downloads from the `images.unsplash.com` CDN instead. 18 originals, 32 shots; the only real sequence is two photos of Krakowskie Przedmieście in Warsaw, all other series are variations.
+- `sources.json` holds both photos and shots (time, camera, edit); the builder generates `SOURCES.md` from it, so the credits cannot drift.
+- The manifest and thumbnails live next to the gallery (`demo/manifest.json`, `demo/thumbs/`), not inside it, so the gallery folder only holds photos and can be opened in the real app.
+- Screenshots are JPEG (quality 88, about 200 KB each) at 1280×800, scale 1: PNG was 0.75–1 MB, and Playwright cannot write WebP.
+- The timeline shot shows the default "Serie" view.
 
 ## Verification
 - Delete `demo/`, run the builder: it downloads, builds the same gallery (manifest identical on rerun).
