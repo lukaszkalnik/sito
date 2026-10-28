@@ -4,7 +4,7 @@
 
 ## Context
 
-Found by the user on 2026-10-29 while testing [slice 27](27-tiff-photos.md) with an 8000×6000 test TIFF (`D:\Lukasz	mp\sito-tiff-test`):
+Found by the user on 2026-10-29 while testing [slice 27](27-tiff-photos.md) with an 8000×6000 test TIFF (`D:\Lukasz\tmp\sito-tiff-test`):
 
 - The viewer showed only a black area for seconds while the TIFF was converted, with no sign that anything was happening.
 - The full-size viewer JPEGs of real scans would be ~10–18 MB each and push thumbnails out of the shared 500 MB cache. The user chose to cap them at 4096 px (2026-10-29).
