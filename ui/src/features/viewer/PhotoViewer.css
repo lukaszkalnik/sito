@@ -77,20 +77,39 @@
   background: #3a1512;
 }
 
+.viewer-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Leaves room for the step buttons on both sides. */
 .viewer-stage {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.5rem;
+  padding: 0 calc(2.75rem + 1rem);
 }
 
 .viewer-step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   width: 2.75rem;
   height: 5rem;
   font-size: 2rem;
   line-height: 1;
+}
+
+.viewer-step--previous {
+  left: 0.5rem;
+}
+
+.viewer-step--next {
+  right: 0.5rem;
 }
 
 .viewer-step:disabled,
@@ -131,8 +150,6 @@
   display: flex;
   flex: none;
   gap: 6px;
-  /* One row of strip items (72px plus their 2px borders), with or without items. */
-  min-height: 76px;
   padding: 0.5rem 1rem;
   overflow-x: auto;
 }

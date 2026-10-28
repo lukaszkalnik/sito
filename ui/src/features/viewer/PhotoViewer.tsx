@@ -149,17 +149,19 @@ function StepButton({
   target,
   label,
   symbol,
+  side,
   onShow,
 }: {
   target: number | null;
   label: string;
   symbol: string;
+  side: 'previous' | 'next';
   onShow: (position: number) => void;
 }) {
   return (
     <button
       type="button"
-      className="viewer-step"
+      className={`viewer-step viewer-step--${side}`}
       aria-label={label}
       disabled={target === null}
       onClick={() => target !== null && onShow(target)}
@@ -234,24 +236,30 @@ export function PhotoViewer(props: PhotoViewerProps) {
   return (
     <main className="viewer">
       <ViewerBar entry={entry} {...props} />
-      <div className="viewer-stage">
-        <StepButton target={previous} label={t('viewer.previous')} symbol="‹" onShow={onShow} />
-        <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
-        <StepButton target={next} label={t('viewer.next')} symbol="›" onShow={onShow} />
-      </div>
-      {strip ? (
-        <SeriesStrip
-          entries={entries}
-          strip={strip}
-          scanId={scanId}
-          position={position}
+      {/* The step buttons are centred on this whole area, strip included, so
+          they stay in place whether or not the photo has a series strip. */}
+      <div className="viewer-body">
+        <StepButton
+          target={previous}
+          label={t('viewer.previous')}
+          symbol="‹"
+          side="previous"
           onShow={onShow}
         />
-      ) : (
-        // Keeps the strip's space, so the photo and the step buttons stay
-        // where they are when stepping between series and single photos.
-        <div className="viewer-strip" aria-hidden="true" />
-      )}
+        <div className="viewer-stage">
+          <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
+        </div>
+        <StepButton target={next} label={t('viewer.next')} symbol="›" side="next" onShow={onShow} />
+        {strip && (
+          <SeriesStrip
+            entries={entries}
+            strip={strip}
+            scanId={scanId}
+            position={position}
+            onShow={onShow}
+          />
+        )}
+      </div>
     </main>
   );
 }
