@@ -26,3 +26,9 @@ Full-size JPEGs of real scans would be ~10–18 MB each and push thumbnails out 
 
 ## 3 Done
 Slice 27a 🧪 in both files; debug build, started only when the user says no scan is running. Slice 27 stays 🧪 until the user has tested both.
+
+## Progress
+
+- ✅ 1. Loading indicator in the viewer (2026-10-29): a teal spinner over the photo area after 300 ms while a photo loads, gone on load or error; Vitest and e2e tests.
+- ⬜ 2. Viewer JPEGs of TIFFs at most 4096 px.
+- ⬜ 3. Done (status 🧪, debug build).

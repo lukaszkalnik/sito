@@ -71,6 +71,7 @@
     "close": "Zamknij",
     "series": "Zdjęcia w serii",
     "loadError": "Nie udało się wczytać zdjęcia.",
+    "loading": "Wczytywanie zdjęcia…",
     "empty": "Brak zdjęć do pokazania.",
     "takeoutDate": "data z Google Takeout",
     "takeoutCorrected": "data poprawiona w Google Photos"

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -115,6 +115,37 @@ describe('PhotoViewer', () => {
       'photo://localhost/2?scan=3',
     );
     expect(screen.queryByTestId('viewer-photo-loading')).toBeNull();
+  });
+
+  it('shows a spinner while a photo takes long to load', () => {
+    vi.useFakeTimers();
+    try {
+      renderViewer(2);
+      const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' });
+      expect(spinner()).toBeNull();
+
+      act(() => vi.advanceTimersByTime(300));
+      expect(spinner()).toBeInTheDocument();
+
+      fireEvent.load(screen.getByTestId('viewer-photo-loading'));
+      expect(spinner()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('hides the spinner when a photo cannot be loaded', () => {
+    vi.useFakeTimers();
+    try {
+      renderViewer(2);
+      act(() => vi.advanceTimersByTime(300));
+
+      fireEvent.error(screen.getByTestId('viewer-photo-loading'));
+
+      expect(screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reports a photo that cannot be loaded', () => {

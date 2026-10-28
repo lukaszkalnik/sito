@@ -8,6 +8,7 @@ import { photoUrl, setWindowTitle, type ViewMode } from './api';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
+import { useMountedFor } from '../timeline/useMountedFor';
 import { navigationOrder, neighbours, seriesOf } from './navigation';
 import './PhotoViewer.css';
 
@@ -50,11 +51,27 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
           onError={() => setFailed(src)}
         />
       )}
+      {loaded !== src && failed !== src && <LoadingSpinner key={src} />}
       {failed === src && (
         <p role="alert" className="viewer-error">
           {t('viewer.loadError')}
         </p>
       )}
+    </div>
+  );
+}
+
+/** Delay before the spinner shows, so photos that load fast never flash it. */
+const SPINNER_DELAY_MS = 300;
+
+/** Shown over the photo area while a photo takes long to load (e.g. a TIFF being converted). */
+function LoadingSpinner() {
+  const { t } = useTranslation();
+  const visible = useMountedFor(SPINNER_DELAY_MS);
+  if (!visible) return null;
+  return (
+    <div className="viewer-loading" role="status" aria-label={t('viewer.loading')}>
+      <div className="viewer-spinner" />
     </div>
   );
 }

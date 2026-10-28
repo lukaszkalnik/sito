@@ -120,3 +120,20 @@ test('keeps the step buttons in place between series and single photos', async (
 
   expect(single?.y).toBe(inSeries?.y);
 });
+
+test('shows a spinner while a photo is slow to load', async ({ page }) => {
+  await openViewer(page, 1, 'all');
+  let release: () => void = () => {};
+  const slow = new Promise<void>((resolve) => (release = resolve));
+  await page.route('http://photo.localhost/2**', async (route) => {
+    await slow;
+    await route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL });
+  });
+
+  await page.getByRole('button', { name: 'Następne zdjęcie' }).click();
+
+  const spinner = page.getByRole('status', { name: 'Wczytywanie zdjęcia…' });
+  await expect(spinner).toBeVisible();
+  release();
+  await expect(spinner).toHaveCount(0);
+});
