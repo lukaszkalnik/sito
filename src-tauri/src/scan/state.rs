@@ -228,6 +228,7 @@ mod tests {
                 .and_hms_opt(11, 59, 59 - u32::try_from(seconds_before_noon).unwrap())
                 .unwrap(),
             time_source: TimeSource::Exif,
+            sidecar: None,
             orientation: Orientation::NORMAL,
             camera: None,
         }

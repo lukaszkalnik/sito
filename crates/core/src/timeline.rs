@@ -8,9 +8,10 @@ use std::time::SystemTime;
 use chrono::{DateTime, Local, NaiveDateTime};
 use rayon::prelude::*;
 
-use crate::metadata::{Orientation, read_photo_metadata};
+use crate::metadata::{Orientation, is_plausible_capture_time, read_photo_metadata};
 use crate::photo_cache::{CacheError, PhotoCache};
-use crate::scan::{FoundFile, ScanError, find_photos, is_in_rejected_dir};
+use crate::scan::{FileStamp, FoundFile, FoundSidecar, ScanError, find_photos, is_in_rejected_dir};
+use crate::takeout::{ChosenTime, TakeoutUse, choose_time, find_sidecar, read_sidecar};
 
 /// Number of photos whose metadata is read between two progress reports.
 const READ_CHUNK: usize = 200;
@@ -20,8 +21,22 @@ const READ_CHUNK: usize = 200;
 pub enum TimeSource {
     /// Recorded by the camera in EXIF.
     Exif,
-    /// No usable EXIF date; the file's modification time is used instead.
+    /// From the photo's Google Takeout date file, for the given reason.
+    Takeout(TakeoutUse),
+    /// No usable capture time; the file's modification time is used instead.
     FileModified,
+}
+
+impl TimeSource {
+    /// Whether the time is when the photo was taken (from EXIF or Takeout),
+    /// not just a file date.
+    #[must_use]
+    pub fn is_capture_time(self) -> bool {
+        match self {
+            Self::Exif | Self::Takeout(_) => true,
+            Self::FileModified => false,
+        }
+    }
 }
 
 /// One photo on the timeline.
@@ -41,6 +56,9 @@ pub struct Photo {
     pub orientation: Orientation,
     /// Camera description, e.g. `Google Pixel 8`.
     pub camera: Option<String>,
+    /// Size and modification time of the photo's Takeout date file when it
+    /// was read, `None` without one.
+    pub sidecar: Option<FileStamp>,
 }
 
 /// The photos of one folder tree, newest first.
@@ -58,12 +76,12 @@ pub struct Timeline {
 }
 
 impl Timeline {
-    /// Number of photos whose capture time comes from the file date.
+    /// Number of photos without a capture time (dated by the file date).
     #[must_use]
-    pub fn without_exif_date(&self) -> usize {
+    pub fn without_date(&self) -> usize {
         self.photos
             .iter()
-            .filter(|p| p.time_source == TimeSource::FileModified)
+            .filter(|p| !p.time_source.is_capture_time())
             .count()
     }
 
@@ -94,17 +112,28 @@ pub fn compare_photos(a: &Photo, b: &Photo) -> Ordering {
 }
 
 /// Reads one photo as it would appear on a timeline, e.g. one moved back
-/// from the rejected folder.
+/// from the rejected folder, with the Takeout date file of its folder.
 ///
 /// # Errors
 ///
 /// Returns an error if the file cannot be inspected.
 pub fn read_photo(path: &Path) -> std::io::Result<Photo> {
     let meta = std::fs::metadata(path)?;
+    let sidecar = find_sidecar(path).and_then(|sidecar| {
+        let meta = std::fs::metadata(&sidecar).ok()?;
+        Some(FoundSidecar {
+            path: sidecar,
+            stamp: FileStamp {
+                size: meta.len(),
+                modified: meta.modified().ok(),
+            },
+        })
+    });
     Ok(to_photo(&FoundFile {
         path: path.to_path_buf(),
         size: meta.len(),
         modified: meta.modified().ok(),
+        sidecar,
     }))
 }
 
@@ -201,9 +230,11 @@ fn split_cached<'a>(
     (photos, to_read)
 }
 
-/// Whether `file` still has the size and modification time cached in `photo`.
+/// Whether `file` and its Takeout date file are as cached in `photo`.
 fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
-    photo.size == file.size && photo.modified == file.modified
+    photo.size == file.size
+        && photo.modified == file.modified
+        && photo.sidecar == file.sidecar.as_ref().map(|sidecar| sidecar.stamp)
 }
 
 /// Reads the metadata of `files` in parallel, reporting progress after each
@@ -260,9 +291,23 @@ pub fn cached_timeline(root: &Path, cache: &PhotoCache) -> Result<Timeline, Cach
 
 fn to_photo(file: &FoundFile) -> Photo {
     let meta = read_photo_metadata(&file.path);
-    let (taken_at, time_source) = match meta.captured {
-        Some(captured) => (captured.local, TimeSource::Exif),
-        None => (local_time(file.modified), TimeSource::FileModified),
+    let now = Local::now().naive_local();
+    // A date file that cannot be read leaves the photo with its own date.
+    let takeout = file
+        .sidecar
+        .as_ref()
+        .and_then(|sidecar| read_sidecar(&sidecar.path).ok());
+    let (taken_at, time_source) = match (takeout, meta.captured) {
+        (Some(takeout), exif) => match choose_time(exif, takeout.taken, now, |utc| {
+            utc.with_timezone(&Local).naive_local()
+        }) {
+            ChosenTime::Exif(time) => (time, TimeSource::Exif),
+            ChosenTime::Takeout(time, reason) => (time, TimeSource::Takeout(reason)),
+        },
+        (None, Some(exif)) if is_plausible_capture_time(exif.local, now) => {
+            (exif.local, TimeSource::Exif)
+        }
+        (None, _) => (local_time(file.modified), TimeSource::FileModified),
     };
     Photo {
         path: file.path.clone(),
@@ -272,6 +317,7 @@ fn to_photo(file: &FoundFile) -> Photo {
         time_source,
         orientation: meta.orientation,
         camera: meta.camera,
+        sidecar: file.sidecar.as_ref().map(|sidecar| sidecar.stamp),
     }
 }
 

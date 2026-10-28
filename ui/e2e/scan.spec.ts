@@ -9,7 +9,7 @@ test('picks a folder, shows both progress phases and then the timeline', async (
       { phase: 'searching', found: 120 },
       { phase: 'reading', done: 200, total: 1234 },
     ],
-    scanResult: { ok: { scanId: 1, photosFound: 1234, unreadableEntries: 0, withoutExifDate: 3 } },
+    scanResult: { ok: { scanId: 1, photosFound: 1234, unreadableEntries: 0, withoutDate: 3 } },
     timeline: { count: 1234, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
     series: { every: 10, size: 3 },
   });
@@ -20,7 +20,7 @@ test('picks a folder, shows both progress phases and then the timeline', async (
   await expect(page.getByText('Folder: C:\\Zdjęcia')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('Odczytywanie dat: 200 z 1234');
   await expect(
-    page.getByText('Znaleziono 1234 zdjęcia. 124 serie (372 zdjęcia). Bez daty EXIF: 3.'),
+    page.getByText('Znaleziono 1234 zdjęcia. 124 serie (372 zdjęcia). Bez daty zdjęcia: 3.'),
   ).toBeVisible();
   await expect(page.getByTestId('timeline')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Wybierz inny folder' })).toBeEnabled();
@@ -43,7 +43,7 @@ test('does nothing when the folder dialog is cancelled', async ({ page }) => {
   await mockTauri(page, {
     pickedFolder: null,
     scanProgress: [],
-    scanResult: { ok: { scanId: 1, photosFound: 0, unreadableEntries: 0, withoutExifDate: 0 } },
+    scanResult: { ok: { scanId: 1, photosFound: 0, unreadableEntries: 0, withoutDate: 0 } },
   });
   await page.goto('/');
 

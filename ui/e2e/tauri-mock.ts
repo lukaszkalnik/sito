@@ -7,7 +7,7 @@ interface Summary {
   scanId: number;
   photosFound: number;
   unreadableEntries: number;
-  withoutExifDate: number;
+  withoutDate: number;
   refreshing?: boolean;
 }
 

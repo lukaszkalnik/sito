@@ -45,7 +45,7 @@ function summary(photosFound: number, extra: { unreadable?: number; withoutExif?
     scanId: 1,
     photosFound,
     unreadableEntries: extra.unreadable ?? 0,
-    withoutExifDate: extra.withoutExif ?? 0,
+    withoutDate: extra.withoutExif ?? 0,
     refreshing: false,
   };
 }
@@ -156,7 +156,7 @@ describe('ScanScreen', () => {
     await userEvent.click(screen.getByRole('button'));
 
     const status = await screen.findByText(/Znaleziono 3 zdjęcia\./);
-    expect(status).toHaveTextContent('Bez daty EXIF: 2.');
+    expect(status).toHaveTextContent('Bez daty zdjęcia: 2.');
     expect(status).toHaveTextContent('Nie udało się odczytać 5 elementów.');
   });
 

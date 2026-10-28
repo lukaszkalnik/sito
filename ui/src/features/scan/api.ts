@@ -12,7 +12,7 @@ export interface ScanSummary {
   scanId: number;
   photosFound: number;
   unreadableEntries: number;
-  withoutExifDate: number;
+  withoutDate: number;
   /** Shown from the cache; a background rescan is running and ends with `onScanRefreshed`. */
   refreshing: boolean;
 }

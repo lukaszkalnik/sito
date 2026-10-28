@@ -10,7 +10,7 @@ async function openTimeline(page: Page, series: TauriMock['series']) {
     pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
     scanResult: {
-      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 },
+      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutDate: 0 },
     },
     // One photo every 20 minutes, newest on Saturday 1 June 2024 at noon.
     timeline: { count: PHOTOS, newest: '2024-06-01T12:00:00', stepSeconds: 1200 },

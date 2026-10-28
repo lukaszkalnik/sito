@@ -23,6 +23,7 @@ fn photo(path: PathBuf) -> Photo {
             .and_hms_opt(12, 0, 0)
             .unwrap(),
         time_source: TimeSource::Exif,
+        sidecar: None,
         orientation: Orientation::NORMAL,
         camera: None,
     }

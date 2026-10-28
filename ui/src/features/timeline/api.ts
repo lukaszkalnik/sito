@@ -14,7 +14,7 @@ export interface TimelineEntry {
 }
 
 /** Where a photo's capture time comes from. Mirrors `TimeSourceDto`. */
-export type TimeSource = 'exif' | 'file';
+export type TimeSource = 'exif' | 'takeout' | 'takeoutCorrected' | 'file';
 
 /** Returns the timeline of the last finished scan, newest first. */
 export async function getTimeline(): Promise<TimelineEntry[]> {

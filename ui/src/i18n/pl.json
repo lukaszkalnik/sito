@@ -26,7 +26,7 @@
     },
     "searching": "Wyszukiwanie zdjęć… znaleziono {{photos}}",
     "reading": "Odczytywanie dat: {{done, number}} z {{total, number}}",
-    "withoutExifDate": "Bez daty EXIF: {{count, number}}."
+    "withoutDate": "Bez daty zdjęcia: {{count, number}}."
   },
   "timeline": {
     "loading": "Wczytywanie osi czasu…",

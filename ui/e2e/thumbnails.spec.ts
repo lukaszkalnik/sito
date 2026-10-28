@@ -28,7 +28,7 @@ async function openTimeline(page: Page) {
     pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
     scanResult: {
-      ok: { scanId: 1700000000000, photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 },
+      ok: { scanId: 1700000000000, photosFound: PHOTOS, unreadableEntries: 0, withoutDate: 0 },
     },
     timeline: { count: PHOTOS, newest: '2024-06-01T12:00:00', stepSeconds: 1200 },
   });

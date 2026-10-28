@@ -51,7 +51,7 @@ function renderView(photos: number) {
         scanId: 1,
         photosFound: photos,
         unreadableEntries: 0,
-        withoutExifDate: 0,
+        withoutDate: 0,
         refreshing: false,
       }}
       busy={false}

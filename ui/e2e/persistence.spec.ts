@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { invokedCommands, mockTauri } from './tauri-mock';
 
-const SUMMARY = { scanId: 7, photosFound: 30, unreadableEntries: 0, withoutExifDate: 0 };
+const SUMMARY = { scanId: 7, photosFound: 30, unreadableEntries: 0, withoutDate: 0 };
 
 async function start(page: Page, lastFolder: string | null) {
   await page.addInitScript((folder) => {

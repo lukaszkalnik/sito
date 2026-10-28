@@ -1,9 +1,12 @@
 //! Recursive search of a folder tree for photos.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use walkdir::{DirEntry, WalkDir};
+
+use crate::takeout::{is_sidecar_candidate, pair_sidecars};
 
 /// File name that marks an Android folder as "not gallery media".
 const NOMEDIA_MARKER: &str = ".nomedia";
@@ -24,6 +27,24 @@ pub struct SearchProgress {
     pub photos_found: u64,
 }
 
+/// Size and modification time of a file, to tell whether it changed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FileStamp {
+    /// File size in bytes.
+    pub size: u64,
+    /// Last modification time, if the file system reports one.
+    pub modified: Option<SystemTime>,
+}
+
+/// A Google Takeout date file belonging to a photo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FoundSidecar {
+    /// Full path of the date file.
+    pub path: PathBuf,
+    /// Its size and modification time.
+    pub stamp: FileStamp,
+}
+
 /// A photo file found by [`find_photos`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FoundFile {
@@ -33,6 +54,8 @@ pub struct FoundFile {
     pub size: u64,
     /// Last modification time, if the file system reports one.
     pub modified: Option<SystemTime>,
+    /// The photo's Google Takeout date file, if its folder has one.
+    pub sidecar: Option<FoundSidecar>,
 }
 
 /// Result of a finished search.
@@ -87,6 +110,9 @@ pub fn is_photo(path: &Path) -> bool {
 /// cannot be read are counted in [`SearchResult::unreadable_entries`] and do
 /// not abort the search.
 ///
+/// Google Takeout date files next to the photos are attached to their photos
+/// ([`FoundFile::sidecar`]).
+///
 /// `on_progress` is called every few hundred entries and once at the end.
 ///
 /// # Errors
@@ -100,6 +126,7 @@ pub fn find_photos(
     check_root(root)?;
 
     let mut result = SearchResult::default();
+    let mut sidecars = Vec::new();
     let walker = WalkDir::new(root)
         .follow_links(false)
         .into_iter()
@@ -120,9 +147,23 @@ pub fn find_photos(
                             modified: meta.modified().ok(),
                             size: meta.len(),
                             path: entry.into_path(),
+                            sidecar: None,
                         });
                     }
                     Err(_) => result.unreadable_entries += 1,
+                }
+            }
+            Ok(entry) if entry.file_type().is_file() && is_sidecar_candidate(entry.path()) => {
+                // A date file that cannot be inspected only means its photo
+                // keeps its own date.
+                if let Ok(meta) = entry.metadata() {
+                    sidecars.push(FoundSidecar {
+                        stamp: FileStamp {
+                            size: meta.len(),
+                            modified: meta.modified().ok(),
+                        },
+                        path: entry.into_path(),
+                    });
                 }
             }
             Ok(_) => {}
@@ -133,8 +174,52 @@ pub fn find_photos(
         }
     }
 
+    attach_sidecars(&mut result.photos, &mut result.rejected, sidecars);
     on_progress(progress_of(&result));
     Ok(result)
+}
+
+/// Gives each photo the Takeout date file of its folder that belongs to it.
+fn attach_sidecars(
+    photos: &mut [FoundFile],
+    rejected: &mut [FoundFile],
+    sidecars: Vec<FoundSidecar>,
+) {
+    let mut sidecars_by_folder: HashMap<PathBuf, Vec<FoundSidecar>> = HashMap::new();
+    for sidecar in sidecars {
+        if let Some(folder) = sidecar.path.parent() {
+            sidecars_by_folder
+                .entry(folder.to_path_buf())
+                .or_default()
+                .push(sidecar);
+        }
+    }
+    if sidecars_by_folder.is_empty() {
+        return;
+    }
+    let mut photos_by_folder: HashMap<PathBuf, Vec<&mut FoundFile>> = HashMap::new();
+    for photo in photos.iter_mut().chain(rejected.iter_mut()) {
+        if let Some(folder) = photo
+            .path
+            .parent()
+            .filter(|f| sidecars_by_folder.contains_key(*f))
+        {
+            photos_by_folder
+                .entry(folder.to_path_buf())
+                .or_default()
+                .push(photo);
+        }
+    }
+    for (folder, mut folder_photos) in photos_by_folder {
+        let Some(folder_sidecars) = sidecars_by_folder.get(&folder) else {
+            continue;
+        };
+        let photo_paths: Vec<&Path> = folder_photos.iter().map(|p| p.path.as_path()).collect();
+        let sidecar_paths: Vec<&Path> = folder_sidecars.iter().map(|s| s.path.as_path()).collect();
+        for (photo, sidecar) in pair_sidecars(&photo_paths, &sidecar_paths) {
+            folder_photos[photo].sidecar = Some(folder_sidecars[sidecar].clone());
+        }
+    }
 }
 
 fn check_root(root: &Path) -> Result<(), ScanError> {

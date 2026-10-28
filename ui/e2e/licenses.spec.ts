@@ -33,7 +33,7 @@ test('shows the licenses from the menu over the timeline and closes with Escape'
   await mockTauri(page, {
     pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
-    scanResult: { ok: { scanId: 1, photosFound: 30, unreadableEntries: 0, withoutExifDate: 0 } },
+    scanResult: { ok: { scanId: 1, photosFound: 30, unreadableEntries: 0, withoutDate: 0 } },
     timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
     series: { every: 10, size: 3 },
   });
@@ -57,7 +57,7 @@ test('shows the licenses on the start screen and closes with „Zamknij”', asy
   await mockTauri(page, {
     pickedFolder: null,
     scanProgress: [],
-    scanResult: { ok: { scanId: 1, photosFound: 0, unreadableEntries: 0, withoutExifDate: 0 } },
+    scanResult: { ok: { scanId: 1, photosFound: 0, unreadableEntries: 0, withoutDate: 0 } },
   });
   await page.goto('/');
 

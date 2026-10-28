@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use crate::timeline::{Photo, TimeSource};
+use crate::timeline::Photo;
 
 /// Default largest gap between two neighbouring photos of one series.
 pub const DEFAULT_MAX_GAP: Duration = Duration::from_secs(10);
@@ -68,7 +68,7 @@ pub fn find_time_series(photos: &[Photo], max_gap: Duration) -> Vec<Series> {
 }
 
 fn belong_together(newer: &Photo, older: &Photo, max_gap: Duration) -> bool {
-    if newer.time_source != TimeSource::Exif || older.time_source != TimeSource::Exif {
+    if !newer.time_source.is_capture_time() || !older.time_source.is_capture_time() {
         return false;
     }
     (newer.taken_at - older.taken_at)
@@ -85,6 +85,8 @@ mod tests {
 
     use super::*;
     use crate::metadata::Orientation;
+    use crate::takeout::TakeoutUse;
+    use crate::timeline::TimeSource;
 
     fn at(seconds: i64) -> NaiveDateTime {
         NaiveDate::from_ymd_opt(2024, 6, 1)
@@ -104,6 +106,7 @@ mod tests {
                 modified: None,
                 taken_at: at(s),
                 time_source: TimeSource::Exif,
+                sidecar: None,
                 orientation: Orientation::NORMAL,
                 camera: None,
             })
@@ -152,6 +155,18 @@ mod tests {
 
         // Newest first: 9, 6 (file date), 3, 0
         assert_eq!(ranges(&series), [(2, 2)]);
+    }
+
+    #[test]
+    fn photos_dated_by_takeout_form_series_with_exif_photos() {
+        let mut photos = photos(&[0, 3, 6]);
+        photos[0].time_source = TimeSource::Takeout(TakeoutUse::MissingExif);
+        photos[2].time_source = TimeSource::Takeout(TakeoutUse::Corrected);
+
+        assert_eq!(
+            ranges(&find_time_series(&photos, DEFAULT_MAX_GAP)),
+            [(0, 3)]
+        );
     }
 
     #[test]

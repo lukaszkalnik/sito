@@ -8,6 +8,8 @@ use std::time::{Duration, SystemTime};
 use chrono::NaiveDate;
 use sito_core::metadata::Orientation;
 use sito_core::photo_cache::PhotoCache;
+use sito_core::scan::FileStamp;
+use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
     Photo, TimeSource, TimelineProgress, build_timeline, build_timeline_cached, cached_timeline,
 };
@@ -62,6 +64,32 @@ fn a_rescan_reads_only_new_or_changed_photos() {
         .unwrap();
     assert_eq!(scan_reading(dir.path(), &mut cache), 1);
     assert_eq!(scan_reading(dir.path(), &mut cache), 0);
+}
+
+#[test]
+fn a_new_or_changed_takeout_date_file_rereads_its_photo() {
+    let dir = gallery();
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    scan_reading(dir.path(), &mut cache);
+
+    let sidecar = dir
+        .path()
+        .join("pixel_2024-06-01_12-00-00.jpg.supplemental-metadata.json");
+    fs::write(
+        &sidecar,
+        r#"{ "photoTakenTime": { "timestamp": "1717236000" } }"#,
+    )
+    .unwrap();
+    assert_eq!(scan_reading(dir.path(), &mut cache), 1);
+    assert_eq!(scan_reading(dir.path(), &mut cache), 0);
+
+    File::options()
+        .write(true)
+        .open(&sidecar)
+        .unwrap()
+        .set_modified(SystemTime::now() - Duration::from_secs(3600))
+        .unwrap();
+    assert_eq!(scan_reading(dir.path(), &mut cache), 1);
 }
 
 #[test]
@@ -142,6 +170,7 @@ fn stores_every_field() {
                 .and_hms_milli_opt(12, 0, 5, 250)
                 .unwrap(),
             time_source: TimeSource::Exif,
+            sidecar: None,
             orientation: Orientation::from_exif(6),
             camera: Some("Google Pixel 8".into()),
         },
@@ -154,6 +183,7 @@ fn stores_every_field() {
                 .and_hms_opt(0, 0, 0)
                 .unwrap(),
             time_source: TimeSource::FileModified,
+            sidecar: None,
             orientation: Orientation::NORMAL,
             camera: None,
         },
@@ -164,6 +194,31 @@ fn stores_every_field() {
     back.sort_by(|a, b| a.path.cmp(&b.path));
 
     assert_eq!(back, photos);
+}
+
+#[test]
+fn stores_a_takeout_time_and_its_date_file() {
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    let photo = Photo {
+        path: PathBuf::from("c.jpg"),
+        size: 7,
+        modified: None,
+        taken_at: NaiveDate::from_ymd_opt(1976, 7, 1)
+            .unwrap()
+            .and_hms_opt(12, 0, 0)
+            .unwrap(),
+        time_source: TimeSource::Takeout(TakeoutUse::Corrected),
+        sidecar: Some(FileStamp {
+            size: 512,
+            modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
+        }),
+        orientation: Orientation::NORMAL,
+        camera: None,
+    };
+
+    cache.store(std::slice::from_ref(&photo)).unwrap();
+
+    assert_eq!(cache.all().unwrap(), [photo]);
 }
 
 #[cfg(unix)]
@@ -182,6 +237,7 @@ fn leaves_out_paths_that_are_not_unicode() {
             .and_hms_opt(12, 0, 0)
             .unwrap(),
         time_source: TimeSource::Exif,
+        sidecar: None,
         orientation: Orientation::NORMAL,
         camera: None,
     };

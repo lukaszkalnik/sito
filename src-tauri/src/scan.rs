@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use sito_core::scan::ScanError;
+use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -56,7 +57,7 @@ pub struct ScanSummaryDto {
     scan_id: u64,
     photos_found: usize,
     unreadable_entries: u64,
-    without_exif_date: usize,
+    without_date: usize,
     /// Shown from the photo cache; a background rescan is running and ends
     /// with a `scan-refreshed` event.
     refreshing: bool,
@@ -68,7 +69,7 @@ impl ScanSummaryDto {
             scan_id,
             photos_found: t.photos.len(),
             unreadable_entries: t.unreadable_entries,
-            without_exif_date: t.without_exif_date(),
+            without_date: t.without_date(),
             refreshing: false,
         }
     }
@@ -99,6 +100,11 @@ pub struct TimelineEntryDto {
 pub enum TimeSourceDto {
     /// EXIF capture time.
     Exif,
+    /// The Google Takeout date (the photo has no usable EXIF time).
+    Takeout,
+    /// The Takeout date, which replaces an EXIF time that differs: the date
+    /// was corrected in Google Photos.
+    TakeoutCorrected,
     /// The file's modification time (no usable capture time).
     File,
 }
@@ -107,6 +113,10 @@ impl From<TimeSource> for TimeSourceDto {
     fn from(source: TimeSource) -> Self {
         match source {
             TimeSource::Exif => Self::Exif,
+            TimeSource::Takeout(TakeoutUse::MissingExif | TakeoutUse::ImplausibleExif) => {
+                Self::Takeout
+            }
+            TimeSource::Takeout(TakeoutUse::Corrected) => Self::TakeoutCorrected,
             TimeSource::FileModified => Self::File,
         }
     }
@@ -274,6 +284,7 @@ mod tests {
                 .and_hms_opt(12, 0, 5)
                 .unwrap(),
             time_source: source,
+            sidecar: None,
             orientation: Orientation::NORMAL,
             camera: None,
         }
@@ -336,6 +347,23 @@ mod tests {
     }
 
     #[test]
+    fn takeout_times_tell_corrected_dates_apart() {
+        let source = |s| serde_json::to_value(TimeSourceDto::from(s)).unwrap();
+        assert_eq!(
+            source(TimeSource::Takeout(TakeoutUse::MissingExif)),
+            json!("takeout")
+        );
+        assert_eq!(
+            source(TimeSource::Takeout(TakeoutUse::ImplausibleExif)),
+            json!("takeout")
+        );
+        assert_eq!(
+            source(TimeSource::Takeout(TakeoutUse::Corrected)),
+            json!("takeoutCorrected")
+        );
+    }
+
+    #[test]
     fn summary_serializes_in_camel_case() {
         let timeline = Timeline {
             root: PathBuf::from("gallery"),
@@ -349,7 +377,7 @@ mod tests {
 
         assert_eq!(
             serde_json::to_value(ScanSummaryDto::new(7, &timeline)).unwrap(),
-            json!({ "scanId": 7, "photosFound": 2, "unreadableEntries": 1, "withoutExifDate": 1, "refreshing": false })
+            json!({ "scanId": 7, "photosFound": 2, "unreadableEntries": 1, "withoutDate": 1, "refreshing": false })
         );
     }
 

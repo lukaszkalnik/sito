@@ -14,7 +14,7 @@ const PIXEL = Buffer.from(
 const BASE: TauriMock = {
   pickedFolder: 'C:\\Zdjęcia',
   scanProgress: [],
-  scanResult: { ok: { scanId: 5, photosFound: 30, unreadableEntries: 0, withoutExifDate: 0 } },
+  scanResult: { ok: { scanId: 5, photosFound: 30, unreadableEntries: 0, withoutDate: 0 } },
   timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 0, stepPattern: [2, 2, 600] },
   series: 'byGap',
 };

@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
     pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
     scanResult: {
-      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 },
+      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutDate: 0 },
     },
     // One photo every 20 minutes, newest on Saturday 1 June 2024 at noon:
     // 10 000 photos span about 139 days, back to mid-January 2024.

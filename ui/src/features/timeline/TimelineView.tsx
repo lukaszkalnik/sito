@@ -141,8 +141,7 @@ function ScanStatus({
     <p role="status">
       {t('scan.result', { photos: t('scan.photoCount', { count: photos }) })}
       {timeline.status === 'ready' && <SeriesSummary series={timeline.series} />}
-      {summary.withoutExifDate > 0 &&
-        ` ${t('scan.withoutExifDate', { count: summary.withoutExifDate })}`}
+      {summary.withoutDate > 0 && ` ${t('scan.withoutDate', { count: summary.withoutDate })}`}
       {summary.unreadableEntries > 0 &&
         ` ${t('scan.unreadable', { count: summary.unreadableEntries })}`}
       {summary.refreshing && ` ${t('scan.refreshing')}`}

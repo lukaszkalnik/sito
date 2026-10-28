@@ -62,7 +62,7 @@ function demoMock(extra: Partial<TauriMock> = {}): TauriMock {
         scanId: SCAN_ID,
         photosFound: entries.length,
         unreadableEntries: 0,
-        withoutExifDate: 0,
+        withoutDate: 0,
       },
     },
     timeline: { entries },

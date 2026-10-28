@@ -80,7 +80,7 @@ fn falls_back_to_file_date_without_exif_date() {
     let no_exif = &timeline.photos[0];
     assert_eq!(no_exif.taken_at, at(2024, 6, 3, 9, 0, 0));
     assert_eq!(no_exif.time_source, TimeSource::FileModified);
-    assert_eq!(timeline.without_exif_date(), 2);
+    assert_eq!(timeline.without_date(), 2);
 }
 
 #[test]

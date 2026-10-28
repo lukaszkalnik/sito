@@ -6,7 +6,7 @@ const summary = {
   scanId: 1,
   photosFound: 3,
   unreadableEntries: 0,
-  withoutExifDate: 0,
+  withoutDate: 0,
   refreshing: false,
 };
 const scanning: ScanState = {

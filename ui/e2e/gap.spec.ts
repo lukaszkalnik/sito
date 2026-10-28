@@ -12,7 +12,7 @@ async function openTimeline(page: Page, folder = 'D:\\Desktop\\Złote gody') {
     pickedFolder: folder,
     scanProgress: [],
     scanResult: {
-      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutExifDate: 0 },
+      ok: { scanId: 1, photosFound: PHOTOS, unreadableEntries: 0, withoutDate: 0 },
     },
     timeline: {
       count: PHOTOS,

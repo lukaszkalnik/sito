@@ -14,11 +14,13 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 use crate::metadata::Orientation;
+use crate::scan::FileStamp;
+use crate::takeout::TakeoutUse;
 use crate::timeline::{Photo, TimeSource};
 
 /// Changes whenever what a scan reads from a photo changes; a cache written
 /// by another version is emptied, so every photo is read again once.
-pub const CACHE_VERSION: i64 = 1;
+pub const CACHE_VERSION: i64 = 2;
 
 const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
@@ -54,17 +56,9 @@ impl PhotoCache {
     }
 
     fn init(conn: Connection) -> Result<Self, CacheError> {
-        conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
-             CREATE TABLE IF NOT EXISTS photos (
-                 path        TEXT PRIMARY KEY,
-                 size        INTEGER NOT NULL,
-                 mtime_ns    INTEGER,
-                 taken_at    TEXT NOT NULL,
-                 exif        INTEGER NOT NULL,
-                 orientation INTEGER NOT NULL,
-                 camera      TEXT
-             );",
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)",
+            [],
         )?;
         let version: Option<i64> = conn
             .query_row("SELECT value FROM meta WHERE key = 'version'", [], |row| {
@@ -72,12 +66,27 @@ impl PhotoCache {
             })
             .optional()?;
         if version != Some(CACHE_VERSION) {
-            conn.execute("DELETE FROM photos", [])?;
+            // A cache of another version may have other columns: start over.
+            conn.execute("DROP TABLE IF EXISTS photos", [])?;
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('version', ?1)",
                 params![CACHE_VERSION],
             )?;
         }
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS photos (
+                 path             TEXT PRIMARY KEY,
+                 size             INTEGER NOT NULL,
+                 mtime_ns         INTEGER,
+                 taken_at         TEXT NOT NULL,
+                 time_source      TEXT NOT NULL,
+                 orientation      INTEGER NOT NULL,
+                 camera           TEXT,
+                 sidecar_size     INTEGER,
+                 sidecar_mtime_ns INTEGER
+             )",
+            [],
+        )?;
         Ok(Self { conn })
     }
 
@@ -101,39 +110,29 @@ impl PhotoCache {
     /// Returns an error if the cache cannot be read.
     pub fn all(&self) -> Result<Vec<Photo>, CacheError> {
         let mut statement = self.conn.prepare(
-            "SELECT path, size, mtime_ns, taken_at, exif, orientation, camera FROM photos",
+            "SELECT path, size, mtime_ns, taken_at, time_source, orientation, camera,
+                    sidecar_size, sidecar_mtime_ns
+             FROM photos",
         )?;
         let rows = statement.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, Option<i64>>(2)?,
-                row.get::<_, String>(3)?,
-                row.get::<_, bool>(4)?,
-                row.get::<_, i64>(5)?,
-                row.get::<_, Option<String>>(6)?,
-            ))
+            Ok(Row {
+                path: row.get(0)?,
+                size: row.get(1)?,
+                mtime_ns: row.get(2)?,
+                taken_at: row.get(3)?,
+                time_source: row.get(4)?,
+                orientation: row.get(5)?,
+                camera: row.get(6)?,
+                sidecar_size: row.get(7)?,
+                sidecar_mtime_ns: row.get(8)?,
+            })
         })?;
         let mut photos = Vec::new();
         for row in rows {
-            let (path, size, mtime_ns, taken_at, exif, orientation, camera) = row?;
             // A row that does not parse is skipped; the photo is read again.
-            let Ok(taken_at) = NaiveDateTime::parse_from_str(&taken_at, TIME_FORMAT) else {
-                continue;
-            };
-            photos.push(Photo {
-                path: PathBuf::from(path),
-                size: u64::try_from(size).unwrap_or_default(),
-                modified: mtime_ns.and_then(from_nanos),
-                taken_at,
-                time_source: if exif {
-                    TimeSource::Exif
-                } else {
-                    TimeSource::FileModified
-                },
-                orientation: Orientation::from_exif(u16::try_from(orientation).unwrap_or(1)),
-                camera,
-            });
+            if let Some(photo) = row?.into_photo() {
+                photos.push(photo);
+            }
         }
         Ok(photos)
     }
@@ -150,8 +149,9 @@ impl PhotoCache {
         {
             let mut insert = transaction.prepare(
                 "INSERT OR REPLACE INTO photos
-                     (path, size, mtime_ns, taken_at, exif, orientation, camera)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                     (path, size, mtime_ns, taken_at, time_source, orientation, camera,
+                      sidecar_size, sidecar_mtime_ns)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             )?;
             for photo in photos {
                 let Some(path) = photo.path.to_str() else {
@@ -162,9 +162,16 @@ impl PhotoCache {
                     i64::try_from(photo.size).unwrap_or(i64::MAX),
                     photo.modified.and_then(to_nanos),
                     photo.taken_at.format(TIME_FORMAT).to_string(),
-                    photo.time_source == TimeSource::Exif,
+                    source_code(photo.time_source),
                     i64::from(photo.orientation.value()),
                     photo.camera,
+                    photo
+                        .sidecar
+                        .map(|stamp| i64::try_from(stamp.size).unwrap_or(i64::MAX)),
+                    photo
+                        .sidecar
+                        .and_then(|stamp| stamp.modified)
+                        .and_then(to_nanos),
                 ])?;
             }
         }
@@ -197,6 +204,62 @@ impl PhotoCache {
         transaction.commit()?;
         Ok(())
     }
+}
+
+/// One row of the `photos` table.
+struct Row {
+    path: String,
+    size: i64,
+    mtime_ns: Option<i64>,
+    taken_at: String,
+    time_source: String,
+    orientation: i64,
+    camera: Option<String>,
+    sidecar_size: Option<i64>,
+    sidecar_mtime_ns: Option<i64>,
+}
+
+impl Row {
+    fn into_photo(self) -> Option<Photo> {
+        let taken_at = NaiveDateTime::parse_from_str(&self.taken_at, TIME_FORMAT).ok()?;
+        let sidecar = self.sidecar_size.map(|size| FileStamp {
+            size: u64::try_from(size).unwrap_or_default(),
+            modified: self.sidecar_mtime_ns.and_then(from_nanos),
+        });
+        Some(Photo {
+            path: PathBuf::from(self.path),
+            size: u64::try_from(self.size).unwrap_or_default(),
+            modified: self.mtime_ns.and_then(from_nanos),
+            taken_at,
+            time_source: source_from_code(&self.time_source)?,
+            orientation: Orientation::from_exif(u16::try_from(self.orientation).unwrap_or(1)),
+            camera: self.camera,
+            sidecar,
+        })
+    }
+}
+
+/// How a [`TimeSource`] is stored.
+fn source_code(source: TimeSource) -> &'static str {
+    match source {
+        TimeSource::Exif => "exif",
+        TimeSource::Takeout(TakeoutUse::MissingExif) => "takeout",
+        TimeSource::Takeout(TakeoutUse::ImplausibleExif) => "takeout-implausible-exif",
+        TimeSource::Takeout(TakeoutUse::Corrected) => "takeout-corrected",
+        TimeSource::FileModified => "file",
+    }
+}
+
+fn source_from_code(code: &str) -> Option<TimeSource> {
+    [
+        TimeSource::Exif,
+        TimeSource::Takeout(TakeoutUse::MissingExif),
+        TimeSource::Takeout(TakeoutUse::ImplausibleExif),
+        TimeSource::Takeout(TakeoutUse::Corrected),
+        TimeSource::FileModified,
+    ]
+    .into_iter()
+    .find(|&source| source_code(source) == code)
 }
 
 fn to_nanos(time: SystemTime) -> Option<i64> {
