@@ -1,0 +1,34 @@
+# cargo-about: which licenses Rust dependencies may use, and how their notices
+# are generated (`npm run notices:rust`). Add a license here only after
+# checking that its terms allow shipping it in the installer.
+
+# The order is the preference for dual-licensed crates.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "Unicode-3.0",
+    "BSD-3-Clause",
+    "Zlib",
+    # File-level copyleft: the crates stay unmodified and the notices point to
+    # their source code on crates.io, as section 3.2 asks.
+    "MPL-2.0",
+]
+
+# The shipped platforms, so the notices are the same on every machine.
+targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwin"]
+
+# Only code that ends up in the app.
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# Sito's own crates (`publish = false`).
+private = { ignore = true }
+
+# Declares `license-file` instead of an SPDX `license`.
+[nom-exif.clarify]
+license = "MIT"
+
+[[nom-exif.clarify.files]]
+path = "LICENSE"
+license = "MIT"
+checksum = "9cfbbedc535b1a4b73b2f7f51fd683ac6cae914f6d4bc7f271b9b230dd4e2808"

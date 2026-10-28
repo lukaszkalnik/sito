@@ -11,7 +11,8 @@
     "lint": "npm run lint -w ui",
     "test": "npm run test -w ui",
     "e2e": "npm run e2e -w ui",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "notices:rust": "cargo about generate --frozen --fail --workspace about.hbs -o ui/notices/rust-crates.txt"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.4"

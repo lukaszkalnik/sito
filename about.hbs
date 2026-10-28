@@ -1,0 +1,16 @@
+RUST CRATES
+
+The following Rust crates are compiled into Sito. Each crate's source code is
+available at the crates.io address given next to it.
+{{#each licenses}}
+
+------------------------------------------------------------------------------
+{{{name}}} ({{id}})
+
+Used by:
+{{#each used_by}}
+  {{crate.name}} {{crate.version}} (https://crates.io/crates/{{crate.name}}/{{crate.version}})
+{{/each}}
+
+{{{text}}}
+{{/each}}
