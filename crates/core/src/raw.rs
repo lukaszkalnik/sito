@@ -3,6 +3,7 @@
 //! preview cannot be shown.
 
 mod format;
+mod maker_note;
 mod orientation;
 mod preview;
 
@@ -32,10 +33,13 @@ pub enum RawError {
 /// [`PhotoMetadata::default`] or partially filled metadata.
 #[must_use]
 pub fn read_raw_metadata(path: &Path, format: RawFormat) -> PhotoMetadata {
-    if format.is_tiff_based() {
+    let is_jpeg = std::fs::File::open(path)
+        .map(std::io::BufReader::new)
+        .is_ok_and(|mut file| preview::is_jpeg(&mut file));
+    if format.is_tiff_based() && !is_jpeg {
         read_tiff_metadata(path)
     } else {
-        // `nom-exif` reads Fujifilm's RAF container itself.
+        // `nom-exif` reads Fujifilm's RAF container and JPEGs itself.
         read_exif_metadata(path)
     }
 }

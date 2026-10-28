@@ -50,3 +50,5 @@ Tiny synthetic RAW files written by `scripts/raw_fixtures.py`: the TIFF layout o
 | `panasonic.rw2` | `IIU\0` magic, preview as the value of tag `0x002E` | Panasonic DC-G9 | 1 |
 | `google.dng` | IFD0 preview strip (compression 7), raw data in a sub-IFD that is not a JPEG | Google Pixel 8 | 1 |
 | `fujifilm.raf` | `FUJIFILMCCD-RAW` header pointing to a JPEG with EXIF | FUJIFILM X-T3 | 1 |
+| `nikon-maker-note.nef` | preview only in the Nikon maker note's preview IFD (offsets from the maker note's own TIFF header) | NIKON CORPORATION NIKON D2H | 1 |
+| `samsung-jpeg.dng` | a JPEG with a RAW extension | samsung SM-G973U | 1 |

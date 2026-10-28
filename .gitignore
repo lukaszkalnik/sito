@@ -25,3 +25,6 @@ Thumbs.db
 
 # Demo gallery for the README screenshots (scripts/make-demo-gallery.py)
 /demo/
+
+# Real RAW samples for an ignored test (scripts/get-raw-samples.py)
+/samples/

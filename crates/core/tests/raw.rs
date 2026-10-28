@@ -15,7 +15,7 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 /// Every synthetic RAW fixture: file, camera, EXIF orientation.
-const FILES: [(&str, &str, u16); 7] = [
+const FILES: [(&str, &str, u16); 9] = [
     ("olympus.orf", "OLYMPUS IMAGING CORP. E-M10", 6),
     ("canon.cr2", "Canon EOS 80D", 8),
     ("nikon.nef", "NIKON CORPORATION NIKON D750", 1),
@@ -23,6 +23,8 @@ const FILES: [(&str, &str, u16); 7] = [
     ("panasonic.rw2", "Panasonic DC-G9", 1),
     ("google.dng", "Google Pixel 8", 1),
     ("fujifilm.raf", "FUJIFILM X-T3", 1),
+    ("nikon-maker-note.nef", "NIKON CORPORATION NIKON D2H", 1),
+    ("samsung-jpeg.dng", "samsung SM-G973U", 1),
 ];
 
 #[test]

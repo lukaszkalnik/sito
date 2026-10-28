@@ -6,7 +6,8 @@ use std::path::Path;
 
 use super::RawError;
 use super::format::RawFormat;
-use crate::tiff::{Endian, Ifd, MAX_BLOCK, TiffReader};
+use super::maker_note;
+use crate::tiff::{Ifd, MAX_BLOCK, TiffReader};
 
 /// Bytes of a candidate read to check that it is a displayable JPEG.
 const PROBE_LEN: u32 = 256 * 1024;
@@ -20,13 +21,6 @@ mod tag {
     /// Panasonic RW2: a whole JPEG as the value.
     pub const JPG_FROM_RAW: u16 = 0x002E;
     pub const MAKER_NOTE: u16 = 0x927C;
-    /// Olympus maker note: the `CameraSettings` IFD.
-    pub const OLYMPUS_CAMERA_SETTINGS: u16 = 0x2020;
-    pub const OLYMPUS_PREVIEW_START: u16 = 0x0101;
-    pub const OLYMPUS_PREVIEW_LENGTH: u16 = 0x0102;
-    /// Older Olympus maker notes (offsets from the start of the file).
-    pub const OLYMPUS_OLD_PREVIEW_START: u16 = 0x0088;
-    pub const OLYMPUS_OLD_PREVIEW_LENGTH: u16 = 0x0089;
 }
 
 /// TIFF compression values of JPEG data (old-style and new-style JPEG).
@@ -34,18 +28,29 @@ const JPEG_COMPRESSION: [u32; 2] = [6, 7];
 
 /// Where a candidate preview lies in the file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Candidate {
+pub(super) struct Candidate {
     offset: u64,
     len: u32,
 }
 
+impl Candidate {
+    /// `len` bytes at `offset` from the start of the file.
+    pub(super) fn at(offset: u64, len: u32) -> Self {
+        Self { offset, len }
+    }
+}
+
 /// Reads the largest displayable JPEG embedded in the RAW file at `path`.
+/// A file named like a RAW file that is really a JPEG is returned whole.
 ///
 /// # Errors
 ///
 /// Fails if the file cannot be read or holds no usable preview.
 pub fn read_preview(path: &Path, format: RawFormat) -> Result<Vec<u8>, RawError> {
     let mut file = BufReader::new(File::open(path)?);
+    if is_jpeg(&mut file) {
+        return Ok(std::fs::read(path)?);
+    }
     let candidates = if format.is_tiff_based() {
         tiff_candidates(&mut file)
     } else {
@@ -73,7 +78,7 @@ fn tiff_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
     if let Some(maker_note) = ifds.iter().find_map(|ifd| ifd.get(tag::MAKER_NOTE))
         && let Some((offset, len)) = tiff.value_location(maker_note)
     {
-        found.extend(olympus_candidates(&mut tiff, offset, len));
+        found.extend(maker_note::candidates(&mut tiff, offset, len));
     }
     found
 }
@@ -85,10 +90,7 @@ fn ifd_candidates<R: Read + Seek>(tiff: &mut TiffReader<R>, ifd: &Ifd) -> Vec<Ca
     let pair = |tiff: &mut TiffReader<R>, offset_tag, length_tag| {
         let offset = tiff.number(ifd.get(offset_tag)?)?;
         let len = tiff.number(ifd.get(length_tag)?)?;
-        Some(Candidate {
-            offset: u64::from(offset),
-            len,
-        })
+        Some(Candidate::at(u64::from(offset), len))
     };
     found.extend(pair(tiff, tag::JPEG_OFFSET, tag::JPEG_LENGTH));
     let jpeg_compressed = ifd
@@ -105,50 +107,9 @@ fn ifd_candidates<R: Read + Seek>(tiff: &mut TiffReader<R>, ifd: &Ifd) -> Vec<Ca
         .get(tag::JPG_FROM_RAW)
         .and_then(|entry| tiff.value_location(entry))
     {
-        found.push(Candidate {
-            offset: u64::from(offset),
-            len,
-        });
+        found.push(Candidate::at(u64::from(offset), len));
     }
     found
-}
-
-/// The preview in an Olympus maker note at `offset` (`len` bytes long).
-fn olympus_candidates<R: Read + Seek>(
-    tiff: &mut TiffReader<R>,
-    offset: u32,
-    len: u32,
-) -> Option<Candidate> {
-    let header = tiff.bytes(offset, 12.min(len)).ok()?;
-    if header.starts_with(b"OLYMPUS\0") {
-        // Newer maker notes: own byte order, offsets from the maker note.
-        let endian = match header.get(8..10)? {
-            b"II" => Endian::Little,
-            b"MM" => Endian::Big,
-            _ => return None,
-        };
-        let mut note = tiff.nested(offset, endian);
-        let main = note.ifd(12).ok()?;
-        let settings_offset = note.number(main.get(tag::OLYMPUS_CAMERA_SETTINGS)?)?;
-        let settings = note.ifd(settings_offset).ok()?;
-        let start = note.number(settings.get(tag::OLYMPUS_PREVIEW_START)?)?;
-        let len = note.number(settings.get(tag::OLYMPUS_PREVIEW_LENGTH)?)?;
-        return Some(Candidate {
-            offset: u64::from(offset) + u64::from(start),
-            len,
-        });
-    }
-    if header.starts_with(b"OLYMP\0") {
-        // Older maker notes: the file's byte order and offsets.
-        let main = tiff.ifd(offset + 8).ok()?;
-        let start = tiff.number(main.get(tag::OLYMPUS_OLD_PREVIEW_START)?)?;
-        let len = tiff.number(main.get(tag::OLYMPUS_OLD_PREVIEW_LENGTH)?)?;
-        return Some(Candidate {
-            offset: u64::from(start),
-            len,
-        });
-    }
-    None
 }
 
 /// The JPEG a Fujifilm RAF header points to.
@@ -164,10 +125,7 @@ fn raf_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
         Some(u32::from_be_bytes(bytes.try_into().ok()?))
     };
     match (be(84), be(88)) {
-        (Some(offset), Some(len)) => vec![Candidate {
-            offset: u64::from(offset),
-            len,
-        }],
+        (Some(offset), Some(len)) => vec![Candidate::at(u64::from(offset), len)],
         _ => Vec::new(),
     }
 }
@@ -190,6 +148,13 @@ fn pixels(file: &mut BufReader<File>, candidate: Candidate) -> Option<u64> {
         jpeg_decoder::CodingProcess::DctSequential | jpeg_decoder::CodingProcess::DctProgressive
     );
     displayable.then(|| u64::from(info.width) * u64::from(info.height))
+}
+
+/// Whether the file starts like a JPEG (some files with RAW extensions are).
+pub(super) fn is_jpeg(file: &mut (impl Read + Seek)) -> bool {
+    let mut start = [0; 3];
+    let read = file.seek(SeekFrom::Start(0)).is_ok() && file.read_exact(&mut start).is_ok();
+    read && start == [0xFF, 0xD8, 0xFF]
 }
 
 /// `len` bytes at `offset`, if they lie inside the file and below the size limit.

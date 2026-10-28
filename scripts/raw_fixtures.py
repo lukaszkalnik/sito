@@ -275,6 +275,41 @@ def raf() -> bytes:
     return bytes(header + preview)
 
 
+def nef_maker_note() -> bytes:
+    """Older Nikon: the preview is only in the maker note's preview IFD, whose
+    offsets count from the maker note's own TIFF header."""
+    inner = build(
+        "MM",
+        tiff_header("MM", b"\0*"),
+        {
+            "main": [(0x0011, LONG, IfdRef("_preview"))],
+            "_preview": [(0x0201, LONG, BlobRef("preview")), (0x0202, LONG, BlobLen("preview"))],
+        },
+        {"preview": PREVIEW},
+    )
+    note = b"Nikon\0\x02\x10\0\0" + inner
+    return build(
+        "MM",
+        tiff_header("MM", b"\0*"),
+        {
+            "ifd0": [*camera("NIKON CORPORATION", "NIKON D2H", 1), (0x8769, LONG, IfdRef("_exif"))],
+            "_exif": [(0x9003, ASCII, DATE), (0x927C, UNDEFINED, note)],
+        },
+        {},
+    )
+
+
+def jpeg_named_raw() -> bytes:
+    """A JPEG saved with a RAW extension, as some phones do."""
+    exif = piexif.dump(
+        {
+            "0th": {piexif.ImageIFD.Make: b"samsung", piexif.ImageIFD.Model: b"SM-G973U"},
+            "Exif": {piexif.ExifIFD.DateTimeOriginal: DATE.encode()},
+        }
+    )
+    return jpeg(64, 48, (200, 120, 40), exif)
+
+
 def write_all(folder: Path) -> list[Path]:
     folder.mkdir(parents=True, exist_ok=True)
     files = {
@@ -286,6 +321,8 @@ def write_all(folder: Path) -> list[Path]:
         "panasonic.rw2": rw2(),
         "google.dng": dng(),
         "fujifilm.raf": raf(),
+        "nikon-maker-note.nef": nef_maker_note(),
+        "samsung-jpeg.dng": jpeg_named_raw(),
     }
     written = []
     for name, content in files.items():
