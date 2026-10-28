@@ -126,6 +126,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 - Add dependencies sparingly; check each license (it ends up in the third-party notices) and prefer well-maintained crates/packages.
 - Commit lockfiles (`Cargo.lock`, `package-lock.json`).
+- Every shipped dependency's license must be on a reviewed list: `about.toml` (Rust, checked by `cargo-about` in CI) and `ALLOWED_NPM_LICENSES` in `ui/build/thirdPartyNotices.ts` (npm, checked by every frontend build). Add a license there only after checking its terms. After changing Rust dependencies, run `npm run notices:rust` and commit `ui/notices/rust-crates.txt`; CI fails if it is stale.
 
 ### Rust best practices
 
@@ -164,8 +165,11 @@ sito/
 ├─ package.json       # npm workspace (ui) + Tauri CLI
 ├─ crates/core/       # pure logic, no UI code
 ├─ src-tauri/         # thin layer: commands and progress events
+├─ about.toml, about.hbs  # cargo-about: accepted Rust licenses, notices template
 ├─ ui/                # React + TypeScript
 │  ├─ src/i18n/pl.json
+│  ├─ build/          # Vite plugin writing THIRD-PARTY-NOTICES.txt
+│  ├─ notices/        # generated Rust notices (committed)
 │  └─ e2e/            # Playwright tests
 ├─ docs/domain/       # domain knowledge, one file per topic
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
@@ -216,4 +220,5 @@ npm run typecheck -w ui              # TypeScript
 npm test                             # Vitest unit tests (ui)
 npm run e2e                          # Playwright e2e tests (ui, starts Vite)
 npm run build                        # frontend production build
+npm run notices:rust                 # regenerate Rust license notices (needs `cargo install cargo-about --features cli`)
 ```

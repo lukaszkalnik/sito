@@ -1,6 +1,6 @@
 # Slice 10 – Third-party license notices
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (what it established is in [docs/domain/licenses.md](../domain/licenses.md))
 
 ## Context
 

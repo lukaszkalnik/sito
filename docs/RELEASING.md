@@ -25,6 +25,10 @@ gh run download <run-id> --name sito-windows-latest --dir D:\Lukasz\tools\instal
 
 4. The Release workflow checks that the tag matches `Cargo.toml`, builds Windows and macOS, installs, launches and uninstalls the Windows app, then publishes the GitHub release **Sito vX.Y.Z**. If any step fails, the release stays a draft.
 
+## Third-party notices
+
+Every build contains `THIRD-PARTY-NOTICES.txt` (shown under „Pomoc → Licencje…”): Sito's license, the Rust crates from the committed `ui/notices/rust-crates.txt`, and the npm packages of the bundle. CI keeps the Rust part up to date and fails on unreviewed licenses, so a green `main` needs no extra release step.
+
 ## Installing on Windows
 
 1. Download `Sito_X.Y.Z_x64-setup.exe` from the [releases page](https://github.com/lukaszkalnik/sito/releases), or with `gh release download vX.Y.Z --pattern "*setup.exe"`.
