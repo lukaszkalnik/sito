@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 
 use image::{DynamicImage, GenericImageView, GrayImage, Luma, Rgb, RgbImage};
 use sito_core::metadata::Orientation;
-use sito_core::thumbnail::{DEFAULT_MAX_EDGE, ThumbnailError, render_thumbnail};
+use sito_core::thumbnail::{
+    DEFAULT_MAX_EDGE, ImageSource, ThumbnailError, render_image, render_thumbnail,
+};
 use tempfile::TempDir;
 
 const RED: Rgb<u8> = Rgb([220, 20, 20]);
@@ -113,6 +115,24 @@ fn handles_grayscale_photos() {
     let thumbnail = decode(&render_thumbnail(&path, Orientation::NORMAL, 400).unwrap());
 
     assert_eq!(thumbnail.dimensions(), (400, 300));
+}
+
+#[test]
+fn renders_an_image_held_in_memory() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("gray.jpg");
+    GrayImage::from_pixel(800, 600, Luma([128]))
+        .save(&path)
+        .unwrap();
+    let bytes = fs::read(&path).unwrap();
+
+    let source = ImageSource::Bytes {
+        bytes: &bytes,
+        path: &path,
+    };
+    let thumbnail = decode(&render_image(source, Orientation::from_exif(6), 400).unwrap());
+
+    assert_eq!(thumbnail.dimensions(), (300, 400));
 }
 
 #[test]

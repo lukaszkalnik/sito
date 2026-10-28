@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::io::{self, BufReader, Cursor};
+use std::io::{self, BufReader, Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
@@ -230,6 +230,31 @@ pub enum ThumbnailError {
     },
 }
 
+/// Where the image to render comes from.
+#[derive(Debug, Clone, Copy)]
+pub enum ImageSource<'a> {
+    /// An image file.
+    Path(&'a Path),
+    /// An image already in memory (e.g. the preview embedded in a RAW file),
+    /// with the path of the photo it belongs to, for error messages.
+    Bytes {
+        /// The encoded image.
+        bytes: &'a [u8],
+        /// The photo the image belongs to.
+        path: &'a Path,
+    },
+}
+
+impl ImageSource<'_> {
+    /// The photo the image belongs to.
+    #[must_use]
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::Path(path) | Self::Bytes { path, .. } => path,
+        }
+    }
+}
+
 /// Renders a JPEG thumbnail of the photo at `path` that fits inside
 /// `max_edge` × `max_edge`, turned upright according to `orientation`.
 /// Small photos are never upscaled.
@@ -242,9 +267,23 @@ pub fn render_thumbnail(
     orientation: Orientation,
     max_edge: u32,
 ) -> Result<Vec<u8>, ThumbnailError> {
-    let image = match decode_scaled(path, max_edge) {
+    render_image(ImageSource::Path(path), orientation, max_edge)
+}
+
+/// Like [`render_thumbnail`], for an image from any [`ImageSource`].
+///
+/// # Errors
+///
+/// Returns [`ThumbnailError`] if the image cannot be read or decoded.
+pub fn render_image(
+    source: ImageSource<'_>,
+    orientation: Orientation,
+    max_edge: u32,
+) -> Result<Vec<u8>, ThumbnailError> {
+    let path = source.path();
+    let image = match decode_scaled(source, max_edge) {
         Some(image) => image,
-        None => decode_full(path)?,
+        None => decode_full(source)?,
     };
 
     let mut image = if image.width().max(image.height()) > max_edge {
@@ -272,9 +311,17 @@ pub fn render_thumbnail(
 /// Fast path: lets the JPEG decoder skip detail (DCT scaling by up to 1/8),
 /// so a 12 MP photo is never decoded at full size. Returns `None` for
 /// anything it cannot handle; the caller then falls back to a full decode.
-fn decode_scaled(path: &Path, max_edge: u32) -> Option<DynamicImage> {
-    let file = File::open(path).ok()?;
-    let mut decoder = jpeg_decoder::Decoder::new(BufReader::new(file));
+fn decode_scaled(source: ImageSource<'_>, max_edge: u32) -> Option<DynamicImage> {
+    match source {
+        ImageSource::Path(path) => {
+            decode_scaled_from(BufReader::new(File::open(path).ok()?), max_edge)
+        }
+        ImageSource::Bytes { bytes, .. } => decode_scaled_from(Cursor::new(bytes), max_edge),
+    }
+}
+
+fn decode_scaled_from(reader: impl Read, max_edge: u32) -> Option<DynamicImage> {
+    let mut decoder = jpeg_decoder::Decoder::new(reader);
     decoder.read_info().ok()?;
     let info = decoder.info()?;
 
@@ -297,20 +344,29 @@ fn decode_scaled(path: &Path, max_edge: u32) -> Option<DynamicImage> {
 }
 
 /// Slow path: full decode with the `image` crate.
-fn decode_full(path: &Path) -> Result<DynamicImage, ThumbnailError> {
+fn decode_full(source: ImageSource<'_>) -> Result<DynamicImage, ThumbnailError> {
+    let path = source.path();
     let io_error = |source| ThumbnailError::Io {
         path: path.to_path_buf(),
         source,
     };
-    ImageReader::open(path)
-        .map_err(io_error)?
-        .with_guessed_format()
-        .map_err(io_error)?
-        .decode()
-        .map_err(|source| ThumbnailError::Decode {
-            path: path.to_path_buf(),
-            source,
-        })
+    let decode_error = |source| ThumbnailError::Decode {
+        path: path.to_path_buf(),
+        source,
+    };
+    match source {
+        ImageSource::Path(path) => ImageReader::open(path)
+            .map_err(io_error)?
+            .with_guessed_format()
+            .map_err(io_error)?
+            .decode()
+            .map_err(decode_error),
+        ImageSource::Bytes { bytes, .. } => ImageReader::new(Cursor::new(bytes))
+            .with_guessed_format()
+            .map_err(io_error)?
+            .decode()
+            .map_err(decode_error),
+    }
 }
 
 /// Size of a `width` × `height` image scaled down to fit inside
@@ -358,7 +414,7 @@ mod tests {
             .save(&path)
             .unwrap();
 
-        let image = decode_scaled(&path, 400).unwrap();
+        let image = decode_scaled(ImageSource::Path(&path), 400).unwrap();
 
         // 1/4 is the smallest DCT scale that still covers 400 × 300.
         assert_eq!((image.width(), image.height()), (400, 300));
