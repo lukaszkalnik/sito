@@ -2,7 +2,14 @@
 
 ## The galleries
 
-Sito works on large photo galleries taken with Android phones: 10,000+ photos per folder, often in subfolders. Sito reads JPEG (`.jpg`, `.jpeg`) and camera RAW files (`.orf`, `.cr2`, `.nef`, `.arw`, `.rw2`, `.raf`, `.dng`; not `.cr3`); TIFF is planned (slice 27).
+Sito works on large photo galleries taken with Android phones: 10,000+ photos per folder, often in subfolders. Sito reads JPEG (`.jpg`, `.jpeg`) and camera RAW files (`.orf`, `.cr2`, `.nef`, `.arw`, `.rw2`, `.raf`, `.dng`; not `.cr3`); and TIFF (`.tif`, `.tiff`).
+
+## TIFF files
+
+- Scans and reproductions are often TIFF. Metadata comes from the TIFF tags (`DateTimeOriginal`, else `DateTime`; scans often have none and then use a Takeout date or the file date).
+- Only the **first page** of a multi-page TIFF is shown; the file is one photo and moves as a whole.
+- A browser cannot show TIFF, so the viewer gets a full-size JPEG converted once and kept in the thumbnail cache (counted in its size limit). Decoding is limited to 1 GiB of memory and one TIFF at a time; a larger or broken file shows „Nie udało się wczytać zdjęcia.”
+- Tiles show a „TIFF” badge.
 
 ## RAW files
 

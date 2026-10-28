@@ -52,3 +52,17 @@ Tiny synthetic RAW files written by `scripts/raw_fixtures.py`: the TIFF layout o
 | `fujifilm.raf` | `FUJIFILMCCD-RAW` header pointing to a JPEG with EXIF | FUJIFILM X-T3 | 1 |
 | `nikon-maker-note.nef` | preview only in the Nikon maker note's preview IFD (offsets from the maker note's own TIFF header) | NIKON CORPORATION NIKON D2H | 1 |
 | `samsung-jpeg.dng` | a JPEG with a RAW extension | samsung SM-G973U | 1 |
+
+## `tiff/`
+
+Small TIFFs (40×30), written by `scripts/make-fixtures.py`.
+
+| File | Content |
+|---|---|
+| `rgb8_orientation-6.tif` | 8-bit RGB, `DateTimeOriginal` 2024-06-12 09:00:00 (Exif IFD), orientation 6, EPSON Perfection V600 (built byte by byte; Pillow writes no Exif IFD) |
+| `gray8_datetime-only.tif` | 8-bit grey, only `DateTime` 2024-06-13 10:00:00 |
+| `gray16.tif` | 16-bit grey |
+| `cmyk.tif` | CMYK |
+| `no-date.tif` | RGB without any date |
+| `two-pages.tif` | page 1 40×30 red, page 2 60×20 blue |
+| `broken.tif` | the first 60 bytes of `rgb8_orientation-6.tif` |

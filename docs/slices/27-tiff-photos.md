@@ -1,6 +1,6 @@
 # Slice 27 – TIFF photos
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (what it established is in [docs/domain/photos.md](../domain/photos.md))
 
 ## Context
 
@@ -77,3 +77,8 @@ Save this plan into `docs/slices/27-tiff-photos.md` (concept and the slice-26 no
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `npm run notices:rust` unchanged after commit, `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e`.
 - Debug build on a folder in `D:\Lukasz\tmp` with the fixture TIFFs plus a large generated scan (e.g. 8000×6000 16-bit, ~290 MB): thumbnails appear, the viewer opens it, stepping back is instant, memory stays below ~1.5 GB.
 - Once unpacked: TIFFs from `F:\Google Photos` opened read-only.
+
+### Changes during implementation
+
+- TIFF photos get a „TIFF” badge like RAW photos (the timeline data needs a format for them anyway).
+- `cargo-about` 0.9.3 is now installed locally (same version as CI), so `npm run notices:rust` works on the dev machine; it needs `cargo fetch` first for crates of other targets.
