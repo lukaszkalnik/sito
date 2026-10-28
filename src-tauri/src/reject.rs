@@ -10,8 +10,8 @@ use sito_core::reject::{self, RejectError};
 use sito_core::timeline::read_photo;
 use tauri::{AppHandle, Emitter, State};
 
-use super::scan::CommandError;
-use crate::state::{AppState, Scan};
+use crate::error::CommandError;
+use crate::scan::state::{AppState, Scan};
 
 /// Event sent to all windows when photos leave or return to the timeline.
 pub const TIMELINE_CHANGED: &str = "timeline-changed";
@@ -233,7 +233,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::commands::series::series_of;
+    use crate::series::series_of;
 
     /// The two fixture photos 5 s apart, which form the only series.
     const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";

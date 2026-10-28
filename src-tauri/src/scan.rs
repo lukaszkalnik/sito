@@ -8,10 +8,14 @@ use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use super::reject::TIMELINE_CHANGED;
-use crate::photo_cache::PhotoCacheState;
-use crate::state::AppState;
+use crate::error::CommandError;
+use crate::reject::TIMELINE_CHANGED;
 use crate::thumbnails::Thumbnails;
+use photo_cache::PhotoCacheState;
+use state::AppState;
+
+pub mod photo_cache;
+pub mod state;
 
 /// Progress update sent to the UI while a scan is running.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -109,24 +113,6 @@ impl TimelineEntryDto {
             from_file_date: photo.time_source == TimeSource::FileModified,
         }
     }
-}
-
-/// Error sent to the UI. Only a code is sent; the UI shows a translated message.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(tag = "code", rename_all = "camelCase")]
-pub enum CommandError {
-    /// The folder does not exist.
-    NotFound,
-    /// The path is not a folder.
-    NotADirectory,
-    /// The folder could not be read.
-    Io,
-    /// Undo would overwrite a file that now has the photo's original name.
-    Occupied,
-    /// The rejected photo is no longer in the rejected folder.
-    Missing,
-    /// Unexpected failure inside the app.
-    Internal,
 }
 
 impl From<ScanError> for CommandError {

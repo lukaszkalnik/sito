@@ -6,7 +6,7 @@ use serde::Serialize;
 use sito_core::series::{self, DEFAULT_MAX_GAP, Series};
 use tauri::State;
 
-use crate::state::{AppState, Scan};
+use crate::scan::state::{AppState, Scan};
 
 /// One series as sent to the UI: a range of timeline entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

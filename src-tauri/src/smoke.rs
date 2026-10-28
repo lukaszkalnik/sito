@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use tauri::{AppHandle, Manager};
 
-use crate::commands::viewer::{self, ViewMode, ViewerRequest};
+use crate::viewer::{self, ViewMode, ViewerRequest};
 
 /// Environment variable that turns the smoke test on.
 pub const ENV: &str = "SITO_SMOKE_TEST";

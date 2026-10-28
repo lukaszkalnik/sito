@@ -10,8 +10,8 @@ use std::path::Path;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
-use crate::state::AppState;
-use crate::thumbnails::{error_response, jpeg_response, parse_request};
+use crate::protocol::{error_response, jpeg_response, parse_request};
+use crate::scan::state::AppState;
 
 /// Name of the URI scheme.
 pub const SCHEME: &str = "photo";

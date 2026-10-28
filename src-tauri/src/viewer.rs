@@ -5,8 +5,10 @@ use std::sync::{Mutex, PoisonError};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
 
-use super::scan::CommandError;
+use crate::error::CommandError;
 use crate::window_fit;
+
+pub mod photo_protocol;
 
 /// Label of the viewer window.
 pub const LABEL: &str = "viewer";

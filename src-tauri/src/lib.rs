@@ -1,12 +1,13 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
-mod commands;
-mod lifo_pool;
-mod photo_cache;
-mod photos;
+mod error;
+mod protocol;
+mod reject;
+mod scan;
+mod series;
 mod smoke;
-mod state;
 mod thumbnails;
+mod viewer;
 mod window_fit;
 
 use tauri::Manager;
@@ -27,28 +28,31 @@ pub fn run() -> tauri::Result<()> {
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(window_fit::STATE_FLAGS)
                 .skip_initial_state("main")
-                .skip_initial_state(commands::viewer::LABEL)
+                .skip_initial_state(viewer::LABEL)
                 .build(),
         )
         .on_window_event(window_fit::save_on_close)
-        .manage(state::AppState::default())
-        .manage(commands::viewer::ViewerState::default())
+        .manage(scan::state::AppState::default())
+        .manage(viewer::ViewerState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
             thumbnails::handle(&ctx, &request, responder);
         })
-        .register_asynchronous_uri_scheme_protocol(photos::SCHEME, |ctx, request, responder| {
-            photos::handle(&ctx, &request, responder);
-        })
+        .register_asynchronous_uri_scheme_protocol(
+            viewer::photo_protocol::SCHEME,
+            |ctx, request, responder| {
+                viewer::photo_protocol::handle(&ctx, &request, responder);
+            },
+        )
         .setup(|app| setup(app))
         .invoke_handler(tauri::generate_handler![
-            commands::scan::start_scan,
-            commands::scan::get_timeline,
-            commands::series::get_series,
-            commands::viewer::open_viewer,
-            commands::viewer::take_viewer_request,
-            commands::reject::reject_photo,
-            commands::reject::undo_reject,
-            commands::reject::get_undo_state
+            scan::start_scan,
+            scan::get_timeline,
+            series::get_series,
+            viewer::open_viewer,
+            viewer::take_viewer_request,
+            reject::reject_photo,
+            reject::undo_reject,
+            reject::get_undo_state
         ])
         .run(tauri::generate_context!())
 }
@@ -68,12 +72,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if let Err(err) = std::fs::create_dir_all(&cache_dir) {
         log::warn!("cannot create {}: {err}", cache_dir.display());
     }
-    app.manage(photo_cache::PhotoCacheState::open(
-        &photo_cache::cache_file(&cache_dir),
+    app.manage(scan::photo_cache::PhotoCacheState::open(
+        &scan::photo_cache::cache_file(&cache_dir),
     ));
-    app.manage(commands::reject::Actions::new(open_action_log(
-        app.handle(),
-    )));
+    app.manage(reject::Actions::new(open_action_log(app.handle())));
     // The main window is created hidden from the config.
     if let Some(main) = app.get_webview_window("main") {
         window_fit::show_placed(&main);
