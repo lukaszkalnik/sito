@@ -20,17 +20,9 @@ export interface ToastMessage {
   error?: boolean;
 }
 
-/**
- * "Cofnij" for rejected photos in one window: whether there is anything to
- * undo (refreshed whenever any window rejects or restores), Ctrl+Z, and the
- * toast reporting the outcome. `onUndone` is told which photo came back.
- */
-export function useUndo(onUndone?: (undone: Undone) => void) {
-  const { t } = useTranslation();
+/** Whether there is anything to undo, refreshed whenever any window rejects or restores. */
+function useUndoAvailable(): boolean {
   const [available, setAvailable] = useState(false);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const busy = useRef(false);
-
   useEffect(() => {
     let active = true;
     const refresh = () =>
@@ -45,12 +37,50 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
       void unlisten.then((stop) => stop());
     };
   }, []);
+  return available;
+}
 
+/** A toast message that disappears after {@link TOAST_MS}. */
+function useToast() {
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), TOAST_MS);
     return () => clearTimeout(timer);
   }, [toast]);
+  return [toast, setToast] as const;
+}
+
+/** Calls `undo` on Ctrl+Z (Cmd+Z on macOS). */
+function useUndoShortcut(undo: () => Promise<void>): void {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        void undo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo]);
+}
+
+/** The translation key of the message for a failed undo. */
+function undoErrorKey(error: unknown): string {
+  const code = rejectErrorCode(error);
+  return code === 'occupied' || code === 'missing' ? `undo.${code}` : 'undo.failed';
+}
+
+/**
+ * "Cofnij" for rejected photos in one window: whether there is anything to
+ * undo, Ctrl+Z, and the toast reporting the outcome. `onUndone` is told which
+ * photo came back.
+ */
+export function useUndo(onUndone?: (undone: Undone) => void) {
+  const { t } = useTranslation();
+  const available = useUndoAvailable();
+  const [toast, setToast] = useToast();
+  const busy = useRef(false);
 
   const undo = useCallback(async () => {
     if (busy.current) return;
@@ -62,24 +92,12 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
         onUndone?.(undone);
       }
     } catch (error) {
-      const code = rejectErrorCode(error);
-      const key = code === 'occupied' || code === 'missing' ? `undo.${code}` : 'undo.failed';
-      setToast({ text: t(key), error: true });
+      setToast({ text: t(undoErrorKey(error)), error: true });
     } finally {
       busy.current = false;
     }
-  }, [onUndone, t]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        void undo();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [undo]);
+  }, [onUndone, t, setToast]);
+  useUndoShortcut(undo);
 
   return { canUndo: available, undo, toast, showToast: setToast };
 }

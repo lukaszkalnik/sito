@@ -50,7 +50,8 @@ export function tilesOf(row: TimelineRow): { entries: TimelineEntry[]; offset: n
       return { entries: row.entries, offset: 0 };
     case 'blocks':
       return { entries: row.groups.flatMap((g) => g.entries), offset: SERIES_ROW_HEIGHT };
-    default:
+    case 'day':
+    case 'series':
       return { entries: [], offset: 0 };
   }
 }
@@ -92,101 +93,125 @@ export function buildRows(
   width: number = blockWidth(columns),
 ): TimelineRow[] {
   const seriesAt = new Map(series.map((s) => [s.start, s]));
-  const rows: TimelineRow[] = [];
-  let currentDay: string | null = null;
-  // The row being filled and its used width, until it is closed.
-  let open: { groups: RowGroup[]; used: number } | null = null;
-
-  const closeRow = () => {
-    if (!open) return;
-    const { groups } = open;
-    const first = groups[0]?.entries[0]?.id;
-    if (groups.some((g) => g.series)) {
-      rows.push({ kind: 'blocks', key: `blocks-${first}`, groups });
-    } else {
-      const photos = groups.flatMap((g) => g.entries);
-      rows.push({
-        kind: 'tiles',
-        key: `tiles-${first}`,
-        entries: photos,
-        inSeries: false,
-        seriesEnd: false,
-      });
-    }
-    open = null;
-  };
-
-  const placeSeries = (members: TimelineEntry[]) => {
-    const needed = blockWidth(members.length);
-    if (open && open.used + BLOCK_GAP + needed <= width) {
-      open.groups.push({ entries: members, series: true });
-      open.used += BLOCK_GAP + needed;
-      return;
-    }
-    closeRow();
-    open = { groups: [{ entries: members, series: true }], used: needed };
-  };
-
-  const placeSingle = (photo: TimelineEntry) => {
-    const last = open?.groups[open.groups.length - 1];
-    // Next to other single photos a tile costs one column; after a block it
-    // starts its own group, with its own padding.
-    const needed = last && !last.series ? TILE_WIDTH + TILE_GAP : BLOCK_GAP + blockWidth(1);
-    if (open && last && open.used + needed <= width) {
-      if (last.series) open.groups.push({ entries: [photo], series: false });
-      else last.entries.push(photo);
-      open.used += needed;
-      return;
-    }
-    closeRow();
-    open = { groups: [{ entries: [photo], series: false }], used: blockWidth(1) };
-  };
-
-  const pushTiles = (photos: TimelineEntry[], inSeries: boolean) => {
-    for (let start = 0; start < photos.length; start += columns) {
-      const chunk = photos.slice(start, start + columns);
-      rows.push({
-        kind: 'tiles',
-        key: `tiles-${chunk[0]?.id ?? start}`,
-        entries: chunk,
-        inSeries,
-        seriesEnd: inSeries && start + columns >= photos.length,
-      });
-    }
-  };
-  const enterDay = (entry: TimelineEntry) => {
-    const date = dayOf(entry);
-    if (date === currentDay) return;
-    closeRow();
-    rows.push({ kind: 'day', key: `day-${date}`, date });
-    currentDay = date;
-  };
-
+  const builder = new RowBuilder(columns, width);
   let i = 0;
   while (i < entries.length) {
     const entry = entries[i] as TimelineEntry;
     const s = seriesAt.get(i);
     if (s) {
-      enterDay(entry);
-      const members = entries.slice(i, i + s.len);
-      if (members.length <= columns) {
-        placeSeries(members);
-      } else {
-        closeRow();
-        rows.push({ kind: 'series', key: `series-${entry.id}`, entries: members });
-        pushTiles(members, true);
-      }
+      builder.addSeries(entries.slice(i, i + s.len));
       i += s.len;
     } else {
-      if (mode === 'all') {
-        enterDay(entry);
-        placeSingle(entry);
-      }
+      if (mode === 'all') builder.addSingle(entry);
       i++;
     }
   }
-  closeRow();
-  return rows;
+  return builder.finish();
+}
+
+/** Collects the rows of {@link buildRows}, filling one open row at a time. */
+class RowBuilder {
+  private readonly rows: TimelineRow[] = [];
+  private currentDay: string | null = null;
+  /** The row being filled and its used width, until it is closed. */
+  private open: { groups: RowGroup[]; used: number } | null = null;
+
+  private readonly columns: number;
+  private readonly width: number;
+
+  constructor(columns: number, width: number) {
+    this.columns = columns;
+    this.width = width;
+  }
+
+  /** Adds a series: a block in the open row if it fits on one row, else its own rows. */
+  addSeries(members: TimelineEntry[]): void {
+    const first = members[0];
+    if (!first) return;
+    this.enterDay(first);
+    if (members.length <= this.columns) {
+      this.placeBlock(members);
+      return;
+    }
+    this.closeRow();
+    this.rows.push({ kind: 'series', key: `series-${first.id}`, entries: members });
+    this.pushSeriesTiles(members);
+  }
+
+  /** Adds a photo outside any series. */
+  addSingle(photo: TimelineEntry): void {
+    this.enterDay(photo);
+    const last = this.open?.groups.at(-1);
+    // Next to other single photos a tile costs one column; after a block it
+    // starts its own group, with its own padding.
+    const needed = last && !last.series ? TILE_WIDTH + TILE_GAP : BLOCK_GAP + blockWidth(1);
+    if (!this.open || !last || this.open.used + needed > this.width) {
+      this.closeRow();
+      this.open = { groups: [{ entries: [photo], series: false }], used: blockWidth(1) };
+      return;
+    }
+    if (last.series) this.open.groups.push({ entries: [photo], series: false });
+    else last.entries.push(photo);
+    this.open.used += needed;
+  }
+
+  /** Closes the open row and returns all rows. */
+  finish(): TimelineRow[] {
+    this.closeRow();
+    return this.rows;
+  }
+
+  private placeBlock(members: TimelineEntry[]): void {
+    const needed = blockWidth(members.length);
+    const group = { entries: members, series: true };
+    if (this.open && this.open.used + BLOCK_GAP + needed <= this.width) {
+      this.open.groups.push(group);
+      this.open.used += BLOCK_GAP + needed;
+      return;
+    }
+    this.closeRow();
+    this.open = { groups: [group], used: needed };
+  }
+
+  private pushSeriesTiles(photos: TimelineEntry[]): void {
+    for (let start = 0; start < photos.length; start += this.columns) {
+      const chunk = photos.slice(start, start + this.columns);
+      this.rows.push({
+        kind: 'tiles',
+        key: `tiles-${chunk[0]?.id ?? start}`,
+        entries: chunk,
+        inSeries: true,
+        seriesEnd: start + this.columns >= photos.length,
+      });
+    }
+  }
+
+  private enterDay(entry: TimelineEntry): void {
+    const date = dayOf(entry);
+    if (date === this.currentDay) return;
+    this.closeRow();
+    this.rows.push({ kind: 'day', key: `day-${date}`, date });
+    this.currentDay = date;
+  }
+
+  private closeRow(): void {
+    if (!this.open) return;
+    const { groups } = this.open;
+    const key = groups[0]?.entries[0]?.id;
+    if (groups.some((g) => g.series)) {
+      this.rows.push({ kind: 'blocks', key: `blocks-${key}`, groups });
+    } else {
+      const entries = groups.flatMap((g) => g.entries);
+      this.rows.push({
+        kind: 'tiles',
+        key: `tiles-${key}`,
+        entries,
+        inSeries: false,
+        seriesEnd: false,
+      });
+    }
+    this.open = null;
+  }
 }
 
 /** Height in pixels of a row. */
@@ -221,30 +246,30 @@ export function anchoredScrollTop(
 ): number {
   if (scrollTop <= 0) return 0;
 
-  // Top of each photo's tile in the new layout.
-  const newTops = new Map<number, number>();
+  const newTops = tileTops(newRows);
   let start = 0;
-  for (const row of newRows) {
-    const { entries, offset } = tilesOf(row);
-    for (const entry of entries) newTops.set(entry.id, start + offset);
-    start += rowHeight(row);
-  }
-  const newTotal = start;
-
-  start = 0;
   for (const row of oldRows) {
     const { entries, offset } = tilesOf(row);
     const top = start + offset;
+    start += rowHeight(row);
     // Only the tiles count as visible, not a header or the space below them.
-    if (entries.length > 0 && top + TILE_ROW_HEIGHT - TILE_GAP > scrollTop) {
-      for (const entry of entries) {
-        const newTop = newTops.get(entry.id);
-        if (newTop !== undefined) return Math.max(0, newTop - (top - scrollTop));
-      }
-    }
+    if (entries.length === 0 || top + TILE_ROW_HEIGHT - TILE_GAP <= scrollTop) continue;
+    const newTop = entries.map((entry) => newTops.get(entry.id)).find((t) => t !== undefined);
+    if (newTop !== undefined) return Math.max(0, newTop - (top - scrollTop));
+  }
+  return totalHeight(newRows);
+}
+
+/** Top of each photo's tile, by photo id. */
+function tileTops(rows: readonly TimelineRow[]): Map<number, number> {
+  const tops = new Map<number, number>();
+  let start = 0;
+  for (const row of rows) {
+    const { entries, offset } = tilesOf(row);
+    for (const entry of entries) tops.set(entry.id, start + offset);
     start += rowHeight(row);
   }
-  return newTotal;
+  return tops;
 }
 
 /**

@@ -56,32 +56,12 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-/** Full-size photo with previous/next navigation and the thumbnails of its series. */
-export function PhotoViewer({
-  entries,
-  series,
-  mode,
-  scanId,
-  position,
-  onShow,
-  onClose,
-  onReject,
-  canUndo,
-  onUndo,
-}: PhotoViewerProps) {
-  const { t } = useTranslation();
-  const entry = entries[position];
-  const order = useMemo(
-    () => navigationOrder(entries.length, series, mode),
-    [entries.length, series, mode],
-  );
-  const { previous, next } = neighbours(order, position);
-  const strip = seriesOf(series, position);
-
-  useEffect(() => {
-    if (entry) void setWindowTitle(`${entry.name} – Sito`);
-  }, [entry]);
-
+/** Arrow keys step, Escape closes, Delete rejects. */
+function useViewerKeys(
+  previous: number | null,
+  next: number | null,
+  { onShow, onClose, onReject }: Pick<PhotoViewerProps, 'onShow' | 'onClose' | 'onReject'>,
+): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'ArrowLeft' && previous !== null) onShow(previous);
@@ -94,85 +74,160 @@ export function PhotoViewer({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [previous, next, onShow, onClose, onReject]);
+}
 
-  // Fetch the neighbours ahead of time, so stepping to them is instant.
+/** Fetches the photos `nextId` and `previousId` ahead of time, so stepping to them is instant. */
+function usePreload(scanId: number, nextId: number | undefined, previousId: number | undefined) {
   useEffect(() => {
-    for (const neighbour of [next, previous]) {
-      const id = neighbour === null ? undefined : entries[neighbour]?.id;
+    for (const id of [nextId, previousId]) {
       if (id !== undefined) new Image().src = photoUrl(scanId, id);
     }
-  }, [next, previous, entries, scanId]);
+  }, [scanId, nextId, previousId]);
+}
+
+/** Name, date and folder of the photo, with the reject, undo and close buttons. */
+function ViewerBar({
+  entry,
+  onReject,
+  canUndo,
+  onUndo,
+  onClose,
+}: { entry: TimelineEntry } & Pick<
+  PhotoViewerProps,
+  'onReject' | 'canUndo' | 'onUndo' | 'onClose'
+>) {
+  const { t } = useTranslation();
+  return (
+    <header className="viewer-bar">
+      <p className="viewer-info">
+        <span className="viewer-name">{entry.name}</span>
+        <span>
+          {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
+        </span>
+        <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
+      </p>
+      <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
+        {t('reject.button')}
+      </button>
+      <button
+        type="button"
+        className="viewer-close"
+        title={t('undo.hint')}
+        disabled={!canUndo}
+        onClick={onUndo}
+      >
+        {t('undo.button')}
+      </button>
+      <button type="button" className="viewer-close" onClick={onClose}>
+        {t('viewer.close')}
+      </button>
+    </header>
+  );
+}
+
+/** A previous/next button stepping to `target`, disabled when there is none. */
+function StepButton({
+  target,
+  label,
+  symbol,
+  onShow,
+}: {
+  target: number | null;
+  label: string;
+  symbol: string;
+  onShow: (position: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="viewer-step"
+      aria-label={label}
+      disabled={target === null}
+      onClick={() => target !== null && onShow(target)}
+    >
+      {symbol}
+    </button>
+  );
+}
+
+/** Thumbnails of the series of the photo shown, the current one marked. */
+function SeriesStrip({
+  entries,
+  strip,
+  scanId,
+  position,
+  onShow,
+}: {
+  entries: readonly TimelineEntry[];
+  strip: Series;
+  scanId: number;
+  position: number;
+  onShow: (position: number) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <nav className="viewer-strip" aria-label={t('viewer.series')}>
+      {entries.slice(strip.start, strip.start + strip.len).map((member, i) => {
+        const memberPosition = strip.start + i;
+        const current = memberPosition === position;
+        return (
+          <button
+            key={member.id}
+            type="button"
+            className={`viewer-strip-item${current ? ' viewer-strip-item--current' : ''}`}
+            aria-label={member.name}
+            aria-current={current ? 'true' : undefined}
+            onClick={() => onShow(memberPosition)}
+          >
+            <img src={thumbnailUrl(scanId, member.id)} alt="" />
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** The id of the photo at `position`, if there is one. */
+function idAt(entries: readonly TimelineEntry[], position: number | null): number | undefined {
+  return position === null ? undefined : entries[position]?.id;
+}
+
+/** Full-size photo with previous/next navigation and the thumbnails of its series. */
+export function PhotoViewer(props: PhotoViewerProps) {
+  const { entries, series, mode, scanId, position, onShow } = props;
+  const { t } = useTranslation();
+  const entry = entries[position];
+  const order = useMemo(
+    () => navigationOrder(entries.length, series, mode),
+    [entries.length, series, mode],
+  );
+  const { previous, next } = neighbours(order, position);
+  const strip = seriesOf(series, position);
+
+  useEffect(() => {
+    if (entry) void setWindowTitle(`${entry.name} – Sito`);
+  }, [entry]);
+  useViewerKeys(previous, next, props);
+  usePreload(scanId, idAt(entries, next), idAt(entries, previous));
 
   if (!entry) return null;
 
   return (
     <main className="viewer">
-      <header className="viewer-bar">
-        <p className="viewer-info">
-          <span className="viewer-name">{entry.name}</span>
-          <span>
-            {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
-          </span>
-          <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
-        </p>
-        <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
-          {t('reject.button')}
-        </button>
-        <button
-          type="button"
-          className="viewer-close"
-          title={t('undo.hint')}
-          disabled={!canUndo}
-          onClick={onUndo}
-        >
-          {t('undo.button')}
-        </button>
-        <button type="button" className="viewer-close" onClick={onClose}>
-          {t('viewer.close')}
-        </button>
-      </header>
-
+      <ViewerBar entry={entry} {...props} />
       <div className="viewer-stage">
-        <button
-          type="button"
-          className="viewer-step"
-          aria-label={t('viewer.previous')}
-          disabled={previous === null}
-          onClick={() => previous !== null && onShow(previous)}
-        >
-          ‹
-        </button>
+        <StepButton target={previous} label={t('viewer.previous')} symbol="‹" onShow={onShow} />
         <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
-        <button
-          type="button"
-          className="viewer-step"
-          aria-label={t('viewer.next')}
-          disabled={next === null}
-          onClick={() => next !== null && onShow(next)}
-        >
-          ›
-        </button>
+        <StepButton target={next} label={t('viewer.next')} symbol="›" onShow={onShow} />
       </div>
-
       {strip && (
-        <nav className="viewer-strip" aria-label={t('viewer.series')}>
-          {entries.slice(strip.start, strip.start + strip.len).map((member, i) => {
-            const memberPosition = strip.start + i;
-            const current = memberPosition === position;
-            return (
-              <button
-                key={member.id}
-                type="button"
-                className={`viewer-strip-item${current ? ' viewer-strip-item--current' : ''}`}
-                aria-label={member.name}
-                aria-current={current ? 'true' : undefined}
-                onClick={() => onShow(memberPosition)}
-              >
-                <img src={thumbnailUrl(scanId, member.id)} alt="" />
-              </button>
-            );
-          })}
-        </nav>
+        <SeriesStrip
+          entries={entries}
+          strip={strip}
+          scanId={scanId}
+          position={position}
+          onShow={onShow}
+        />
       )}
     </main>
   );

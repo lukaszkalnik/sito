@@ -23,6 +23,78 @@ interface TimelineTileProps {
   highlighted?: boolean;
 }
 
+/**
+ * Load status of the thumbnail at `src`, and the handlers that update it. A
+ * thumbnail seen before is cached by the webview, so it counts as loaded (and
+ * `instant`) at once.
+ */
+function useThumbnailStatus(src: string) {
+  // Remembers which URL the status belongs to, so a reused tile starts fresh.
+  const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
+  const instant = wasLoaded(src);
+  const status: ThumbnailStatus =
+    result?.src === src ? result.status : instant ? 'loaded' : 'loading';
+  const onLoad = () => {
+    rememberLoaded(src);
+    setResult({ src, status: 'loaded' });
+  };
+  const onError = () => setResult({ src, status: 'error' });
+  return { status, instant, onLoad, onError };
+}
+
+/** Icon shown in place of a thumbnail that could not be loaded. */
+function BrokenThumbnail() {
+  const { t } = useTranslation();
+  return (
+    <svg
+      className="timeline-tile-broken"
+      role="img"
+      aria-label={t('timeline.thumbnailError')}
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+    >
+      <title>{t('timeline.thumbnailError')}</title>
+      <path
+        d="M4 5h16v14H4zM4 15l5-5 4 4 2-2 5 5M3 3l18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Capture time, file name and (optionally) folder below a thumbnail. */
+function TileCaption({ entry, showFolder }: { entry: TimelineEntry; showFolder: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <span className="timeline-tile-caption">
+      <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
+      <span className="timeline-tile-name">{entry.name}</span>
+      {showFolder && (
+        <span className="timeline-tile-folder" data-testid="timeline-tile-folder">
+          <bdi>{entry.relativeDir || t('timeline.rootFolder')}</bdi>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** The CSS classes of a tile. */
+function tileClass(status: ThumbnailStatus, instant: boolean, highlighted: boolean): string {
+  return [
+    'timeline-tile',
+    `timeline-tile--${status}`,
+    instant && 'timeline-tile--instant',
+    highlighted && 'timeline-tile--highlighted',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 /** One photo on the timeline: its thumbnail with capture time, file name and folder. */
 export function TimelineTile({
   entry,
@@ -34,61 +106,26 @@ export function TimelineTile({
   const { t } = useTranslation();
   const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
   const src = thumbnailUrl(scanId, entry.id);
-  // Remembers which URL the status belongs to, so a reused tile starts fresh.
-  const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
-  // A thumbnail seen before is cached by the webview: show it at once, unfaded.
-  const seenBefore = wasLoaded(src);
-  const status = result?.src === src ? result.status : seenBefore ? 'loaded' : 'loading';
-  const showThumbnail = delayPassed || seenBefore;
+  const { status, instant, onLoad, onError } = useThumbnailStatus(src);
 
   return (
     <li
-      className={`timeline-tile timeline-tile--${status}${seenBefore ? ' timeline-tile--instant' : ''}${highlighted ? ' timeline-tile--highlighted' : ''}`}
+      className={tileClass(status, instant, highlighted)}
       title={entry.relativePath}
       data-testid="timeline-tile"
     >
-      {showThumbnail && status !== 'error' && (
+      {(delayPassed || instant) && status !== 'error' && (
         <img
           className="timeline-tile-image"
           src={src}
           alt=""
-          decoding={seenBefore ? 'sync' : 'async'}
-          onLoad={() => {
-            rememberLoaded(src);
-            setResult({ src, status: 'loaded' });
-          }}
-          onError={() => setResult({ src, status: 'error' })}
+          decoding={instant ? 'sync' : 'async'}
+          onLoad={onLoad}
+          onError={onError}
         />
       )}
-      {status === 'error' && (
-        <svg
-          className="timeline-tile-broken"
-          role="img"
-          aria-label={t('timeline.thumbnailError')}
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-        >
-          <title>{t('timeline.thumbnailError')}</title>
-          <path
-            d="M4 5h16v14H4zM4 15l5-5 4 4 2-2 5 5M3 3l18 18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-      <span className="timeline-tile-caption">
-        <span className="timeline-tile-time">{timeOf(entry.takenAt)}</span>
-        <span className="timeline-tile-name">{entry.name}</span>
-        {showFolder && (
-          <span className="timeline-tile-folder" data-testid="timeline-tile-folder">
-            <bdi>{entry.relativeDir || t('timeline.rootFolder')}</bdi>
-          </span>
-        )}
-      </span>
+      {status === 'error' && <BrokenThumbnail />}
+      <TileCaption entry={entry} showFolder={showFolder} />
       {entry.fromFileDate && (
         <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
           {t('timeline.fileDate')}
