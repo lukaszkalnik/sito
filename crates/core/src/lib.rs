@@ -11,5 +11,6 @@ pub mod photo_cache;
 pub mod reject;
 pub mod scan;
 pub mod series;
+pub mod takeout;
 pub mod thumbnail;
 pub mod timeline;

@@ -2,12 +2,26 @@
 
 use std::path::Path;
 
-use chrono::{Datelike, FixedOffset, NaiveDateTime};
+use chrono::{Datelike, FixedOffset, NaiveDateTime, NaiveTime};
 use nom_exif::{EntryValue, Exif, ExifDateTime, ExifTag};
 
 /// Earliest year accepted as a real capture time; older values are treated
 /// as broken (cameras with an unset clock write e.g. `0000:00:00` or 1970).
 const MIN_PLAUSIBLE_YEAR: i32 = 1990;
+
+/// How far a capture time may lie after "now" (clocks of camera and computer
+/// differ a little); later times are camera clock errors.
+const MAX_FUTURE: chrono::TimeDelta = chrono::TimeDelta::days(1);
+
+/// Whether `time` can be a real capture time at `now`.
+///
+/// Not plausible: years before 1990, exactly January 1 at 00:00:00 (what
+/// cameras with a reset clock write) and times more than a day after `now`.
+#[must_use]
+pub fn is_plausible_capture_time(time: NaiveDateTime, now: NaiveDateTime) -> bool {
+    let reset_clock = time.month() == 1 && time.day() == 1 && time.time() == NaiveTime::MIN;
+    time.year() >= MIN_PLAUSIBLE_YEAR && !reset_clock && time <= now + MAX_FUTURE
+}
 
 /// When a photo was taken, as recorded by the camera.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -134,6 +148,20 @@ mod tests {
     use chrono::NaiveDate;
 
     use super::*;
+
+    #[test]
+    fn plausible_capture_times() {
+        let now = NaiveDate::from_ymd_opt(2026, 10, 28)
+            .and_then(|d| d.and_hms_opt(12, 0, 0))
+            .unwrap();
+        let at = |text: &str| NaiveDateTime::parse_from_str(text, "%Y-%m-%d %H:%M:%S").unwrap();
+        assert!(is_plausible_capture_time(at("2024-06-01 12:00:05"), now));
+        assert!(is_plausible_capture_time(at("2025-01-01 00:00:01"), now));
+        assert!(is_plausible_capture_time(at("2026-10-29 11:00:00"), now));
+        assert!(!is_plausible_capture_time(at("1989-12-31 23:59:59"), now));
+        assert!(!is_plausible_capture_time(at("2000-01-01 00:00:00"), now));
+        assert!(!is_plausible_capture_time(at("2026-10-29 12:00:01"), now));
+    }
 
     fn fixture(name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
