@@ -2,7 +2,7 @@
 
 > "Sito" is Polish for *sieve*: the app sifts through photo series and keeps the best shot.
 
-Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. The domain (what a series is, how photos are grouped, analysed and scored) is described in [docs/DOMAIN.md](docs/DOMAIN.md).
+Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. Domain knowledge is in [docs/domain/](docs/domain/README.md) (see [Domain knowledge](#domain-knowledge)).
 
 Platforms: developed on Windows, macOS later.
 
@@ -150,9 +150,10 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 ## Tech stack
 
-- **Tauri** (Rust backend + web frontend)
-- **Frontend:** React + TypeScript (Vite)
-- **Rust crates:** `walkdir` (scanning), `nom-exif` (EXIF), `image` (decoding), `rayon` (parallelism), `ort` (ONNX Runtime; DirectML on Windows, CoreML on macOS, CPU fallback), `rusqlite` (cache)
+- **App shell:** Tauri 2 (Rust backend, system webview). Plugins: `dialog` (folder picker), `window-state` (window size and position), `log` (debug builds only).
+- **Rust** (Cargo workspace: `crates/core` = `sito-core`, `src-tauri` = `sito`): `walkdir` (folder walk), `nom-exif` (EXIF), `image` + `jpeg-decoder` (decoding, downscaled JPEG decode for thumbnails), `blake3` (thumbnail cache keys), `chrono` (capture times), `rayon` (parallel reading), `rusqlite` with bundled SQLite (photo cache, action log), `thiserror` (error types), `serde` (IPC payloads). Planned: `ort` (ONNX Runtime; DirectML on Windows, CoreML on macOS, CPU fallback).
+- **Frontend** (npm workspace `ui`): React 19, strict TypeScript, Vite, `i18next` + `react-i18next` (translations), `@tanstack/react-virtual` (virtualized timeline), `@tauri-apps/api` (IPC).
+- **Tooling:** rustfmt, clippy (pedantic), oxlint, Prettier, Vitest + Testing Library + jsdom (unit tests), Playwright (e2e).
 
 ## Repository layout
 
@@ -166,7 +167,7 @@ sito/
 ├─ ui/                # React + TypeScript
 │  ├─ src/i18n/pl.json
 │  └─ e2e/            # Playwright tests
-├─ docs/DOMAIN.md     # domain and pipeline
+├─ docs/domain/       # domain knowledge, one file per topic
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
 ├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ docs/RELEASING.md  # how to build, release and install
@@ -177,11 +178,19 @@ sito/
 
 ## Architecture
 
-- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. The stages and their algorithms are in [docs/DOMAIN.md](docs/DOMAIN.md).
+- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. What each stage does is domain knowledge (see below).
 - Image work decodes downscaled as early as possible and always respects the EXIF orientation.
 - Derived data (metadata, embeddings, scores) is cached in SQLite keyed by file identity (path + size + mtime), so a rescan only processes new or changed files.
 - Tunable values (thresholds, score weights) are settings, not constants scattered in code.
 - **ML models** are not committed to the repo. They are downloaded on first launch and verified by checksum; check a model's license before adding it.
+
+## Domain knowledge
+
+Domain knowledge (what a series is, how photos are grouped, analysed, scored and rejected) lives in `docs/domain/`, one file per topic, indexed in [docs/domain/README.md](docs/domain/README.md). It is not in this file because it grows with the app and only part of it matters for a given task:
+
+- Before planning or changing behaviour, read the index and the topic files the work touches.
+- When a slice adds or changes domain behaviour, update the topic file (or add one and list it in the index) in the same commit.
+- Keep technical rules here and domain facts there; slices link to the topic files instead of repeating them.
 
 ## CI (GitHub Actions)
 
