@@ -5,4 +5,5 @@ export const FORMAT_BADGES: Readonly<Record<PhotoFormat, string | null>> = {
   jpeg: null,
   raw: 'format.raw',
   rawJpeg: 'format.rawJpeg',
+  tiff: 'format.tiff',
 };

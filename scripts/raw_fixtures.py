@@ -330,3 +330,30 @@ def write_all(folder: Path) -> list[Path]:
         path.write_bytes(content)
         written.append(path)
     return written
+
+
+def tiff_scan(width: int = 40, height: int = 30) -> bytes:
+    """An uncompressed 8-bit RGB TIFF with `DateTimeOriginal` in its Exif IFD,
+    orientation 6 and a scanner as camera (Pillow writes no Exif IFD)."""
+    pixels = bytes([200, 120, 40]) * (width * height)
+    return build(
+        "II",
+        tiff_header("II", b"*\0"),
+        {
+            "ifd0": [
+                (0x0100, SHORT, width),
+                (0x0101, SHORT, height),
+                (0x0102, SHORT, [8, 8, 8]),
+                (0x0103, SHORT, 1),
+                (0x0106, SHORT, 2),
+                (0x0111, LONG, BlobRef("pixels")),
+                (0x0115, SHORT, 3),
+                (0x0116, SHORT, height),
+                (0x0117, LONG, BlobLen("pixels")),
+                *camera("EPSON", "Perfection V600", 6),
+                (0x8769, LONG, IfdRef("_exif")),
+            ],
+            "_exif": [(0x9003, ASCII, "2024:06:12 09:00:00")],
+        },
+        {"pixels": pixels},
+    )

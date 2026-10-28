@@ -14,7 +14,7 @@ use image::{DynamicImage, ImageError};
 pub use crate::decode::ImageSource;
 use crate::decode::{DecodeError, decode_image, decode_photo};
 use crate::metadata::Orientation;
-use crate::raw::RawError;
+use crate::raw::{RawError, with_orientation};
 use crate::timeline::Photo;
 
 /// Default longest edge of a thumbnail in pixels: covers a 160×120 tile on a
@@ -23,6 +23,12 @@ pub const DEFAULT_MAX_EDGE: u32 = 400;
 
 /// JPEG quality of thumbnails (1–100).
 const JPEG_QUALITY: u8 = 80;
+
+/// JPEG quality of full-size display images (1–100).
+const DISPLAY_JPEG_QUALITY: u8 = 90;
+
+/// The size marker in the cache key of a full-size display image.
+const FULL_SIZE: u32 = u32::MAX;
 
 /// Part of every cache key. Bump it when thumbnails are rendered differently,
 /// so old cache files are no longer used.
@@ -56,13 +62,23 @@ impl ThumbnailCache {
     /// over 256 subfolders so none of them grows huge.
     #[must_use]
     pub fn path_for(&self, photo: &Photo) -> PathBuf {
+        self.key_path(photo, self.max_edge)
+    }
+
+    /// Where the full-size display image of `photo` is (or will be) stored.
+    #[must_use]
+    pub fn display_path_for(&self, photo: &Photo) -> PathBuf {
+        self.key_path(photo, FULL_SIZE)
+    }
+
+    fn key_path(&self, photo: &Photo, edge: u32) -> PathBuf {
         let modified_nanos = photo
             .modified
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map_or(0, |d| d.as_nanos());
         let mut hasher = blake3::Hasher::new();
         hasher.update(&FORMAT_VERSION.to_le_bytes());
-        hasher.update(&self.max_edge.to_le_bytes());
+        hasher.update(&edge.to_le_bytes());
         hasher.update(&photo.size.to_le_bytes());
         hasher.update(&modified_nanos.to_le_bytes());
         hasher.update(photo.path.as_os_str().as_encoded_bytes());
@@ -92,6 +108,37 @@ impl ThumbnailCache {
         Ok(bytes)
     }
 
+    /// Returns the full-size JPEG of `photo` for viewing, converting and
+    /// storing it first if needed: for photos a browser cannot show (TIFF).
+    /// It carries the photo's orientation, so the viewer turns it upright.
+    /// It lives next to the thumbnails and counts in the same size limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ThumbnailError`] if the cached file cannot be read or the
+    /// photo cannot be decoded or encoded.
+    pub fn display_jpeg_for(&self, photo: &Photo) -> Result<Vec<u8>, ThumbnailError> {
+        let path = self.display_path_for(photo);
+        match fs::read(&path) {
+            Ok(bytes) => return Ok(bytes),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+            Err(source) => return Err(ThumbnailError::Io { path, source }),
+        }
+
+        let image = decode_photo(&photo.path, None)?;
+        let mut bytes = Vec::new();
+        JpegEncoder::new_with_quality(Cursor::new(&mut bytes), DISPLAY_JPEG_QUALITY)
+            .encode_image(&image.into_rgb8())
+            .map_err(|source| ThumbnailError::Encode {
+                path: photo.path.clone(),
+                source,
+            })?;
+        let bytes = with_orientation(bytes, photo.orientation);
+        // Best effort, like thumbnails.
+        let _ = store_atomically(&path, &bytes);
+        Ok(bytes)
+    }
+
     /// Removes thumbnails no photo in `needed` uses any more (of photos that
     /// were edited, moved or deleted), then, while the cache is larger than
     /// `max_bytes`, the oldest ones. Only files named like cached thumbnails
@@ -102,7 +149,10 @@ impl ThumbnailCache {
     /// Returns an error if the cache folder cannot be listed. Files that
     /// cannot be removed are skipped.
     pub fn clean(&self, needed: &[Photo], max_bytes: u64) -> io::Result<CleanReport> {
-        let needed: HashSet<PathBuf> = needed.iter().map(|photo| self.path_for(photo)).collect();
+        let needed: HashSet<PathBuf> = needed
+            .iter()
+            .flat_map(|photo| [self.path_for(photo), self.display_path_for(photo)])
+            .collect();
         let mut report = CleanReport::default();
         let mut kept = Vec::new();
         let subfolders = match fs::read_dir(&self.dir) {

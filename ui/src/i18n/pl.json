@@ -39,7 +39,8 @@
   },
   "format": {
     "raw": "RAW",
-    "rawJpeg": "RAW+JPEG"
+    "rawJpeg": "RAW+JPEG",
+    "tiff": "TIFF"
   },
   "view": {
     "label": "Widok",

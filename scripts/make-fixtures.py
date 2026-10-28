@@ -150,7 +150,41 @@ def raw() -> None:
         print(f"wrote {path.relative_to(FIXTURES.parent)}")
 
 
+def tiff() -> None:
+    """Small TIFFs (scans): dates, orientation, bit depths, pages, a broken one."""
+    folder = FIXTURES / "tiff"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    def save(name: str, image: Image.Image, **options: object) -> Path:
+        path = folder / name
+        image.save(path, "TIFF", **options)
+        print(f"wrote {path.relative_to(FIXTURES.parent)}")
+        return path
+
+    rgb = folder / "rgb8_orientation-6.tif"
+    rgb.write_bytes(raw_fixtures.tiff_scan())
+    print(f"wrote {rgb.relative_to(FIXTURES.parent)}")
+
+    dated = Image.new("L", (40, 30), 128)
+    dated_exif = dated.getexif()
+    dated_exif[0x0132] = "2024:06:13 10:00:00"
+    save("gray8_datetime-only.tif", dated, exif=dated_exif)
+    save("gray16.tif", Image.new("I;16", (40, 30), 30000))
+    save("cmyk.tif", Image.new("CMYK", (40, 30), (0, 128, 255, 0)))
+    save("no-date.tif", Image.new("RGB", (40, 30), (60, 60, 200)))
+    save(
+        "two-pages.tif",
+        Image.new("RGB", (40, 30), (255, 0, 0)),
+        save_all=True,
+        append_images=[Image.new("RGB", (60, 20), (0, 0, 255))],
+    )
+    broken = folder / "broken.tif"
+    broken.write_bytes(rgb.read_bytes()[:60])
+    print(f"wrote {broken.relative_to(FIXTURES.parent)}")
+
+
 if __name__ == "__main__":
     main()
     takeout()
     raw()
+    tiff()

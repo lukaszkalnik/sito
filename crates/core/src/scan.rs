@@ -119,6 +119,8 @@ pub enum PhotoKind {
     Jpeg,
     /// A camera RAW file.
     Raw(RawFormat),
+    /// A TIFF image (`.tif`, `.tiff`), e.g. a scan.
+    Tiff,
 }
 
 /// The kind of the photo at `path`, by its extension (any letter case), or
@@ -129,11 +131,14 @@ pub fn photo_kind(path: &Path) -> Option<PhotoKind> {
     if ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg") {
         return Some(PhotoKind::Jpeg);
     }
+    if ext.eq_ignore_ascii_case("tif") || ext.eq_ignore_ascii_case("tiff") {
+        return Some(PhotoKind::Tiff);
+    }
     RawFormat::from_path(path).map(PhotoKind::Raw)
 }
 
 /// Returns `true` if the path has the extension of a photo Sito reads
-/// (JPEG or a RAW format, any letter case).
+/// (JPEG, a RAW format or TIFF, any letter case).
 #[must_use]
 pub fn is_photo(path: &Path) -> bool {
     photo_kind(path).is_some()
@@ -409,6 +414,13 @@ mod tests {
                 matches!(photo_kind(Path::new(name)), Some(PhotoKind::Raw(_))),
                 "{name} should be a RAW photo"
             );
+        }
+    }
+
+    #[test]
+    fn recognizes_tiff_extensions() {
+        for name in ["scan.tif", "SCAN.TIFF", "a.Tif"] {
+            assert_eq!(photo_kind(Path::new(name)), Some(PhotoKind::Tiff), "{name}");
         }
     }
 

@@ -7,6 +7,7 @@ use nom_exif::{EntryValue, Exif, ExifDateTime, ExifTag};
 
 use crate::raw::read_raw_metadata;
 use crate::scan::{PhotoKind, photo_kind};
+use crate::tiff::read_tiff_metadata;
 
 /// Earliest year accepted as a real capture time; older values are treated
 /// as broken (cameras with an unset clock write e.g. `0000:00:00` or 1970).
@@ -86,6 +87,7 @@ pub struct PhotoMetadata {
 pub fn read_photo_metadata(path: &Path) -> PhotoMetadata {
     match photo_kind(path) {
         Some(PhotoKind::Raw(format)) => read_raw_metadata(path, format),
+        Some(PhotoKind::Tiff) => read_tiff_metadata(path),
         Some(PhotoKind::Jpeg) | None => read_exif_metadata(path),
     }
 }

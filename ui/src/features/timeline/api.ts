@@ -16,7 +16,7 @@ export interface TimelineEntry {
 }
 
 /** What kind of files a photo has. Mirrors `PhotoFormatDto`. */
-export type PhotoFormat = 'jpeg' | 'raw' | 'rawJpeg';
+export type PhotoFormat = 'jpeg' | 'raw' | 'rawJpeg' | 'tiff';
 
 /** Where a photo's capture time comes from. Mirrors `TimeSourceDto`. */
 export type TimeSource = 'exif' | 'takeout' | 'takeoutCorrected' | 'file';

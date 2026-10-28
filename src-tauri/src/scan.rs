@@ -106,6 +106,8 @@ pub enum PhotoFormatDto {
     Raw,
     /// A JPEG with a RAW file of the same name (one shot, two files).
     RawJpeg,
+    /// A TIFF image.
+    Tiff,
 }
 
 impl PhotoFormatDto {
@@ -115,6 +117,7 @@ impl PhotoFormatDto {
         }
         match photo_kind(&photo.path) {
             Some(PhotoKind::Raw(_)) => Self::Raw,
+            Some(PhotoKind::Tiff) => Self::Tiff,
             Some(PhotoKind::Jpeg) | None => Self::Jpeg,
         }
     }
