@@ -11,6 +11,7 @@
     "lint": "npm run lint -w ui",
     "test": "npm run test -w ui",
     "e2e": "npm run e2e -w ui",
+    "showcase": "npm run showcase -w ui",
     "tauri": "tauri",
     "notices:rust": "cargo about generate --frozen --fail --workspace about.hbs -o ui/notices/rust-crates.txt"
   },

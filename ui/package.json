@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "showcase": "playwright test -c playwright.showcase.config.ts",
     "preview": "vite preview"
   },
   "dependencies": {
