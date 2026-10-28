@@ -1,6 +1,6 @@
 # Grouping
 
-## By time (built)
+## By time
 
 - Photos are sorted by capture time, newest first.
 - Two neighbouring photos belong to the same series when both have an EXIF capture time and were taken at most the **time gap** apart. A series has at least two photos.
@@ -8,6 +8,6 @@
 - Photos dated only by the file never join a series (see [Photos](photos.md#capture-time)); slice 20 explores series without an EXIF date.
 - Rejected photos still count when series are found, so a series keeps its shape after its weaker shots were rejected.
 
-## By content (planned, slice 19)
+## Not built yet
 
-A time series can mix different subjects (e.g. turning from a person to a view). It is then split where the image embeddings of neighbours differ (cosine similarity below a threshold the user can adjust). See [Analysis](analysis.md#embedding).
+Splitting time series by content: [slice 19](../slices/19-split-by-content.md).

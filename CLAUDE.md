@@ -2,7 +2,7 @@
 
 > "Sito" is Polish for *sieve*: the app sifts through photo series and keeps the best shot.
 
-Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. Domain knowledge is in [docs/domain/](docs/domain/README.md) (see [Domain knowledge](#domain-knowledge)).
+Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. Domain knowledge is in [docs/domain/](docs/domain/README.md) (see [Where knowledge lives](#where-knowledge-lives)).
 
 Platforms: developed on Windows, macOS later.
 
@@ -178,28 +178,25 @@ sito/
 
 ## Architecture
 
-- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. What each stage does is domain knowledge (see below).
+- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. What each stage does is domain knowledge (see [Where knowledge lives](#where-knowledge-lives)).
 - Image work decodes downscaled as early as possible and always respects the EXIF orientation.
 - Derived data (metadata, embeddings, scores) is cached in SQLite keyed by file identity (path + size + mtime), so a rescan only processes new or changed files.
 - Tunable values (thresholds, score weights) are settings, not constants scattered in code.
 - **ML models** are not committed to the repo. They are downloaded on first launch and verified by checksum; check a model's license before adding it.
-
-## Domain knowledge
-
-Domain knowledge (what a series is, how photos are grouped, analysed, scored and rejected) lives in `docs/domain/`, one file per topic, indexed in [docs/domain/README.md](docs/domain/README.md). It is not in this file because it grows with the app and only part of it matters for a given task:
-
-- Before planning or changing behaviour, read the index and the topic files the work touches.
-- When a slice adds or changes domain behaviour, update the topic file (or add one and list it in the index) in the same commit.
-- Keep technical rules here and domain facts there; slices link to the topic files instead of repeating them.
 
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
 - **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, open the viewer, uninstall; see `src-tauri/src/smoke.rs`) before the release is published. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
 
-## Roadmap
+## Where knowledge lives
 
-Features are described only in the roadmap, slice and idea files, never in this file. The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every slice has its own file from the moment it is added (`docs/slices/NN-name.md`, also drafts and work in progress; ideas in `docs/ideas/`); the roadmap is only a table of links to those files with each slice's status, never a description of a slice. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the roadmap's order decides what comes next. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
+Think of it as a team's tools: this file is the coding handbook, `docs/domain/` is the wiki (Confluence), `docs/slices/` are the tickets (Jira) and `docs/ROADMAP.md` is the board.
+
+- **`CLAUDE.md` (always loaded):** how to write code for this project: stack, layout, layers, rules and workflow. No domain knowledge and no feature descriptions.
+- **`docs/domain/` (read on demand):** what the app works on and how it behaves **today**, one file per topic, indexed in [docs/domain/README.md](docs/domain/README.md). Before planning or changing behaviour, read the index and the topic files the work touches.
+- **`docs/slices/NN-name.md` (tickets):** one file per planned change, from the moment it is added (also drafts; loose ideas go into `docs/ideas/`). A slice holds the idea, candidate approaches and the approved plan; it links to domain files instead of repeating them. Plan each slice in plan mode first and save the approved plan into its file. Once a slice is done its file is history: **move what it established into `docs/domain/`** in the same work, and do not keep the slice up to date afterwards.
+- **[docs/ROADMAP.md](docs/ROADMAP.md) (board):** only a table of links to the slices with each slice's status, never a description. Slices are small vertical slices, each testable in the running app. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the table's order decides what comes next. Keep the status in the roadmap and the slice file in sync.
 
 ## Commands
 
