@@ -1,36 +1,58 @@
 # Slice 11 – Showcase screenshots for the README
 
-**Status:** 📝 draft (concept; detailed plan when the slice starts)
+**Status:** 🚧 in progress
 
 ## Context
 
-The README has no picture of Sito, and the user's own photos can't be shown. A „glam shot” made from freely licensed stock photos shows at a glance what Sito does: series of similar shots, side by side, with the best one picked.
+The README has no picture of Sito, and the user's own photos can't be shown. This slice builds a small demo gallery from freely licensed stock photos and produces reproducible screenshots of the timeline and the viewer for the README.
 
-## Concept
+User decisions (2026-10-28):
+- **Screenshots from the mocked UI:** Playwright against the Vite dev server with mocked Tauri, like the e2e tests. Reproducible, no real app needed.
+- **Mixed series:** real multi-shot sequences where stock sites have them; otherwise variations of one photo (slight crop/shift, exposure change, a little blur).
+- **Polish UI** in the screenshots; retake after slice 22 adds English.
+- **Subjects:** family/party, dog or pet, landscape/sunset, city/travel.
 
-- **Demo gallery:** a small set of stock photos (a few dozen) under a license that allows use in a project's documentation without per-image fees.
-  - Candidates: Unsplash and Pexels licenses (free use, attribution optional), or CC0 / public-domain sources.
-  - The license terms are checked for each source and noted in the repo.
-  - Stock sites rarely have true bursts. Where real series of one moment aren't available, series are made from one photo: slight crops, small exposure changes, a little blur. That shows what Sito is for (similar shots, one best).
-- **Realistic dates:** a small script writes EXIF capture times (`DateTimeOriginal`) and camera names into the copies, so they form series and days like phone photos do.
-- **The script lives in `scripts/`,** e.g. `scripts/make-demo-gallery`, and builds the demo folder reproducibly from the downloaded originals. The originals and their source links are listed in `docs/images/demo-gallery/SOURCES.md`.
-- **The screenshots** are taken reproducibly with Playwright against the UI (mocked Tauri, like the e2e tests) or from the real app:
-  - **the timeline:** series blocks next to single photos
-  - **the viewer:** a series with its strip, one photo accepted, Odrzuć/Cofnij
-  - optionally both light and dark mode
-  - The images are optimised (WebP or PNG, small) and stored under `docs/images/`.
-- **README:** a hero image at the top, a short feature list with one or two more shots, and attribution of the photos as their licenses ask (or as a courtesy).
+Not in scope: a "best photo" highlight. Scoring arrives in slice 17+, so the viewer shot shows a series with one photo rejected (Odrzuć/Cofnij), not a suggestion.
 
-## Open questions
+## Implementation
 
-- Which subjects? E.g. a family party, a dog, a landscape at sunset: everyday moments with several shots each.
-- Synthetic series (variations of one photo), or only real sequences found on stock sites?
-- Screenshots from the mocked UI (fully reproducible) or from the real app (truest)?
-- English or Polish UI in the screenshots? The UI is Polish until slice 22 adds English.
+### 0. Docs
+- Save this plan into `docs/slices/11-readme-showcase.md`, status 🚧 there and in `docs/ROADMAP.md`. Commit `docs: add slice 11 plan`.
 
-## Verification (outline)
+### 1. Photo sources (`docs/images/demo-gallery/SOURCES.md`)
+- Pick about 15–25 originals across the four subjects from Unsplash and/or Pexels (check their current license terms first: free use, attribution optional, documentation use allowed; note the terms and the date checked in the file).
+- One row per original: id, subject, author, page URL, direct download URL, license.
+- Machine-readable twin `scripts/demo-gallery/sources.json` (same data plus the series recipe: which originals form one real sequence, which get synthetic variations and how many).
+- Commit `docs: list the demo gallery photo sources`.
 
-- `scripts/make-demo-gallery` rebuilds the demo folder from scratch.
-- Opening it in Sito shows the planned series.
-- The screenshot script produces the README images.
-- The README shows them, with the photo credits.
+### 2. Gallery builder (`scripts/make-demo-gallery.py`)
+- PEP 8, type hints, run with `uv run --with pillow --with piexif scripts/make-demo-gallery.py`, same style as `scripts/make-fixtures.py`.
+- Downloads originals into `demo/originals/` (cached; skipped if present), writes the gallery into `demo/gallery/` (both git-ignored, so no photos in the repo).
+- Downscales to ~1600 px long edge, writes synthetic variations deterministically (fixed parameters per variation, no randomness).
+- Writes EXIF `DateTimeOriginal`, `Make`/`Model` (e.g. Google Pixel 8, samsung SM-S911B) so photos form series seconds apart and several days, plus singles between series.
+- Also writes `demo/gallery/manifest.json`: the timeline entries in the shape of `TimelineEntry` (`ui/src/features/timeline/api.ts`): id, name, relativeDir, relativePath, takenAt, fromFileDate, newest first.
+- Add `/demo/` to `.gitignore`. Commit `chore: add a demo gallery builder for the README screenshots`.
+
+### 3. Screenshot script (`ui/showcase/`)
+- `ui/showcase/readme.spec.ts` with its own `ui/playwright.showcase.config.ts` (same webServer as `ui/playwright.config.ts`, `testDir: ./showcase`), so `npm run e2e` does not run it. Scripts: `"showcase": "playwright test -c playwright.showcase.config.ts"` in `ui/package.json` and `npm run showcase` at the root.
+- Reuses `mockTauri` from `ui/e2e/tauri-mock.ts` with `timeline: { entries }` from the manifest, `series: 'byGap'`, and a summary from the manifest count. Routes `http://thumb.localhost/<id>` and `http://photo.localhost/<id>` (URLs from `ui/src/features/timeline/thumbnails.ts` and `ui/src/features/viewer/api.ts`) to files on disk with `route.fulfill({ path })`: photos from the gallery, thumbnails from small copies the builder also writes into `demo/thumbs/<id>.jpg` (outside the gallery so they are not "photos").
+- Skips with a clear message if `demo/gallery/manifest.json` is missing.
+- Shots, 1280×800, `deviceScaleFactor: 2` for sharpness, light and dark (`colorScheme`):
+  - `docs/images/timeline-{light,dark}.png`: the timeline with series blocks and singles.
+  - `docs/images/viewer-{light,dark}.png`: the viewer (`?window=viewer` + `viewerRequest`) on a series with one photo rejected.
+- Output optimised as WebP if the size win is clear, otherwise PNG; target < 300 KB per image.
+- Commit `docs: add README showcase screenshots` (script + images).
+
+### 4. README
+- Hero image at the top (`<picture>` with dark/light sources via `prefers-color-scheme`, which GitHub supports), a short feature list (finds series, timeline, viewer, reject with undo, offline) with the viewer shot, a "Photo credits" section linking `SOURCES.md`.
+- Section in `docs/RELEASING.md` or a short `docs/images/README.md` on how to regenerate: build gallery, `npm run showcase`.
+- Commit `docs: show Sito in the README`.
+
+### 5. Done
+- The slice adds tooling, not app behaviour, so nothing moves into `docs/domain/`; the regenerate how-to lives in `docs/images/README.md`. Status 🧪 in both files. No release (the app does not change).
+
+## Verification
+- Delete `demo/`, run the builder: it downloads, builds the same gallery (manifest identical on rerun).
+- `npm run showcase` produces the four images; open them to check they show series blocks, thumbnails of the real photos, correct Polish text and both themes.
+- `npm run lint`, `npm run typecheck -w ui`, `npm run e2e` still green (showcase spec not included).
+- README renders on GitHub with the hero image in light and dark mode.
