@@ -58,3 +58,23 @@ jobs:
       - run: npx playwright install --with-deps chromium
         working-directory: ui
       - run: npm run e2e
+
+  licenses:
+    name: Third-party licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, so the generated notices match the ones made locally.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.3
+      # Fails on a license that is not in about.toml.
+      - run: cargo fetch --locked
+      - run: npm run notices:rust
+      - name: Check that the committed Rust notices are up to date
+        run: |
+          if ! git diff --exit-code ui/notices/; then
+            echo "::error::ui/notices/rust-crates.txt is out of date; run 'npm run notices:rust' and commit it"
+            exit 1
+          fi
