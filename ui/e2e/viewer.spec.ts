@@ -95,6 +95,7 @@ test('says when a date was corrected in Google Photos', async ({ page }) => {
           relativePath: '1976\\skan_babcia.jpg',
           takenAt: '1976-07-01T12:00:00',
           timeSource: 'takeoutCorrected',
+          format: 'jpeg',
         },
       ],
     },

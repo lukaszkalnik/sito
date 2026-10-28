@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 use chrono::NaiveDate;
 use sito_core::metadata::Orientation;
 use sito_core::photo_cache::PhotoCache;
-use sito_core::scan::FileStamp;
+use sito_core::scan::{FileStamp, StampedFile};
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
     Photo, TimeSource, TimelineProgress, build_timeline, build_timeline_cached, cached_timeline,
@@ -171,6 +171,7 @@ fn stores_every_field() {
                 .unwrap(),
             time_source: TimeSource::Exif,
             sidecar: None,
+            companion: None,
             orientation: Orientation::from_exif(6),
             camera: Some("Google Pixel 8".into()),
         },
@@ -184,6 +185,7 @@ fn stores_every_field() {
                 .unwrap(),
             time_source: TimeSource::FileModified,
             sidecar: None,
+            companion: None,
             orientation: Orientation::NORMAL,
             camera: None,
         },
@@ -197,7 +199,7 @@ fn stores_every_field() {
 }
 
 #[test]
-fn stores_a_takeout_time_and_its_date_file() {
+fn stores_a_takeout_time_its_date_file_and_raw_companion() {
     let mut cache = PhotoCache::open_in_memory().unwrap();
     let photo = Photo {
         path: PathBuf::from("c.jpg"),
@@ -211,6 +213,13 @@ fn stores_a_takeout_time_and_its_date_file() {
         sidecar: Some(FileStamp {
             size: 512,
             modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
+        }),
+        companion: Some(StampedFile {
+            path: PathBuf::from("c.ORF"),
+            stamp: FileStamp {
+                size: 20_000_000,
+                modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_100)),
+            },
         }),
         orientation: Orientation::NORMAL,
         camera: None,
@@ -238,6 +247,7 @@ fn leaves_out_paths_that_are_not_unicode() {
             .unwrap(),
         time_source: TimeSource::Exif,
         sidecar: None,
+        companion: None,
         orientation: Orientation::NORMAL,
         camera: None,
     };

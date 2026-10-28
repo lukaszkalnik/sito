@@ -195,10 +195,15 @@
   outline-offset: -2px;
 }
 
-.timeline-tile-badge {
+.timeline-tile-badges {
   position: absolute;
   top: 6px;
   right: 6px;
+  display: flex;
+  gap: 4px;
+}
+
+.timeline-tile-badge {
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--badge-bg);

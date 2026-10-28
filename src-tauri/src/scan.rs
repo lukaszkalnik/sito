@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use sito_core::scan::ScanError;
+use sito_core::scan::{PhotoKind, ScanError, photo_kind};
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
@@ -92,6 +92,32 @@ pub struct TimelineEntryDto {
     taken_at: String,
     /// Where the capture time comes from.
     time_source: TimeSourceDto,
+    /// What kind of files the photo has.
+    format: PhotoFormatDto,
+}
+
+/// What kind of files a photo has, as sent to the UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PhotoFormatDto {
+    /// A JPEG.
+    Jpeg,
+    /// A RAW file.
+    Raw,
+    /// A JPEG with a RAW file of the same name (one shot, two files).
+    RawJpeg,
+}
+
+impl PhotoFormatDto {
+    fn of(photo: &Photo) -> Self {
+        if photo.companion.is_some() {
+            return Self::RawJpeg;
+        }
+        match photo_kind(&photo.path) {
+            Some(PhotoKind::Raw(_)) => Self::Raw,
+            Some(PhotoKind::Jpeg) | None => Self::Jpeg,
+        }
+    }
 }
 
 /// Where a photo's capture time comes from, as sent to the UI.
@@ -140,6 +166,7 @@ impl TimelineEntryDto {
             relative_path: relative.to_string_lossy().into_owned(),
             taken_at: photo.taken_at.format("%Y-%m-%dT%H:%M:%S").to_string(),
             time_source: photo.time_source.into(),
+            format: PhotoFormatDto::of(photo),
         }
     }
 }
@@ -285,6 +312,7 @@ mod tests {
                 .unwrap(),
             time_source: source,
             sidecar: None,
+            companion: None,
             orientation: Orientation::NORMAL,
             camera: None,
         }
@@ -306,7 +334,8 @@ mod tests {
                 "relativeDir": "Camera",
                 "relativePath": format!("Camera{}IMG_1.jpg", std::path::MAIN_SEPARATOR),
                 "takenAt": "2024-06-01T12:00:05",
-                "timeSource": "exif"
+                "timeSource": "exif",
+                "format": "jpeg"
             })
         );
     }

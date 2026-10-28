@@ -11,7 +11,12 @@ export interface TimelineEntry {
   takenAt: string;
   /** Where the capture time comes from. */
   timeSource: TimeSource;
+  /** What kind of files the photo has. */
+  format: PhotoFormat;
 }
+
+/** What kind of files a photo has. Mirrors `PhotoFormatDto`. */
+export type PhotoFormat = 'jpeg' | 'raw' | 'rawJpeg';
 
 /** Where a photo's capture time comes from. Mirrors `TimeSourceDto`. */
 export type TimeSource = 'exif' | 'takeout' | 'takeoutCorrected' | 'file';

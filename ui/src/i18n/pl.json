@@ -37,6 +37,10 @@
     "rootFolder": "folder główny",
     "open": "Otwórz {{name}}"
   },
+  "format": {
+    "raw": "RAW",
+    "rawJpeg": "RAW+JPEG"
+  },
   "view": {
     "label": "Widok",
     "series": "Serie",

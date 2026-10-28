@@ -10,7 +10,9 @@ use rayon::prelude::*;
 
 use crate::metadata::{Orientation, is_plausible_capture_time, read_photo_metadata};
 use crate::photo_cache::{CacheError, PhotoCache};
-use crate::scan::{FileStamp, FoundFile, FoundSidecar, ScanError, find_photos, is_in_rejected_dir};
+use crate::scan::{
+    FileStamp, FoundFile, ScanError, StampedFile, find_companion, find_photos, is_in_rejected_dir,
+};
 use crate::takeout::{ChosenTime, TakeoutUse, choose_time, find_sidecar, read_sidecar};
 
 /// Number of photos whose metadata is read between two progress reports.
@@ -59,6 +61,8 @@ pub struct Photo {
     /// Size and modification time of the photo's Takeout date file when it
     /// was read, `None` without one.
     pub sidecar: Option<FileStamp>,
+    /// The RAW file of a RAW+JPEG pair (this photo is the pair's JPEG).
+    pub companion: Option<StampedFile>,
 }
 
 /// The photos of one folder tree, newest first.
@@ -119,21 +123,16 @@ pub fn compare_photos(a: &Photo, b: &Photo) -> Ordering {
 /// Returns an error if the file cannot be inspected.
 pub fn read_photo(path: &Path) -> std::io::Result<Photo> {
     let meta = std::fs::metadata(path)?;
-    let sidecar = find_sidecar(path).and_then(|sidecar| {
-        let meta = std::fs::metadata(&sidecar).ok()?;
-        Some(FoundSidecar {
-            path: sidecar,
-            stamp: FileStamp {
-                size: meta.len(),
-                modified: meta.modified().ok(),
-            },
-        })
-    });
+    let companion = find_companion(path);
+    let sidecar = find_sidecar(path)
+        .or_else(|| find_sidecar(&companion.as_ref()?.path))
+        .and_then(|sidecar| StampedFile::read(&sidecar));
     Ok(to_photo(&FoundFile {
         path: path.to_path_buf(),
         size: meta.len(),
         modified: meta.modified().ok(),
         sidecar,
+        companion,
     }))
 }
 
@@ -235,6 +234,7 @@ fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
     photo.size == file.size
         && photo.modified == file.modified
         && photo.sidecar == file.sidecar.as_ref().map(|sidecar| sidecar.stamp)
+        && photo.companion == file.companion
 }
 
 /// Reads the metadata of `files` in parallel, reporting progress after each
@@ -318,6 +318,7 @@ fn to_photo(file: &FoundFile) -> Photo {
         orientation: meta.orientation,
         camera: meta.camera,
         sidecar: file.sidecar.as_ref().map(|sidecar| sidecar.stamp),
+        companion: file.companion.clone(),
     }
 }
 

@@ -14,13 +14,13 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 use crate::metadata::Orientation;
-use crate::scan::FileStamp;
+use crate::scan::{FileStamp, StampedFile};
 use crate::takeout::TakeoutUse;
 use crate::timeline::{Photo, TimeSource};
 
 /// Changes whenever what a scan reads from a photo changes; a cache written
 /// by another version is emptied, so every photo is read again once.
-pub const CACHE_VERSION: i64 = 2;
+pub const CACHE_VERSION: i64 = 3;
 
 const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
@@ -83,7 +83,10 @@ impl PhotoCache {
                  orientation      INTEGER NOT NULL,
                  camera           TEXT,
                  sidecar_size     INTEGER,
-                 sidecar_mtime_ns INTEGER
+                 sidecar_mtime_ns INTEGER,
+                 companion_path     TEXT,
+                 companion_size     INTEGER,
+                 companion_mtime_ns INTEGER
              )",
             [],
         )?;
@@ -111,7 +114,8 @@ impl PhotoCache {
     pub fn all(&self) -> Result<Vec<Photo>, CacheError> {
         let mut statement = self.conn.prepare(
             "SELECT path, size, mtime_ns, taken_at, time_source, orientation, camera,
-                    sidecar_size, sidecar_mtime_ns
+                    sidecar_size, sidecar_mtime_ns,
+                    companion_path, companion_size, companion_mtime_ns
              FROM photos",
         )?;
         let rows = statement.query_map([], |row| {
@@ -125,6 +129,9 @@ impl PhotoCache {
                 camera: row.get(6)?,
                 sidecar_size: row.get(7)?,
                 sidecar_mtime_ns: row.get(8)?,
+                companion_path: row.get(9)?,
+                companion_size: row.get(10)?,
+                companion_mtime_ns: row.get(11)?,
             })
         })?;
         let mut photos = Vec::new();
@@ -150,12 +157,20 @@ impl PhotoCache {
             let mut insert = transaction.prepare(
                 "INSERT OR REPLACE INTO photos
                      (path, size, mtime_ns, taken_at, time_source, orientation, camera,
-                      sidecar_size, sidecar_mtime_ns)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                      sidecar_size, sidecar_mtime_ns,
+                      companion_path, companion_size, companion_mtime_ns)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             )?;
             for photo in photos {
                 let Some(path) = photo.path.to_str() else {
                     continue;
+                };
+                let companion_path = match &photo.companion {
+                    Some(companion) => match companion.path.to_str() {
+                        Some(text) => Some(text),
+                        None => continue,
+                    },
+                    None => None,
                 };
                 insert.execute(params![
                     path,
@@ -171,6 +186,16 @@ impl PhotoCache {
                     photo
                         .sidecar
                         .and_then(|stamp| stamp.modified)
+                        .and_then(to_nanos),
+                    companion_path,
+                    photo
+                        .companion
+                        .as_ref()
+                        .map(|c| i64::try_from(c.stamp.size).unwrap_or(i64::MAX)),
+                    photo
+                        .companion
+                        .as_ref()
+                        .and_then(|c| c.stamp.modified)
                         .and_then(to_nanos),
                 ])?;
             }
@@ -217,6 +242,9 @@ struct Row {
     camera: Option<String>,
     sidecar_size: Option<i64>,
     sidecar_mtime_ns: Option<i64>,
+    companion_path: Option<String>,
+    companion_size: Option<i64>,
+    companion_mtime_ns: Option<i64>,
 }
 
 impl Row {
@@ -235,6 +263,16 @@ impl Row {
             orientation: Orientation::from_exif(u16::try_from(self.orientation).unwrap_or(1)),
             camera: self.camera,
             sidecar,
+            companion: self.companion_path.map(|path| StampedFile {
+                path: PathBuf::from(path),
+                stamp: FileStamp {
+                    size: self
+                        .companion_size
+                        .and_then(|size| u64::try_from(size).ok())
+                        .unwrap_or_default(),
+                    modified: self.companion_mtime_ns.and_then(from_nanos),
+                },
+            }),
         })
     }
 }

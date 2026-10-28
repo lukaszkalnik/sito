@@ -101,3 +101,32 @@ fn raw_files_are_on_the_timeline_with_their_capture_times() {
         );
     }
 }
+
+#[test]
+fn a_raw_and_a_jpeg_of_the_same_name_are_one_photo() {
+    let dir = tempfile::TempDir::new().unwrap();
+    let exif = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/exif");
+    std::fs::copy(fixture("olympus.orf"), dir.path().join("P1010001.ORF")).unwrap();
+    std::fs::copy(
+        exif.join("pixel_2024-06-01_12-00-00.jpg"),
+        dir.path().join("p1010001.jpg"),
+    )
+    .unwrap();
+    std::fs::copy(fixture("sony.arw"), dir.path().join("DSC0001.ARW")).unwrap();
+
+    let timeline = sito_core::timeline::build_timeline(dir.path(), |_| {}).unwrap();
+
+    assert_eq!(timeline.photos.len(), 2);
+    let pair = timeline
+        .photos
+        .iter()
+        .find(|photo| photo.companion.is_some())
+        .unwrap();
+    assert_eq!(pair.path, dir.path().join("p1010001.jpg"));
+    assert_eq!(
+        pair.companion.as_ref().unwrap().path,
+        dir.path().join("P1010001.ORF")
+    );
+    let read_again = sito_core::timeline::read_photo(&pair.path).unwrap();
+    assert_eq!(read_again.companion, pair.companion);
+}

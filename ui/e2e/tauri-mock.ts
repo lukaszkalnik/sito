@@ -116,6 +116,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           relativePath: `Camera\\IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
           takenAt: localIso(new Date(newest - offset)),
           timeSource: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0 ? 'file' : 'exif',
+          format: 'jpeg',
         };
       });
     }

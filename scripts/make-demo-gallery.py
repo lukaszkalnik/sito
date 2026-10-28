@@ -152,6 +152,7 @@ def timeline_entry(shot: Shot, shot_id: int) -> dict[str, object]:
         "relativePath": f"{GALLERY_DIR}\\{shot.file_name}",
         "takenAt": shot.taken_at.isoformat(),
         "timeSource": "exif",
+        "format": "jpeg",
     }
 
 

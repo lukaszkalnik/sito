@@ -35,6 +35,7 @@ function entries(count: number): TimelineEntry[] {
     relativePath: `IMG_${id}.jpg`,
     takenAt: '2024-06-01T12:00:00',
     timeSource: 'exif',
+    format: 'jpeg',
   }));
 }
 

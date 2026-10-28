@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Series, TimeSource, TimelineEntry } from '../timeline/api';
+import type { PhotoFormat, Series, TimeSource, TimelineEntry } from '../timeline/api';
+import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { thumbnailUrl } from '../timeline/thumbnails';
 import { photoUrl, setWindowTitle, type ViewMode } from './api';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
@@ -95,6 +96,12 @@ function DateSource({ source }: { source: TimeSource }) {
   return note === null ? null : <span className="viewer-date-source">{t(note)}</span>;
 }
 
+function FormatNote({ format }: { format: PhotoFormat }) {
+  const { t } = useTranslation();
+  const badge = FORMAT_BADGES[format];
+  return badge === null ? null : <span className="viewer-format">{t(badge)}</span>;
+}
+
 function ViewerBar({
   entry,
   onReject,
@@ -114,6 +121,7 @@ function ViewerBar({
           {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
         </span>
         <DateSource source={entry.timeSource} />
+        <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
       <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>

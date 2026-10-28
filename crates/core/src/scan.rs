@@ -37,13 +37,29 @@ pub struct FileStamp {
     pub modified: Option<SystemTime>,
 }
 
-/// A Google Takeout date file belonging to a photo.
+/// A file with its size and modification time, e.g. a photo's Takeout date
+/// file or the RAW file paired with a JPEG.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FoundSidecar {
-    /// Full path of the date file.
+pub struct StampedFile {
+    /// Full path of the file.
     pub path: PathBuf,
     /// Its size and modification time.
     pub stamp: FileStamp,
+}
+
+impl StampedFile {
+    /// The file at `path` with its current stamp, if it can be inspected.
+    #[must_use]
+    pub fn read(path: &Path) -> Option<Self> {
+        let meta = std::fs::metadata(path).ok()?;
+        Some(Self {
+            path: path.to_path_buf(),
+            stamp: FileStamp {
+                size: meta.len(),
+                modified: meta.modified().ok(),
+            },
+        })
+    }
 }
 
 /// A photo file found by [`find_photos`].
@@ -56,7 +72,9 @@ pub struct FoundFile {
     /// Last modification time, if the file system reports one.
     pub modified: Option<SystemTime>,
     /// The photo's Google Takeout date file, if its folder has one.
-    pub sidecar: Option<FoundSidecar>,
+    pub sidecar: Option<StampedFile>,
+    /// The RAW file of a RAW+JPEG pair, when this is the pair's JPEG.
+    pub companion: Option<StampedFile>,
 }
 
 /// Result of a finished search.
@@ -168,6 +186,7 @@ pub fn find_photos(
                             size: meta.len(),
                             path: entry.into_path(),
                             sidecar: None,
+                            companion: None,
                         });
                     }
                     Err(_) => result.unreadable_entries += 1,
@@ -177,7 +196,7 @@ pub fn find_photos(
                 // A date file that cannot be inspected only means its photo
                 // keeps its own date.
                 if let Ok(meta) = entry.metadata() {
-                    sidecars.push(FoundSidecar {
+                    sidecars.push(StampedFile {
                         stamp: FileStamp {
                             size: meta.len(),
                             modified: meta.modified().ok(),
@@ -194,18 +213,93 @@ pub fn find_photos(
         }
     }
 
-    attach_sidecars(&mut result.photos, &mut result.rejected, sidecars);
+    group_files(&mut result, sidecars);
     on_progress(progress_of(&result));
     Ok(result)
+}
+
+/// Attaches Takeout date files to their photos and joins RAW+JPEG pairs.
+fn group_files(result: &mut SearchResult, sidecars: Vec<StampedFile>) {
+    attach_sidecars(&mut result.photos, &mut result.rejected, sidecars);
+    result.photos = pair_raw_with_jpeg(std::mem::take(&mut result.photos));
+    result.rejected = pair_raw_with_jpeg(std::mem::take(&mut result.rejected));
+}
+
+/// Joins a RAW file and a JPEG of the same name in the same folder (a camera
+/// set to RAW+JPEG) into one photo: the JPEG, with the RAW file as its
+/// companion. Without its own Takeout date file, the pair uses the RAW
+/// file's. Other files keep their order.
+fn pair_raw_with_jpeg(files: Vec<FoundFile>) -> Vec<FoundFile> {
+    let key = |file: &FoundFile| {
+        let stem = file.path.file_stem()?.to_str()?.to_lowercase();
+        Some((file.path.parent()?.to_path_buf(), stem))
+    };
+    let mut jpeg_at: HashMap<(PathBuf, String), usize> = HashMap::new();
+    for (index, file) in files.iter().enumerate() {
+        if photo_kind(&file.path) == Some(PhotoKind::Jpeg)
+            && let Some(key) = key(file)
+        {
+            jpeg_at.entry(key).or_insert(index);
+        }
+    }
+    let mut paired: HashMap<usize, FoundFile> = HashMap::new();
+    let mut kept = Vec::with_capacity(files.len());
+    for (index, file) in files.into_iter().enumerate() {
+        let jpeg = matches!(photo_kind(&file.path), Some(PhotoKind::Raw(_)))
+            .then(|| key(&file).and_then(|key| jpeg_at.get(&key).copied()))
+            .flatten()
+            .filter(|jpeg| !paired.contains_key(jpeg));
+        match jpeg {
+            Some(jpeg) => {
+                paired.insert(jpeg, file);
+            }
+            None => kept.push((index, file)),
+        }
+    }
+    kept.into_iter()
+        .map(|(index, mut file)| {
+            if let Some(raw) = paired.remove(&index) {
+                file.sidecar = file.sidecar.or(raw.sidecar);
+                file.companion = Some(StampedFile {
+                    path: raw.path,
+                    stamp: FileStamp {
+                        size: raw.size,
+                        modified: raw.modified,
+                    },
+                });
+            }
+            file
+        })
+        .collect()
+}
+
+/// The RAW file paired with the JPEG at `path`: a RAW file of the same name
+/// in the same folder.
+#[must_use]
+pub fn find_companion(path: &Path) -> Option<StampedFile> {
+    if photo_kind(path) != Some(PhotoKind::Jpeg) {
+        return None;
+    }
+    let stem = path.file_stem()?.to_str()?.to_lowercase();
+    std::fs::read_dir(path.parent()?)
+        .ok()?
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|file| matches!(photo_kind(file), Some(PhotoKind::Raw(_))))
+        .find(|file| {
+            file.file_stem()
+                .and_then(|s| s.to_str())
+                .is_some_and(|s| s.to_lowercase() == stem)
+        })
+        .and_then(|file| StampedFile::read(&file))
 }
 
 /// Gives each photo the Takeout date file of its folder that belongs to it.
 fn attach_sidecars(
     photos: &mut [FoundFile],
     rejected: &mut [FoundFile],
-    sidecars: Vec<FoundSidecar>,
+    sidecars: Vec<StampedFile>,
 ) {
-    let mut sidecars_by_folder: HashMap<PathBuf, Vec<FoundSidecar>> = HashMap::new();
+    let mut sidecars_by_folder: HashMap<PathBuf, Vec<StampedFile>> = HashMap::new();
     for sidecar in sidecars {
         if let Some(folder) = sidecar.path.parent() {
             sidecars_by_folder

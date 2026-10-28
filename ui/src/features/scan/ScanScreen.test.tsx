@@ -58,6 +58,7 @@ const entries: TimelineEntry[] = [
     relativePath: 'IMG_2.jpg',
     takenAt: '2024-06-01T12:00:05',
     timeSource: 'exif',
+    format: 'jpeg',
   },
   {
     id: 1,
@@ -66,6 +67,7 @@ const entries: TimelineEntry[] = [
     relativePath: 'Camera\\IMG_1.jpg',
     takenAt: '2024-06-01T12:00:00',
     timeSource: 'file',
+    format: 'jpeg',
   },
 ];
 

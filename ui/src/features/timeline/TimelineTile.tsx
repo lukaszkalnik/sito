@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TimelineEntry } from './api';
+import { FORMAT_BADGES } from './formatBadges';
 import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
 import { rememberLoaded, wasLoaded } from './loadedThumbnails';
@@ -95,6 +96,23 @@ function tileClass(status: ThumbnailStatus, instant: boolean, highlighted: boole
     .join(' ');
 }
 
+function TileBadges({ entry }: { entry: TimelineEntry }) {
+  const { t } = useTranslation();
+  const format = FORMAT_BADGES[entry.format];
+  const fileDate = entry.timeSource === 'file';
+  if (format === null && !fileDate) return null;
+  return (
+    <span className="timeline-tile-badges">
+      {format !== null && <span className="timeline-tile-badge">{t(format)}</span>}
+      {fileDate && (
+        <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
+          {t('timeline.fileDate')}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** One photo on the timeline: its thumbnail with capture time, file name and folder. */
 export function TimelineTile({
   entry,
@@ -126,11 +144,7 @@ export function TimelineTile({
       )}
       {status === 'error' && <BrokenThumbnail />}
       <TileCaption entry={entry} showFolder={showFolder} />
-      {entry.timeSource === 'file' && (
-        <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
-          {t('timeline.fileDate')}
-        </span>
-      )}
+      <TileBadges entry={entry} />
       {/* Covers the whole tile, so a click or Enter anywhere opens the photo. */}
       <button
         type="button"

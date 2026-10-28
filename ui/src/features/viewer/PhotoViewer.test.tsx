@@ -22,6 +22,7 @@ const entries: TimelineEntry[] = Array.from({ length: 6 }, (_, id) => ({
   relativePath: `IMG_${id}.jpg`,
   takenAt: `2024-06-01T12:00:0${9 - id}`,
   timeSource: 'exif',
+  format: 'jpeg',
 }));
 // Series at positions 1–3; 0, 4 and 5 are single photos.
 const series: Series[] = [{ start: 1, len: 3 }];
@@ -66,6 +67,7 @@ describe('PhotoViewer', () => {
               relativePath: 'IMG_0.jpg',
               takenAt: '2024-06-01T12:00:09',
               timeSource,
+              format: 'jpeg',
             },
           ]}
           series={[]}

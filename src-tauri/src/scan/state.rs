@@ -229,6 +229,7 @@ mod tests {
                 .unwrap(),
             time_source: TimeSource::Exif,
             sidecar: None,
+            companion: None,
             orientation: Orientation::NORMAL,
             camera: None,
         }

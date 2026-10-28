@@ -17,6 +17,7 @@ const entry: TimelineEntry = {
   relativePath: 'Camera\\IMG_7.jpg',
   takenAt: '2024-06-01T12:00:05',
   timeSource: 'file',
+  format: 'jpeg',
 };
 
 function renderTile(scanId = 3) {
@@ -156,5 +157,28 @@ describe('TimelineTile', () => {
 
     expect(again.image()).toBeNull();
     expect(screen.getByTestId('timeline-tile')).toHaveClass('timeline-tile--loading');
+  });
+
+  it('names RAW photos and RAW+JPEG pairs', () => {
+    const tile = (format: TimelineEntry['format']) => {
+      cleanup();
+      render(
+        <ul>
+          <TimelineTile
+            entry={{ ...entry, timeSource: 'exif', format }}
+            scanId={3}
+            showFolder
+            onOpen={vi.fn()}
+          />
+        </ul>,
+      );
+    };
+
+    tile('rawJpeg');
+    expect(screen.getByText('RAW+JPEG')).toBeInTheDocument();
+    tile('raw');
+    expect(screen.getByText('RAW')).toBeInTheDocument();
+    tile('jpeg');
+    expect(screen.queryByText(/RAW/)).not.toBeInTheDocument();
   });
 });
