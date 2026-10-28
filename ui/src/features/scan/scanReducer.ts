@@ -1,4 +1,4 @@
-import type { ScanErrorCode, ScanProgress, ScanSummary } from '../../api/scan';
+import type { ScanErrorCode, ScanProgress, ScanSummary } from './api';
 
 type SettledState =
   | { status: 'idle' }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { onScanRefreshed, pickFolder, ScanError, scanFolder } from '../../api/scan';
+import { onScanRefreshed, pickFolder, ScanError, scanFolder } from './api';
 import { loadLastFolder, saveLastFolder } from './lastFolder';
 import { initialScanState, scanReducer, type ScanState } from './scanReducer';
 

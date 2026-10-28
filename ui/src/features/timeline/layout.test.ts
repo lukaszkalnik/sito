@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Series, TimelineEntry } from '../../api/scan';
+import type { Series, TimelineEntry } from './api';
 import {
   anchoredScrollTop,
   buildRows,

@@ -1,16 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { onTimelineChanged } from '../../api/reject';
-import { getSeries, getTimeline, type Series } from '../../api/scan';
+import { onTimelineChanged } from '../reject/api';
+import { getSeries, getTimeline, type Series } from './api';
 import { useTimelineEntries } from './useTimelineEntries';
 
-vi.mock('../../api/scan', async (importActual) => ({
-  ...(await importActual<typeof import('../../api/scan')>()),
+vi.mock('./api', async (importActual) => ({
+  ...(await importActual<typeof import('./api')>()),
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
-vi.mock('../../api/reject', () => ({ onTimelineChanged: vi.fn() }));
+vi.mock('../reject/api', () => ({ onTimelineChanged: vi.fn() }));
 
 const mockedTimeline = vi.mocked(getTimeline);
 const mockedSeries = vi.mocked(getSeries);

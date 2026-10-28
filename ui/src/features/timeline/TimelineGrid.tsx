@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useMemo, useRef, type RefObject } from 'react';
 
-import type { Series, TimelineEntry } from '../../api/scan';
+import type { Series, TimelineEntry } from './api';
 import {
   blockWidth,
   buildRows,

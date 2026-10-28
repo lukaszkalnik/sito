@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { rejectPhoto, type Undone } from '../../api/reject';
-import type { Series, TimelineEntry } from '../../api/scan';
+import { rejectPhoto, type Undone } from '../reject/api';
+import type { Series, TimelineEntry } from '../timeline/api';
 import {
   closeWindow,
   onViewerContext,
   onViewerShow,
   takeViewerRequest,
   type ViewerRequest,
-} from '../../api/viewer';
+} from './api';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { useTimelineEntries } from '../timeline/useTimelineEntries';

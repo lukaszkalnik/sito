@@ -2,24 +2,24 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getSeries, getTimeline, type Series, type TimelineEntry } from '../../api/scan';
+import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
 import '../../i18n';
-import { sendViewerContext } from '../../api/viewer';
+import { sendViewerContext } from '../viewer/api';
 import { loadGap, saveGap } from './gapSetting';
 import { TimelineView } from './TimelineView';
 
-vi.mock('../../api/scan', async (importActual) => ({
-  ...(await importActual<typeof import('../../api/scan')>()),
+vi.mock('./api', async (importActual) => ({
+  ...(await importActual<typeof import('./api')>()),
   getTimeline: vi.fn(),
   getSeries: vi.fn(),
 }));
-vi.mock('../../api/reject', async (importActual) => ({
-  ...(await importActual<typeof import('../../api/reject')>()),
+vi.mock('../reject/api', async (importActual) => ({
+  ...(await importActual<typeof import('../reject/api')>()),
   canUndo: vi.fn(() => Promise.resolve(false)),
   undoReject: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
-vi.mock('../../api/viewer', () => ({
+vi.mock('../viewer/api', () => ({
   openViewer: vi.fn(() => Promise.resolve()),
   sendViewerContext: vi.fn(() => Promise.resolve()),
 }));

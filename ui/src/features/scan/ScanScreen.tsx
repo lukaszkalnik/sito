@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { ScanProgress, ScanSummary } from '../../api/scan';
+import type { ScanProgress, ScanSummary } from './api';
 import { TimelineView } from '../timeline/TimelineView';
 import type { ScanState } from './scanReducer';
 import { useScan } from './useScan';

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { TimelineEntry } from '../../api/scan';
+import type { TimelineEntry } from './api';
 import { formatDay, timeOf } from './format';
 import type { RowGroup, TimelineRow } from './layout';
 import { TimelineTile } from './TimelineTile';

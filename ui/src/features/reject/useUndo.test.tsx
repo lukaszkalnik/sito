@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { canUndo, undoReject } from '../../api/reject';
+import { canUndo, undoReject } from './api';
 import '../../i18n';
 import { useUndo } from './useUndo';
 
-vi.mock('../../api/reject', async (importActual) => ({
-  ...(await importActual<typeof import('../../api/reject')>()),
+vi.mock('./api', async (importActual) => ({
+  ...(await importActual<typeof import('./api')>()),
   canUndo: vi.fn(),
   undoReject: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),

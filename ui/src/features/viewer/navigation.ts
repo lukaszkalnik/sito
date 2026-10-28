@@ -1,5 +1,5 @@
-import type { Series } from '../../api/scan';
-import type { ViewMode } from '../../api/viewer';
+import type { Series } from '../timeline/api';
+import type { ViewMode } from './api';
 
 /**
  * Positions (indices into the timeline) the viewer steps through, in timeline

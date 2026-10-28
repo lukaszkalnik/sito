@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { TimelineEntry } from '../../api/scan';
-import { thumbnailUrl } from '../../api/thumbnails';
+import type { TimelineEntry } from './api';
+import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
 import { rememberLoaded, wasLoaded } from './loadedThumbnails';
 import { useMountedFor } from './useMountedFor';

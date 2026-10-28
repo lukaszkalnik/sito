@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Undone } from '../../api/reject';
-import type { ScanSummary, Series } from '../../api/scan';
-import { openViewer, sendViewerContext } from '../../api/viewer';
+import type { Undone } from '../reject/api';
+import type { ScanSummary } from '../scan/api';
+import type { Series } from './api';
+import { openViewer, sendViewerContext } from '../viewer/api';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';

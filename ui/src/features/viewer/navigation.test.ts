@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Series } from '../../api/scan';
+import type { Series } from '../timeline/api';
 import { afterReject, navigationOrder, neighbours, seriesOf } from './navigation';
 
 // Ten photos; series at positions 1–2 and 5–7.

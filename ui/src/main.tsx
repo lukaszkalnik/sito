@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
-import { isViewerWindow } from './api/viewer';
+import { isViewerWindow } from './features/viewer/api';
 import { ViewerApp } from './features/viewer/ViewerApp';
 import './i18n';
 import './index.css';

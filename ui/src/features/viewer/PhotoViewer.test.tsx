@@ -2,16 +2,16 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Series, TimelineEntry } from '../../api/scan';
-import { setWindowTitle } from '../../api/viewer';
+import type { Series, TimelineEntry } from '../timeline/api';
+import { setWindowTitle } from './api';
 import '../../i18n';
 import { PhotoViewer } from './PhotoViewer';
 
-vi.mock('../../api/viewer', () => ({
+vi.mock('./api', () => ({
   photoUrl: (scanId: number, id: number) => `photo://localhost/${id}?scan=${scanId}`,
   setWindowTitle: vi.fn(() => Promise.resolve()),
 }));
-vi.mock('../../api/thumbnails', () => ({
+vi.mock('../timeline/thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
 }));
 

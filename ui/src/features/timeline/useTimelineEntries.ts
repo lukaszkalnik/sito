@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { onTimelineChanged } from '../../api/reject';
-import { getSeries, getTimeline, type Series, type TimelineEntry } from '../../api/scan';
+import { onTimelineChanged } from '../reject/api';
+import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
 
 export type TimelineEntriesState =
   | { status: 'loading' }

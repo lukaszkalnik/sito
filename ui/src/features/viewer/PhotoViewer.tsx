@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { Series, TimelineEntry } from '../../api/scan';
-import { thumbnailUrl } from '../../api/thumbnails';
-import { photoUrl, setWindowTitle, type ViewMode } from '../../api/viewer';
+import type { Series, TimelineEntry } from '../timeline/api';
+import { thumbnailUrl } from '../timeline/thumbnails';
+import { photoUrl, setWindowTitle, type ViewMode } from './api';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
 import { navigationOrder, neighbours, seriesOf } from './navigation';

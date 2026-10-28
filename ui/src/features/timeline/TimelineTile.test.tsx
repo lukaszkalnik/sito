@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TimelineEntry } from '../../api/scan';
+import type { TimelineEntry } from './api';
 import '../../i18n';
 import { forgetLoaded } from './loadedThumbnails';
 import { THUMBNAIL_DELAY_MS, TimelineTile } from './TimelineTile';
 
-vi.mock('../../api/thumbnails', () => ({
+vi.mock('./thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
 }));
 

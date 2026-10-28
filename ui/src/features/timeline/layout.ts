@@ -1,4 +1,4 @@
-import type { Series, TimelineEntry } from '../../api/scan';
+import type { Series, TimelineEntry } from './api';
 
 /** Width of a tile in pixels. */
 export const TILE_WIDTH = 160;

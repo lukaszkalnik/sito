@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-  canUndo,
-  onTimelineChanged,
-  rejectErrorCode,
-  undoReject,
-  type Undone,
-} from '../../api/reject';
+import { canUndo, onTimelineChanged, rejectErrorCode, undoReject, type Undone } from './api';
 
 /** How long a toast stays on screen. */
 export const TOAST_MS = 5000;
