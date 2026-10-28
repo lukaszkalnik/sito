@@ -9,9 +9,12 @@ export interface TimelineEntry {
   relativePath: string;
   /** Local capture time, ISO 8601 without offset, e.g. `2024-06-01T12:00:05`. */
   takenAt: string;
-  /** `true` if the time comes from the file date instead of EXIF. */
-  fromFileDate: boolean;
+  /** Where the capture time comes from. */
+  timeSource: TimeSource;
 }
+
+/** Where a photo's capture time comes from. Mirrors `TimeSourceDto`. */
+export type TimeSource = 'exif' | 'file';
 
 /** Returns the timeline of the last finished scan, newest first. */
 export async function getTimeline(): Promise<TimelineEntry[]> {

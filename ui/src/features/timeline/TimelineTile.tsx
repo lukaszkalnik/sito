@@ -126,7 +126,7 @@ export function TimelineTile({
       )}
       {status === 'error' && <BrokenThumbnail />}
       <TileCaption entry={entry} showFolder={showFolder} />
-      {entry.fromFileDate && (
+      {entry.timeSource === 'file' && (
         <span className="timeline-tile-badge" title={t('timeline.fileDateHint')}>
           {t('timeline.fileDate')}
         </span>

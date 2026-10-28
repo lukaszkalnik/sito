@@ -89,8 +89,27 @@ pub struct TimelineEntryDto {
     relative_path: String,
     /// Capture time as local ISO 8601 without offset, e.g. `2024-06-01T12:00:05`.
     taken_at: String,
-    /// `true` if the time comes from the file date instead of EXIF.
-    from_file_date: bool,
+    /// Where the capture time comes from.
+    time_source: TimeSourceDto,
+}
+
+/// Where a photo's capture time comes from, as sent to the UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TimeSourceDto {
+    /// EXIF capture time.
+    Exif,
+    /// The file's modification time (no usable capture time).
+    File,
+}
+
+impl From<TimeSource> for TimeSourceDto {
+    fn from(source: TimeSource) -> Self {
+        match source {
+            TimeSource::Exif => Self::Exif,
+            TimeSource::FileModified => Self::File,
+        }
+    }
 }
 
 impl TimelineEntryDto {
@@ -110,7 +129,7 @@ impl TimelineEntryDto {
             relative_dir,
             relative_path: relative.to_string_lossy().into_owned(),
             taken_at: photo.taken_at.format("%Y-%m-%dT%H:%M:%S").to_string(),
-            from_file_date: photo.time_source == TimeSource::FileModified,
+            time_source: photo.time_source.into(),
         }
     }
 }
@@ -276,7 +295,7 @@ mod tests {
                 "relativeDir": "Camera",
                 "relativePath": format!("Camera{}IMG_1.jpg", std::path::MAIN_SEPARATOR),
                 "takenAt": "2024-06-01T12:00:05",
-                "fromFileDate": false
+                "timeSource": "exif"
             })
         );
     }
@@ -302,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn file_in_root_has_empty_relative_dir_and_file_date_flag() {
+    fn file_in_root_has_empty_relative_dir_and_file_time_source() {
         let root = PathBuf::from("gallery");
         let p = photo(
             &format!("gallery{}IMG_2.jpg", std::path::MAIN_SEPARATOR),
@@ -313,7 +332,7 @@ mod tests {
 
         assert_eq!(dto.relative_dir, "");
         assert_eq!(dto.relative_path, "IMG_2.jpg");
-        assert!(dto.from_file_date);
+        assert_eq!(dto.time_source, TimeSourceDto::File);
     }
 
     #[test]

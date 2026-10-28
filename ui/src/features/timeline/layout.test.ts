@@ -27,7 +27,7 @@ function entry(id: number, takenAt: string): TimelineEntry {
     relativeDir: '',
     relativePath: `IMG_${id}.jpg`,
     takenAt,
-    fromFileDate: false,
+    timeSource: 'exif',
   };
 }
 

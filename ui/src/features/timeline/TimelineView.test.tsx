@@ -34,7 +34,7 @@ function entries(count: number): TimelineEntry[] {
     relativeDir: '',
     relativePath: `IMG_${id}.jpg`,
     takenAt: '2024-06-01T12:00:00',
-    fromFileDate: false,
+    timeSource: 'exif',
   }));
 }
 

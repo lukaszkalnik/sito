@@ -16,7 +16,7 @@ const entry: TimelineEntry = {
   relativeDir: 'Camera',
   relativePath: 'Camera\\IMG_7.jpg',
   takenAt: '2024-06-01T12:00:05',
-  fromFileDate: true,
+  timeSource: 'file',
 };
 
 function renderTile(scanId = 3) {

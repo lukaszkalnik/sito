@@ -115,7 +115,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           relativeDir: 'Camera',
           relativePath: `Camera\\IMG_${String(t.count - i).padStart(5, '0')}.jpg`,
           takenAt: localIso(new Date(newest - offset)),
-          fromFileDate: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0,
+          timeSource: t.fileDateEvery !== undefined && i % t.fileDateEvery === 0 ? 'file' : 'exif',
         };
       });
     }
@@ -124,7 +124,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     function seriesByGap(gapSeconds: number): unknown[] {
       // Like the backend: series are found including rejected photos and keep
       // their shape while any of their photos is left.
-      const entries = allPhotos() as { id: number; takenAt: string; fromFileDate: boolean }[];
+      const entries = allPhotos() as { id: number; takenAt: string; timeSource: string }[];
       const keptBefore = [0];
       entries.forEach((e, i) =>
         keptBefore.push((keptBefore[i] ?? 0) + (rejected.includes(e.id) ? 0 : 1)),
@@ -138,7 +138,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     }
 
     function findSeries(
-      entries: { takenAt: string; fromFileDate: boolean }[],
+      entries: { takenAt: string; timeSource: string }[],
       gapSeconds: number,
     ): { start: number; len: number }[] {
       const result = [];
@@ -148,8 +148,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         const older = entries[i];
         const together =
           older !== undefined &&
-          !newer.fromFileDate &&
-          !older.fromFileDate &&
+          newer.timeSource !== 'file' &&
+          older.timeSource !== 'file' &&
           new Date(newer.takenAt).getTime() - new Date(older.takenAt).getTime() <=
             gapSeconds * 1000;
         if (!together) {
