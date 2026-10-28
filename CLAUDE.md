@@ -2,9 +2,7 @@
 
 > "Sito" is Polish for *sieve*: the app sifts through photo series and keeps the best shot.
 
-Desktop app that finds **series of similar shots** in a large photo gallery (photos taken with Android phones) and suggests the best photo of each series.
-
-Typical cases: photos taken seconds apart that differ in exposure, slightly in angle, or in facial expression. This is **not** primarily about byte-identical duplicates. There are **no** burst or motion photos.
+Desktop app that finds **series of similar shots** in a large photo gallery and suggests the best photo of each series. The domain (what a series is, how photos are grouped, analysed and scored) is described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 Platforms: developed on Windows, macOS later.
 
@@ -168,6 +166,7 @@ sito/
 ├─ ui/                # React + TypeScript
 │  ├─ src/i18n/pl.json
 │  └─ e2e/            # Playwright tests
+├─ docs/ARCHITECTURE.md # domain and pipeline
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
 ├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ docs/RELEASING.md  # how to build, release and install
@@ -176,24 +175,13 @@ sito/
 └─ .github/workflows/
 ```
 
-## Architecture (pipeline in `crates/core`)
+## Architecture
 
-1. **Scanner:** walk folders recursively, read EXIF (capture time, orientation, camera). Fallback without EXIF: file modification time.
-2. **Grouping:**
-   - Sort photos by capture time. A new group starts when the gap exceeds a threshold (default ~5–10 s, adjustable via a slider in the UI).
-   - Then split groups by embedding similarity (cosine) when they contain different subjects.
-3. **Analysis** (parallel; decode downscaled early; respect EXIF orientation):
-   - Image embedding via a small ONNX model (e.g. DINOv2-small or CLIP)
-   - Sharpness: variance of the Laplacian
-   - Exposure: share of clipped highlights and crushed shadows in the histogram
-   - Faces and eye state (open/closed) via a small model (e.g. YuNet + landmarks). Check the model license before adding it.
-4. **Scoring:** weighted score from sharpness, exposure and faces; suggest the best photo per group.
-5. **Storage:** SQLite keyed by path + size + mtime. Stores embeddings, scores, groups and decisions so rescans are fast.
-6. **Actions:** move to quarantine, with an undo log.
-
-The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision`, `apply_decisions`, `undo`) and emits progress events. Thumbnails are served by Rust from a thumbnail cache.
-
-**ONNX models** are not committed to the repo. They are downloaded on first launch and verified by checksum.
+- `core` processes photos as a pipeline of stages (scan, group, analyse, score, store, act); each stage is its own feature module with pure logic separated from I/O. The stages and their algorithms are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- Image work decodes downscaled as early as possible and always respects the EXIF orientation.
+- Derived data (metadata, embeddings, scores) is cached in SQLite keyed by file identity (path + size + mtime), so a rescan only processes new or changed files.
+- Tunable values (thresholds, score weights) are settings, not constants scattered in code.
+- **ML models** are not committed to the repo. They are downloaded on first launch and verified by checksum; check a model's license before adding it.
 
 ## CI (GitHub Actions)
 
