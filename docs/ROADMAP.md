@@ -28,6 +28,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 🧪 |
 | 26 | [RAW photos](slices/26-raw-photos.md) | ✅ |
 | 27 | [TIFF photos](slices/27-tiff-photos.md) | 🧪 |
+| 29 | [Faster first scan of Takeout folders](slices/29-fast-takeout-scan.md) | 📝 |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
@@ -42,4 +43,3 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 22 | [English and German UI](slices/22-english-german-ui.md) | ⬜ |
 | 23 | [macOS polish](slices/23-macos-polish.md) | ⬜ |
 | 24 | [Google Photos (to be decided)](ideas/google-photos.md) | ⬜ |
-| 29 | [Faster first scan of Takeout folders](slices/29-fast-takeout-scan.md) | 📝 |
