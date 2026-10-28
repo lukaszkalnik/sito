@@ -195,7 +195,9 @@ fn abandon_removes_only_a_folder_prepare_created() {
     assert!(photo.exists());
 }
 
-#[cfg(unix)]
+// Only Linux file systems accept names that are not valid UTF-8; macOS
+// refuses to create them ("Illegal byte sequence").
+#[cfg(target_os = "linux")]
 #[test]
 fn keeps_non_unicode_names_when_numbering() {
     use std::ffi::OsStr;
