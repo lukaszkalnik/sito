@@ -155,7 +155,6 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 - **Tauri** (Rust backend + web frontend)
 - **Frontend:** React + TypeScript (Vite)
 - **Rust crates:** `walkdir` (scanning), `nom-exif` (EXIF), `image` (decoding), `rayon` (parallelism), `ort` (ONNX Runtime; DirectML on Windows, CoreML on macOS, CPU fallback), `rusqlite` (cache)
-- **Parameter tuning** happens in the app itself (no separate prototype): thresholds and score weights are settings, and a debug panel shows each photo's individual scores.
 
 ## Repository layout
 
@@ -196,14 +195,6 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 **ONNX models** are not committed to the repo. They are downloaded on first launch and verified by checksum.
 
-## UI
-
-- Folder picker, progress bar
-- Group list
-- Side-by-side comparison view. Shortcuts: arrow keys = navigate, Space = keep, Delete = reject.
-- Sliders for time gap and similarity threshold
-- The suggested best photo is highlighted
-
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
@@ -211,7 +202,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 ## Roadmap
 
-The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every slice has its own file from the moment it is added (`docs/slices/NN-name.md`, also drafts and work in progress; ideas in `docs/ideas/`); the roadmap is only a table of links to those files with each slice's status, never a description of a slice. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the roadmap's order decides what comes next. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
+Features are described only there and in the slice and idea files, never in this file. The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every slice has its own file from the moment it is added (`docs/slices/NN-name.md`, also drafts and work in progress; ideas in `docs/ideas/`); the roadmap is only a table of links to those files with each slice's status, never a description of a slice. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the roadmap's order decides what comes next. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
 
 ## Commands
 
