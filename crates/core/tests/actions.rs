@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use sito_core::actions::{ActionLog, RejectAction};
+use sito_core::reject::SidecarMove;
 use tempfile::TempDir;
 
 fn root() -> PathBuf {
@@ -27,7 +28,7 @@ fn rejected(relative: &str) -> PathBuf {
 }
 
 fn record(log: &ActionLog, relative: &str) -> i64 {
-    log.record_reject(&photo(relative), &rejected(relative))
+    log.record_reject(&photo(relative), &rejected(relative), None)
         .unwrap()
 }
 
@@ -43,6 +44,7 @@ fn offers_the_newest_rejection_first() {
             id: newest,
             from: photo("Camera/IMG_2.jpg"),
             to: rejected("Camera/IMG_2.jpg"),
+            sidecar: None,
         })
     );
 }
@@ -68,7 +70,7 @@ fn offers_only_rejections_inside_the_given_folder() {
     let inside = record(&log, "Złote gody/IMG_1.jpg");
     // Newer, but in a sibling folder whose name only starts the same.
     let sibling = root().with_file_name("Zdjęcia2").join("IMG_2.jpg");
-    log.record_reject(&sibling, &sibling.with_file_name("Odrzucone"))
+    log.record_reject(&sibling, &sibling.with_file_name("Odrzucone"), None)
         .unwrap();
 
     assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, inside);
@@ -134,7 +136,7 @@ fn upgrades_a_log_written_before_migrations() {
     let version: u32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 1);
+    assert_eq!(version, 2);
 }
 
 #[cfg(unix)]
@@ -147,7 +149,22 @@ fn refuses_a_path_that_is_not_unicode() {
     let path = root().join(OsStr::from_bytes(b"IMG_\xff.jpg"));
 
     assert!(matches!(
-        log.record_reject(&path, &rejected("IMG_1.jpg")),
+        log.record_reject(&path, &rejected("IMG_1.jpg"), None),
         Err(sito_core::actions::LogError::NonUnicodePath(_))
     ));
+}
+
+#[test]
+fn keeps_the_date_file_moved_with_a_photo() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let sidecar = SidecarMove {
+        from: photo("IMG_1.jpg.supplemental-metadata.json"),
+        to: rejected("IMG_1.jpg.supplemental-metadata.json"),
+    };
+    log.record_reject(&photo("IMG_1.jpg"), &rejected("IMG_1.jpg"), Some(&sidecar))
+        .unwrap();
+
+    let action = log.last_undoable(&root()).unwrap().unwrap();
+
+    assert_eq!(action.sidecar, Some(sidecar));
 }

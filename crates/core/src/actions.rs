@@ -7,6 +7,8 @@ use chrono::Local;
 use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
+use crate::reject::SidecarMove;
+
 /// Error while reading or writing the action log.
 #[derive(Debug, Error)]
 pub enum LogError {
@@ -27,6 +29,8 @@ pub struct RejectAction {
     pub from: PathBuf,
     /// Where the photo is now.
     pub to: PathBuf,
+    /// The photo's Takeout date file, moved along with it.
+    pub sidecar: Option<SidecarMove>,
 }
 
 /// The action log, stored in one `SQLite` file.
@@ -61,7 +65,8 @@ impl ActionLog {
         Ok(Self { conn })
     }
 
-    /// Records that the photo at `from` is moved to `to`; returns the action id.
+    /// Records that the photo at `from` is moved to `to`, with its date file
+    /// `sidecar` if it has one; returns the action id.
     /// Call it before moving, and [`forget`](Self::forget) the entry if the
     /// move then fails, so no move is ever left out of the log.
     ///
@@ -69,10 +74,25 @@ impl ActionLog {
     ///
     /// Returns an error if a path is not valid Unicode or the entry cannot be
     /// written.
-    pub fn record_reject(&self, from: &Path, to: &Path) -> Result<i64, LogError> {
+    pub fn record_reject(
+        &self,
+        from: &Path,
+        to: &Path,
+        sidecar: Option<&SidecarMove>,
+    ) -> Result<i64, LogError> {
+        let sidecar_from = sidecar.map(|s| path_text(&s.from)).transpose()?;
+        let sidecar_to = sidecar.map(|s| path_text(&s.to)).transpose()?;
         self.conn.execute(
-            "INSERT INTO actions (at, kind, from_path, to_path) VALUES (?1, ?2, ?3, ?4)",
-            params![now(), KIND_REJECT, path_text(from)?, path_text(to)?],
+            "INSERT INTO actions (at, kind, from_path, to_path, sidecar_from, sidecar_to)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                now(),
+                KIND_REJECT,
+                path_text(from)?,
+                path_text(to)?,
+                sidecar_from,
+                sidecar_to
+            ],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
@@ -96,15 +116,21 @@ impl ActionLog {
     /// Returns an error if the log cannot be read.
     pub fn last_undoable(&self, under: &Path) -> Result<Option<RejectAction>, LogError> {
         let mut statement = self.conn.prepare(
-            "SELECT id, from_path, to_path FROM actions
+            "SELECT id, from_path, to_path, sidecar_from, sidecar_to FROM actions
              WHERE kind = ?1 AND undone_at IS NULL
              ORDER BY id DESC",
         )?;
         let rows = statement.query_map(params![KIND_REJECT], |row| {
+            let sidecar_from: Option<String> = row.get(3)?;
+            let sidecar_to: Option<String> = row.get(4)?;
             Ok(RejectAction {
                 id: row.get(0)?,
                 from: PathBuf::from(row.get::<_, String>(1)?),
                 to: PathBuf::from(row.get::<_, String>(2)?),
+                sidecar: sidecar_from.zip(sidecar_to).map(|(from, to)| SidecarMove {
+                    from: from.into(),
+                    to: to.into(),
+                }),
             })
         })?;
         for row in rows {
@@ -154,14 +180,19 @@ fn now() -> String {
 
 /// Schema changes of the log, applied in order. `PRAGMA user_version` holds
 /// how many have been applied. Never edit or reorder an entry; append a new one.
-const MIGRATIONS: &[&str] = &["CREATE TABLE IF NOT EXISTS actions (
+const MIGRATIONS: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS actions (
          id        INTEGER PRIMARY KEY,
          at        TEXT NOT NULL,
          kind      TEXT NOT NULL,
          from_path TEXT NOT NULL,
          to_path   TEXT NOT NULL,
          undone_at TEXT
-     );"];
+     );",
+    // 2: a photo's Google Takeout date file moved along with it.
+    "ALTER TABLE actions ADD COLUMN sidecar_from TEXT;
+     ALTER TABLE actions ADD COLUMN sidecar_to TEXT;",
+];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one
 /// transaction.

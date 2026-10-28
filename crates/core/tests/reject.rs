@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use sito_core::reject::{RejectError, abandon, complete, prepare, reject, restore};
 use tempfile::TempDir;
@@ -61,7 +61,7 @@ fn restores_the_photo_and_removes_the_empty_folder_when_asked() {
     write(&photo, "photo");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, true).unwrap();
+    restore(&rejected.path, &photo, None, true).unwrap();
 
     assert_eq!(fs::read_to_string(&photo).unwrap(), "photo");
     assert!(!dir.path().join("Odrzucone").exists());
@@ -74,7 +74,7 @@ fn keeps_an_empty_folder_that_is_not_to_be_removed() {
     write(&photo, "photo");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, false).unwrap();
+    restore(&rejected.path, &photo, None, false).unwrap();
 
     assert!(photo.exists());
     assert!(dir.path().join("Odrzucone").is_dir());
@@ -90,7 +90,7 @@ fn keeps_the_folder_while_other_photos_are_in_it() {
     let rejected_first = reject(&first).unwrap();
     reject(&second).unwrap();
 
-    restore(&rejected_first.path, &first, true).unwrap();
+    restore(&rejected_first.path, &first, None, true).unwrap();
 
     assert!(first.exists());
     assert!(dir.path().join("Odrzucone/IMG_2.jpg").exists());
@@ -104,7 +104,7 @@ fn restores_a_renamed_photo_under_its_original_name() {
     write(&photo, "mine");
     let rejected = reject(&photo).unwrap();
 
-    restore(&rejected.path, &photo, true).unwrap();
+    restore(&rejected.path, &photo, None, true).unwrap();
 
     assert_eq!(fs::read_to_string(&photo).unwrap(), "mine");
     assert_eq!(
@@ -121,7 +121,7 @@ fn refuses_to_overwrite_a_new_file_with_the_original_name() {
     let rejected = reject(&photo).unwrap();
     write(&photo, "new file");
 
-    let err = restore(&rejected.path, &photo, true).unwrap_err();
+    let err = restore(&rejected.path, &photo, None, true).unwrap_err();
 
     assert!(matches!(err, RejectError::Occupied(path) if path == photo));
     assert_eq!(fs::read_to_string(&photo).unwrap(), "new file");
@@ -134,7 +134,7 @@ fn reports_a_rejected_photo_that_is_gone() {
     let photo = dir.path().join("IMG_1.jpg");
     let gone = dir.path().join("Odrzucone/IMG_1.jpg");
 
-    let err = restore(&gone, &photo, true).unwrap_err();
+    let err = restore(&gone, &photo, None, true).unwrap_err();
 
     assert!(matches!(err, RejectError::Missing(path) if path == gone));
 }
@@ -217,4 +217,85 @@ fn keeps_non_unicode_names_when_numbering() {
             .join("Odrzucone")
             .join(OsStr::from_bytes(b"IMG_\xff (2).jpg"))
     );
+}
+
+const SIDECAR: &str = ".supplemental-metadata.json";
+
+/// A photo with a Takeout date file next to it, in `dir/Album`.
+fn photo_with_sidecar(dir: &TempDir) -> (PathBuf, PathBuf) {
+    let photo = dir.path().join("Album/IMG_1.jpg");
+    let sidecar = dir.path().join(format!("Album/IMG_1.jpg{SIDECAR}"));
+    write(&photo, "photo");
+    write(&sidecar, "date");
+    (photo, sidecar)
+}
+
+#[test]
+fn moves_the_takeout_date_file_along_and_back() {
+    let dir = TempDir::new().unwrap();
+    let (photo, sidecar) = photo_with_sidecar(&dir);
+
+    let rejected = reject(&photo).unwrap();
+
+    let moved = dir
+        .path()
+        .join(format!("Album/Odrzucone/IMG_1.jpg{SIDECAR}"));
+    let sidecar_move = rejected.sidecar.clone().unwrap();
+    assert_eq!((&sidecar_move.from, &sidecar_move.to), (&sidecar, &moved));
+    assert!(!sidecar.exists());
+    assert_eq!(fs::read_to_string(&moved).unwrap(), "date");
+
+    let restored = restore(&rejected.path, &photo, rejected.sidecar.as_ref(), true).unwrap();
+
+    assert!(restored.sidecar_error.is_none());
+    assert_eq!(fs::read_to_string(&sidecar).unwrap(), "date");
+    assert!(photo.exists());
+    assert!(!dir.path().join("Album/Odrzucone").exists());
+}
+
+#[test]
+fn a_renamed_photo_gets_a_date_file_named_after_it() {
+    let dir = TempDir::new().unwrap();
+    let (photo, _) = photo_with_sidecar(&dir);
+    write(&dir.path().join("Album/Odrzucone/IMG_1.jpg"), "older");
+
+    let rejected = reject(&photo).unwrap();
+
+    let odrzucone = dir.path().join("Album/Odrzucone");
+    assert_eq!(rejected.path, odrzucone.join("IMG_1 (2).jpg"));
+    assert_eq!(
+        rejected.sidecar.unwrap().to,
+        odrzucone.join(format!("IMG_1 (2).jpg{SIDECAR}"))
+    );
+}
+
+#[test]
+fn if_the_photo_cannot_move_its_date_file_moves_back() {
+    let dir = TempDir::new().unwrap();
+    let (photo, sidecar) = photo_with_sidecar(&dir);
+    let prepared = prepare(&photo).unwrap();
+    // The photo disappears between preparing and moving.
+    fs::rename(&photo, dir.path().join("elsewhere.jpg")).unwrap();
+
+    assert!(complete(&photo, &prepared).is_err());
+
+    assert_eq!(fs::read_to_string(&sidecar).unwrap(), "date");
+    assert!(!dir.path().join("Album/Odrzucone").exists());
+}
+
+#[test]
+fn undo_restores_the_photo_even_without_its_date_file() {
+    let dir = TempDir::new().unwrap();
+    let (photo, _) = photo_with_sidecar(&dir);
+    let rejected = reject(&photo).unwrap();
+    let sidecar_move = rejected.sidecar.clone().unwrap();
+    fs::rename(&sidecar_move.to, dir.path().join("moved-away.json")).unwrap();
+
+    let restored = restore(&rejected.path, &photo, Some(&sidecar_move), true).unwrap();
+
+    assert!(photo.exists());
+    assert!(matches!(
+        restored.sidecar_error,
+        Some(RejectError::Missing(_))
+    ));
 }
