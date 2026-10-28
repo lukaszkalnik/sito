@@ -42,3 +42,4 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 22 | [English and German UI](slices/22-english-german-ui.md) | ⬜ |
 | 23 | [macOS polish](slices/23-macos-polish.md) | ⬜ |
 | 24 | [Google Photos (to be decided)](ideas/google-photos.md) | ⬜ |
+| 29 | [Faster first scan of Takeout folders](slices/29-fast-takeout-scan.md) | 📝 |
