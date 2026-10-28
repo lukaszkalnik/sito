@@ -17,6 +17,7 @@ missing_debug_implementations = "warn"
 pedantic = { level = "warn", priority = -1 }
 unwrap_used = "warn"
 expect_used = "warn"
+wildcard_enum_match_arm = "warn"
 
 # Unoptimized image decoding is many times slower, which made debug builds
 # (used for testing during a slice) render thumbnails far slower than the

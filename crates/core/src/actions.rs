@@ -15,6 +15,7 @@ pub struct LogError(#[from] rusqlite::Error);
 /// A photo moved into the rejected folder that has not been undone yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RejectAction {
+    /// Row id in the action log; identifies the action to undo.
     pub id: i64,
     /// Where the photo was before it was rejected.
     pub from: PathBuf,

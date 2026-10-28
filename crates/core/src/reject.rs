@@ -24,8 +24,11 @@ pub enum RejectError {
     /// The file system refused the move.
     #[error("cannot move {from} to {to}")]
     Io {
+        /// The file that was to be moved.
         from: PathBuf,
+        /// Where it was to be moved.
         to: PathBuf,
+        /// The underlying file system error.
         #[source]
         source: std::io::Error,
     },

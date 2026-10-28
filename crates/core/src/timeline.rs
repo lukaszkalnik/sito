@@ -162,65 +162,89 @@ pub fn build_timeline_cached(
         });
     })?;
 
+    let all_files: Vec<&FoundFile> = found.photos.iter().chain(&found.rejected).collect();
+    let (mut photos, to_read) = split_cached(&all_files, cache.as_deref(), root);
+    let read = read_photos(&to_read, &mut on_progress);
+
+    if let Some(cache) = cache {
+        update_cache(cache, root, &read, &all_files);
+    }
+
+    photos.extend(read);
+    Ok(sorted_timeline(root, photos, found.unreadable_entries))
+}
+
+/// Splits `files` into the photos still up to date in `cache` and the files
+/// that need reading.
+fn split_cached<'a>(
+    files: &[&'a FoundFile],
+    cache: Option<&PhotoCache>,
+    root: &Path,
+) -> (Vec<Photo>, Vec<&'a FoundFile>) {
     let known: HashMap<PathBuf, Photo> = cache
-        .as_deref()
         .and_then(|cache| cache.photos_under(root).ok())
         .unwrap_or_default()
         .into_iter()
         .map(|photo| (photo.path.clone(), photo))
         .collect();
-    let cached = |file: &FoundFile| {
-        known
-            .get(&file.path)
-            .filter(|photo| photo.size == file.size && photo.modified == file.modified)
-            .cloned()
-    };
-
-    let mut photos = Vec::with_capacity(found.photos.len());
+    let mut photos = Vec::with_capacity(files.len());
     let mut to_read = Vec::new();
-    for file in found.photos.iter().chain(&found.rejected) {
-        match cached(file) {
-            Some(photo) => photos.push(photo),
+    for &file in files {
+        match known
+            .get(&file.path)
+            .filter(|photo| is_unchanged(photo, file))
+        {
+            Some(photo) => photos.push(photo.clone()),
             None => to_read.push(file),
         }
     }
+    (photos, to_read)
+}
 
-    let total = to_read.len() as u64;
-    let mut read = Vec::with_capacity(to_read.len());
+/// Whether `file` still has the size and modification time cached in `photo`.
+fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
+    photo.size == file.size && photo.modified == file.modified
+}
+
+/// Reads the metadata of `files` in parallel, reporting progress after each
+/// chunk of [`READ_CHUNK`] files.
+fn read_photos(files: &[&FoundFile], on_progress: &mut impl FnMut(TimelineProgress)) -> Vec<Photo> {
+    let total = files.len() as u64;
+    let mut read = Vec::with_capacity(files.len());
     on_progress(TimelineProgress::Reading { done: 0, total });
-    for chunk in to_read.chunks(READ_CHUNK) {
+    for chunk in files.chunks(READ_CHUNK) {
         read.par_extend(chunk.par_iter().map(|file| to_photo(file)));
         on_progress(TimelineProgress::Reading {
             done: read.len() as u64,
             total,
         });
     }
+    read
+}
 
-    if let Some(cache) = cache {
-        // Failing to cache only means reading these photos again next time.
-        let _ = cache.store(&read);
-        let present: HashSet<PathBuf> = found
-            .photos
-            .iter()
-            .chain(&found.rejected)
-            .map(|file| file.path.clone())
-            .collect();
-        let _ = cache.forget_missing(root, &present);
-    }
+/// Stores the freshly `read` photos in `cache` and forgets cached photos
+/// under `root` that are no longer among `present`.
+fn update_cache(cache: &mut PhotoCache, root: &Path, read: &[Photo], present: &[&FoundFile]) {
+    // Failing to cache only means reading these photos again next time.
+    let _ = cache.store(read);
+    let present: HashSet<PathBuf> = present.iter().map(|file| file.path.clone()).collect();
+    let _ = cache.forget_missing(root, &present);
+}
 
-    photos.extend(read);
+/// Builds the timeline of `root` from unsorted `photos`, separating the
+/// rejected ones and sorting both lists with [`compare_photos`].
+fn sorted_timeline(root: &Path, photos: Vec<Photo>, unreadable_entries: u64) -> Timeline {
     let (mut rejected, mut photos): (Vec<Photo>, Vec<Photo>) = photos
         .into_iter()
         .partition(|photo| is_in_rejected_dir(&photo.path, root));
     photos.sort_by(compare_photos);
     rejected.sort_by(compare_photos);
-
-    Ok(Timeline {
+    Timeline {
         root: root.to_path_buf(),
         photos,
         rejected,
-        unreadable_entries: found.unreadable_entries,
-    })
+        unreadable_entries,
+    }
 }
 
 /// The timeline of `root` as last scanned, from `cache` alone without
@@ -231,18 +255,7 @@ pub fn build_timeline_cached(
 ///
 /// Returns an error if the cache cannot be read.
 pub fn cached_timeline(root: &Path, cache: &PhotoCache) -> Result<Timeline, CacheError> {
-    let (mut rejected, mut photos): (Vec<Photo>, Vec<Photo>) = cache
-        .photos_under(root)?
-        .into_iter()
-        .partition(|photo| is_in_rejected_dir(&photo.path, root));
-    photos.sort_by(compare_photos);
-    rejected.sort_by(compare_photos);
-    Ok(Timeline {
-        root: root.to_path_buf(),
-        photos,
-        rejected,
-        unreadable_entries: 0,
-    })
+    Ok(sorted_timeline(root, cache.photos_under(root)?, 0))
 }
 
 fn to_photo(file: &FoundFile) -> Photo {

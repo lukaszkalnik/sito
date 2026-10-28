@@ -39,40 +39,7 @@ pub fn run() -> tauri::Result<()> {
         .register_asynchronous_uri_scheme_protocol(photos::SCHEME, |ctx, request, responder| {
             photos::handle(&ctx, &request, responder);
         })
-        .setup(|app| {
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-            let cache_dir = match app.path().app_cache_dir() {
-                Ok(dir) => dir,
-                Err(err) => {
-                    log::warn!("no app cache folder ({err}); using the temp folder");
-                    std::env::temp_dir().join("sito")
-                }
-            };
-            app.manage(thumbnails::Thumbnails::new(cache_dir.join("thumbnails"))?);
-            if let Err(err) = std::fs::create_dir_all(&cache_dir) {
-                log::warn!("cannot create {}: {err}", cache_dir.display());
-            }
-            app.manage(photo_cache::PhotoCacheState::open(
-                &photo_cache::cache_file(&cache_dir),
-            ));
-            app.manage(commands::reject::Actions::new(open_action_log(
-                app.handle(),
-            )));
-            // The main window is created hidden from the config.
-            if let Some(main) = app.get_webview_window("main") {
-                window_fit::show_placed(&main);
-            }
-            if smoke::enabled(std::env::var_os(smoke::ENV).as_deref()) {
-                smoke::spawn(app.handle().clone());
-            }
-            Ok(())
-        })
+        .setup(|app| setup(app))
         .invoke_handler(tauri::generate_handler![
             commands::scan::start_scan,
             commands::scan::get_timeline,
@@ -84,6 +51,46 @@ pub fn run() -> tauri::Result<()> {
             commands::reject::get_undo_state
         ])
         .run(tauri::generate_context!())
+}
+
+/// Registers the logger, opens the caches and the action log, and shows the
+/// main window.
+fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    if cfg!(debug_assertions) {
+        app.handle().plugin(
+            tauri_plugin_log::Builder::default()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )?;
+    }
+    let cache_dir = app_cache_dir(app.handle());
+    app.manage(thumbnails::Thumbnails::new(cache_dir.join("thumbnails"))?);
+    if let Err(err) = std::fs::create_dir_all(&cache_dir) {
+        log::warn!("cannot create {}: {err}", cache_dir.display());
+    }
+    app.manage(photo_cache::PhotoCacheState::open(
+        &photo_cache::cache_file(&cache_dir),
+    ));
+    app.manage(commands::reject::Actions::new(open_action_log(
+        app.handle(),
+    )));
+    // The main window is created hidden from the config.
+    if let Some(main) = app.get_webview_window("main") {
+        window_fit::show_placed(&main);
+    }
+    if smoke::enabled(std::env::var_os(smoke::ENV).as_deref()) {
+        smoke::spawn(app.handle().clone());
+    }
+    Ok(())
+}
+
+/// The app cache folder, or a `sito` folder in the temp folder (with a
+/// warning) if the system has none.
+fn app_cache_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
+    app.path().app_cache_dir().unwrap_or_else(|err| {
+        log::warn!("no app cache folder ({err}); using the temp folder");
+        std::env::temp_dir().join("sito")
+    })
 }
 
 /// Opens the log of file operations in the app data folder, or `None` (with a
