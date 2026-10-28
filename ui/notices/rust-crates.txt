@@ -1,5 +1,3 @@
-RUST CRATES
-
 The following Rust crates are compiled into Sito. Each crate's source code is
 available at the crates.io address given next to it.
 
