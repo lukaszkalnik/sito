@@ -33,10 +33,63 @@ Platforms: developed on Windows, macOS later.
   - Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` (clippy pedantic is enabled workspace-wide)
   - Frontend: oxlint (`--deny-warnings`), Prettier, `tsc -b`
 - **Commit and push every self-contained change, directly on `main`.** No feature branches or pull requests: always commit on `main` and push to `main`. One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
-- **Code style and architecture:** follow the official/recommended style of each language and framework: Rust API Guidelines and idiomatic error handling (`thiserror` in libraries, no `unwrap` outside tests); React function components and hooks, strict TypeScript, no `any`; PEP 8 with type hints. Keep the layering: `core` (pure logic) ← `src-tauri` (thin adapter) ← `ui` (presentation only).
+- **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
 - **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands. Run them before pushing changes that touch the affected flow.
 - **Local tool locations (Windows dev machine):** all toolchains live under `D:\Lukasz\tools` (C: is nearly full): Rust (`RUSTUP_HOME`, `CARGO_HOME`), Node, GitHub CLI, uv, npm cache/global prefix (`npm_config_cache`, `npm_config_prefix`), Playwright browsers (`PLAYWRIGHT_BROWSERS_PATH`), VS Build Tools. Never install large tools or caches on C:.
 - **Low memory on the dev machine (7 GB RAM):** never run several heavy jobs at once (installers, Rust builds, browser tests). The user env var `CARGO_BUILD_JOBS=2` limits parallel rustc jobs locally (CI uses all cores).
+
+## Code and architecture rules
+
+Apply these rules both when **writing** and when **reviewing** code (including your own diff before committing). When touching existing code that breaks them, improve it in a separate `refactor:` commit rather than mixing it into a feature.
+
+### Structure
+
+- **Package by feature first, then by layer.** Top-level folders/modules are features (`scan`, `timeline`, `series`, `reject`, `viewer`, ...), not technical kinds. Inside a feature, split by layer only when it grows:
+  - **UI** (presentation): React components, CSS. Rust side: Tauri commands in `src-tauri/src/commands/<feature>.rs`.
+  - **Domain** (pure logic): types, rules, reducers, calculations. No I/O, no framework imports; this is where most unit tests live.
+  - **Data** (I/O): SQLite, file system, Tauri `invoke` wrappers, `localStorage`.
+  - Dependencies point inward: UI → Domain ← Data. Domain never imports UI or Data code.
+  - The crate layering stays: `core` (domain + data, no Tauri) ← `src-tauri` (thin adapter) ← `ui` (presentation).
+- **Small, focused files.** One concept per file. Roughly: aim for < 300 lines; past ~400 lines, split by sub-concept (Rust: turn `foo.rs` into `foo/mod.rs` + submodules). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
+- **Small functions.** A function does one thing at one level of abstraction; aim for < 30–40 lines. Extract private helpers with descriptive names instead of comments explaining blocks.
+- **Public surface stays minimal.** Rust: `pub(crate)`/private by default, re-export the intended API from `lib.rs`/`mod.rs`. TypeScript: export only what other modules use; no barrel files that re-export everything.
+
+### Complexity
+
+- **Low cyclomatic complexity and shallow nesting** (max ~3 levels). Prefer early returns / guard clauses, `?` in Rust, `let ... else`, iterator chains (`filter`, `map`, `fold`) and lookup tables over nested `if`/`for`.
+- Replace boolean flag parameters with an enum or two functions.
+- No clever code: readability beats brevity.
+
+### Duplication
+
+- Before writing a new function or type, **search for near-duplicates** (same shape, slightly different names or fields). In reviews, actively look for them.
+- Extract a shared abstraction when the duplicates express the **same concept** and would change together; leave them separate when the similarity is accidental. Rule of thumb: extract on the third occurrence, or on the second if the logic is non-trivial.
+- Frontend and backend types that mirror each other (command payloads, events) are defined once per side and kept in sync deliberately; consider generating TS types from Rust (`ts-rs`/`specta`) once they multiply.
+
+### Types: make illegal states unrepresentable
+
+- Model states with **enums / discriminated unions**, not combinations of booleans and optionals. Bad: `{ loading: boolean; error?: string; data?: T }`. Good: `type State = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string } | { kind: "done"; data: T }`.
+- Rust: enums with data (`enum Decision { Keep, Reject { moved_to: PathBuf } }`), exhaustive `match` (no `_ =>` catch-all over own enums, so new variants cause compile errors). TypeScript: discriminated unions with a `kind` field, exhaustive `switch` ending in an `assertNever(x: never)` check.
+- **Newtypes** for values that must not be mixed up (`PhotoId(i64)`, `SeriesId`, durations vs. timestamps). Parse and validate at the boundary (`TryFrom`, constructors returning `Result`), then trust the type inside.
+- Prefer immutable data: `readonly` fields/arrays in TS, no `mut` unless needed in Rust.
+
+### Rust best practices
+
+- Errors: `thiserror` enums per module in `core`; propagate with `?`; no `unwrap`/`expect`/`panic!` outside tests (an `expect` with a reason is acceptable only for true invariants). `src-tauri` maps errors to serializable command errors.
+- Borrow over clone: take `&str`/`&Path`/`&[T]` in parameters, return owned values. Use `impl AsRef<Path>` / `impl IntoIterator` where it helps callers.
+- Derive common traits (`Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`, `Default`) where meaningful; implement `From`/`TryFrom` for conversions instead of ad-hoc `to_x` functions.
+- Prefer iterators over index loops; `rayon` only for CPU-heavy work, never across blocking I/O on the async runtime.
+- Tauri commands are thin: parse input, call `core`, map the result. Long work runs off the main thread (`spawn_blocking` / a worker pool) and reports progress via events. Shared state lives in `tauri::State` behind the narrowest lock possible; never hold a lock across an `await` or long computation.
+- Doc comments (`///`) on every public item explain *why* and invariants, not *what*.
+
+### TypeScript / React best practices
+
+- Strict TS, no `any`, no non-null `!` assertions without a comment; validate untrusted data (Tauri responses, `localStorage`) at the data layer.
+- Function components; components render, hooks hold logic. Move non-trivial logic into pure functions (reducers, selectors) next to the feature so it is testable without React.
+- Derive values instead of storing them in state; keep state minimal and as local as possible. Use `useReducer` with a discriminated-union state for multi-step flows.
+- Effects only for synchronizing with external systems (Tauri events, timers, DOM); always clean up listeners and subscriptions.
+- Stable `key`s from IDs (never array indices for dynamic lists); memoize (`useMemo`, `useCallback`, `memo`) only where profiling or large lists justify it.
+- All Tauri `invoke`/`listen` calls go through typed wrappers in the data layer (`ui/src/api/` or the feature's data module), so components never call Tauri directly and e2e tests can mock them.
 
 ## Tech stack
 
