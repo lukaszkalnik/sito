@@ -1,6 +1,6 @@
 # Slice 26 – RAW photos
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (what it established is in [docs/domain/photos.md](../domain/photos.md) and [docs/domain/rejecting.md](../domain/rejecting.md))
 
 ## Context
 
@@ -103,3 +103,9 @@ Slice 27's concept file gets a short note pointing at these pieces.
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, `cargo test -- --ignored` with the downloaded samples, `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e`.
 - Debug build: a folder with the CC0 samples and a RAW+JPEG pair copied to `D:\Lukasz\tmp`: dates, upright thumbnails, viewer full size, „RAW+JPEG” as one tile, reject + undo moves both files.
 - Once the Takeout is unpacked: an album with `.orf` files from `F:\Google Photos` opened read-only.
+
+### Changes during implementation
+
+- `PhotoKind` has no `Tiff` variant yet: an unused variant would need dead arms everywhere; slice 27 adds it (noted there).
+- Checked against 15 CC0 samples from raw.pixls.us: added Nikon maker note previews, the old Olympus maker note thumbnail, and RAW-named files that are really JPEGs (a Samsung `.dng`). 13 of 15 show a preview; a cinema-camera DNG and a CHDK file have none.
+- Sample names contain `:` (`(4:3)`), which NTFS takes for an alternate data stream; the download script replaces characters Windows forbids.

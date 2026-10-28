@@ -2,7 +2,13 @@
 
 ## The galleries
 
-Sito works on large photo galleries taken with Android phones: 10,000+ photos per folder, often in subfolders. Today only JPEG files (`.jpg`, `.jpeg`) are read; RAW and TIFF are planned (slices 26, 27).
+Sito works on large photo galleries taken with Android phones: 10,000+ photos per folder, often in subfolders. Sito reads JPEG (`.jpg`, `.jpeg`) and camera RAW files (`.orf`, `.cr2`, `.nef`, `.arw`, `.rw2`, `.raf`, `.dng`; not `.cr3`); TIFF is planned (slice 27).
+
+## RAW files
+
+- **Never developed.** Thumbnails and the viewer use the JPEG preview the camera embedded in the RAW file: the largest one Sito finds (in the TIFF structure, in Olympus and Nikon maker notes, Panasonic's `JpgFromRaw`, Fujifilm's RAF header). Older cameras only embed a small thumbnail (e.g. 160×120 on Olympus models from 2003–2006); a file without any preview shows „Nie udało się wczytać zdjęcia.”
+- **Metadata** (capture time, orientation, camera) is read from the RAW file's own TIFF structure (Fujifilm RAF and RAW-named JPEGs through their EXIF), so the capture time rules below apply unchanged. The viewer gets the preview with the RAW file's orientation added, so it is shown upright.
+- **RAW+JPEG pairs.** A RAW file and a JPEG with the same name (ignoring case) in the same folder are one shot from a camera set to RAW+JPEG: they are one photo, shown and dated by the JPEG, with a „RAW+JPEG” badge (RAW-only photos have a „RAW” badge). Without its own Takeout date file, the pair uses the RAW file's.
 
 ## What Sito looks for
 

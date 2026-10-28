@@ -14,6 +14,16 @@ The user's Google Takeout (see [slice 25](25-takeout-dates.md)) contains TIFF fi
 - **Viewer:** WebView2 can't show TIFF, so the backend serves a full-size JPEG rendering through the `photo://` protocol, cached like thumbnails.
 - **16-bit and CMYK TIFFs** are converted to 8-bit RGB.
 
+## Builds on slice 26
+
+[Slice 26](26-raw-photos.md) built the pieces this slice extends, so it mostly adds a TIFF arm to each:
+
+- `PhotoKind` and `photo_kind` (`crates/core/src/scan.rs`): add a `Tiff` kind for `.tif`/`.tiff`.
+- The TIFF reader (`crates/core/src/tiff/`): IFD walker and `read_tiff_metadata` (`DateTimeOriginal`, else `DateTimeDigitized`, else `DateTime`; orientation; camera) already read TIFF files; dispatch `Tiff` to it in `metadata::read_photo_metadata`.
+- Thumbnails: `thumbnail::render_photo` dispatches by kind and `ImageSource` decodes from a path or bytes; enable the `image` crate's `tiff` feature and add a memory cap.
+- The viewer: `display::display_jpeg` dispatches by kind; a TIFF needs a rendered JPEG (plus a display cache), and its errors map to the existing „cannot load” path.
+- Rejecting moves every file of a photo (`reject.rs`, `action_moves`), so nothing changes there.
+
 ## Open questions
 
 - Is a full-size JPEG rendering cached on disk (fast, but takes space), or rendered on demand?

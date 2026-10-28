@@ -14,6 +14,7 @@ Desktop app that finds series of similar photos in a large gallery and suggests 
 - **Viewer:** compare the shots of a series one by one, with a strip of the whole series and keyboard shortcuts.
 - **Reject with undo:** rejected photos are moved into an "Odrzucone" folder, never deleted, and every move can be undone.
 - **Fast rescans:** results are cached, so reopening a folder only reads new or changed photos.
+- **JPEG and RAW:** `.orf`, `.cr2`, `.nef`, `.arw`, `.rw2`, `.raf` and `.dng` are shown by their embedded previews; a RAW+JPEG pair is one photo.
 
 Picking the best shot of each series automatically (sharpness, exposure, faces) is planned, see the [roadmap](docs/ROADMAP.md). The UI is in Polish for now.
 
