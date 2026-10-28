@@ -81,5 +81,13 @@
     "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
     "failed": "Nie udało się cofnąć odrzucenia."
+  },
+  "about": {
+    "licenses": "Licencje",
+    "intro": "Sito {{version}} jest dostępne na licencji MIT lub Apache 2.0. Poniżej jej treść oraz licencje bibliotek, z których korzysta.",
+    "text": "Treść licencji",
+    "loading": "Wczytywanie licencji…",
+    "loadError": "Nie udało się wczytać licencji.",
+    "close": "Zamknij"
   }
 }

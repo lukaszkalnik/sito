@@ -1,5 +1,6 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
+mod about;
 mod error;
 mod protocol;
 mod reject;
@@ -32,6 +33,7 @@ pub fn run() -> tauri::Result<()> {
                 .build(),
         )
         .on_window_event(window_fit::save_on_close)
+        .on_menu_event(|app, event| about::on_menu_event(app, &event))
         .manage(scan::state::AppState::default())
         .manage(viewer::ViewerState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
@@ -58,7 +60,7 @@ pub fn run() -> tauri::Result<()> {
 }
 
 /// Registers the logger, opens the caches and the action log, and shows the
-/// main window.
+/// main window with its menu.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -78,6 +80,10 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(reject::Actions::new(open_action_log(app.handle())));
     // The main window is created hidden from the config.
     if let Some(main) = app.get_webview_window("main") {
+        // Without the menu the app still works; only the licenses are out of reach.
+        if let Err(err) = about::install_menu(app.handle(), &main) {
+            log::warn!("cannot create the menu: {err}");
+        }
         window_fit::show_placed(&main);
     }
     if smoke::enabled(std::env::var_os(smoke::ENV).as_deref()) {

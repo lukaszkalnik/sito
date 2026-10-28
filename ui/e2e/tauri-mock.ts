@@ -58,6 +58,15 @@ export async function invokedCommands(page: Page): Promise<{ cmd: string; args: 
   );
 }
 
+/** Sends a backend event to the page, like a click on a native menu item. */
+export async function emitTauriEvent(page: Page, event: string): Promise<void> {
+  await page.evaluate(
+    (name) =>
+      (window as unknown as { __emitTauriEvent: (event: string) => void }).__emitTauriEvent(name),
+    event,
+  );
+}
+
 /**
  * Installs a fake `window.__TAURI_INTERNALS__` so the UI runs in a plain
  * browser against canned command results instead of the Rust backend.
@@ -221,6 +230,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             emit('timeline-changed');
             return { id, name: nameOf(id) };
           }
+          case 'plugin:app|version':
+            return '0.9.0';
           case 'get_undo_state':
             return { canUndo: rejected.length > 0 };
           case 'plugin:event|unlisten':
@@ -248,6 +259,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     };
 
     Object.defineProperty(window, '__TAURI_INTERNALS__', { value: internals });
+    // Used by `emitTauriEvent`.
+    Object.defineProperty(window, '__emitTauriEvent', { value: emit });
     // Used by `unlisten` of the event API.
     Object.defineProperty(window, '__TAURI_EVENT_PLUGIN_INTERNALS__', {
       value: { unregisterListener() {} },

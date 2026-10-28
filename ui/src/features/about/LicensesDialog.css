@@ -1,0 +1,40 @@
+.licenses {
+  width: min(56rem, 90vw);
+  height: 85vh;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.licenses[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.licenses::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.licenses h2,
+.licenses p {
+  margin: 0;
+}
+
+.licenses-text {
+  flex: 1;
+  margin: 0;
+  padding: 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--tile-bg);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+.licenses > button {
+  align-self: flex-end;
+}
