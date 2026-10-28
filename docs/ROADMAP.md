@@ -23,7 +23,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 7 | [Photo viewer](slices/07-photo-viewer.md) | ✅ |
 | 8 | [Reject into "Odrzucone" with undo](slices/08-reject-with-undo.md) | ✅ |
 | 9 | [Persistence](slices/09-persistence.md) | ✅ |
-| 10 | [Third-party license notices](slices/10-third-party-notices.md) | 🧪 |
+| 10 | [Third-party license notices](slices/10-third-party-notices.md) | ✅ |
 | 11 | [Showcase screenshots for the README](slices/11-readme-showcase.md) | 📝 |
 | 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 📝 |
 | 26 | [RAW photos](slices/26-raw-photos.md) | 📝 |
