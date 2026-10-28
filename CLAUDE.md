@@ -42,18 +42,20 @@ Platforms: developed on Windows, macOS later.
 
 Apply these rules both when **writing** and when **reviewing** code (including your own diff before committing). When touching existing code that breaks them, improve it in a separate `refactor:` commit rather than mixing it into a feature.
 
+Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `clippy.toml`: functions over 50 lines, `_ =>` over enums, missing docs in `core`, `unwrap`/`expect`) and oxlint (`ui/.oxlintrc.json`: functions over 50 lines, files over 400 lines, nesting over 3, index keys, `!` assertions). Do not silence a lint to get green; fix the code, or use `#[expect(..., reason = "...")]` / an `oxlint-disable-next-line` comment with a reason where the rule truly does not fit.
+
 ### Structure
 
 - **Package by feature first, then by layer.** Top-level folders/modules are features (`scan`, `timeline`, `series`, `reject`, `viewer`, ...), not technical kinds (`api/`, `utils/`, `types/`). Inside a feature, split by layer only when it grows:
-  - **UI** (presentation): React components, CSS. Rust side: Tauri commands in `src-tauri/src/commands/<feature>.rs`.
+  - **UI** (presentation): React components, CSS. Rust side: the feature's Tauri commands, events and protocols in `src-tauri/src/<feature>.rs` (submodules in `src-tauri/src/<feature>/`).
   - **Domain** (pure logic): types, rules, reducers, calculations. No I/O, no framework imports; this is where most unit tests live.
-  - **Data** (I/O): SQLite, file system, Tauri `invoke`/`listen` wrappers (`features/<name>/api.ts`), `localStorage`.
+  - **Data** (I/O): SQLite, file system, Tauri `invoke`/`listen` wrappers (`ui/src/features/<name>/api.ts`), `localStorage`.
   - Allowed dependencies: UI uses Domain and Data; Data uses Domain; Domain uses neither.
+  - Code shared by several features gets a module named for what it is, not a kind folder (`src-tauri/src/error.rs`, `protocol.rs`); app shell code (`lib.rs`, `window_fit.rs`, `smoke.rs`) stays at the top.
   - Across crates: `ui` calls `src-tauri`, which calls `core`. `core` (domain + data) depends on neither and never on Tauri.
-- **Small, focused files.** One concept per file. Aim for < 300 lines; past ~400 lines, split by sub-concept (Rust: keep `foo.rs` and put submodules in `foo/`, no `mod.rs`). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
+- **Small, focused files.** One concept per file. Aim for < 300 lines of non-test code; past ~400 lines, split by sub-concept (Rust unit tests stay in the file's `#[cfg(test)]` module and do not count) (Rust: keep `foo.rs` and put submodules in `foo/`, no `mod.rs`). A large file is fine only when the domain genuinely is large and cohesive (e.g. a long `match` over many cases).
 - **Small functions.** A function does one thing at one level of abstraction; aim for < 50 lines. Extract private helpers with descriptive names instead of comments explaining blocks.
 - **Public surface stays minimal.** Rust: private/`pub(crate)` by default, re-export the intended API from `lib.rs`. TypeScript: export only what other modules use; no barrel files that re-export everything.
-- **Known deviations** (fix when touching them, in a `refactor:` commit): `ui/src/api/` (move wrappers into their features), `src-tauri/src/photos.rs` and `thumbnails.rs` (by technical kind), `src-tauri/src/state.rs` and `commands/reject.rs` (over 400 lines).
 
 ### Complexity
 
@@ -96,7 +98,7 @@ Apply these rules both when **writing** and when **reviewing** code (including y
 
 ### Persistence (SQLite)
 
-- Schema changes go through numbered migrations (`PRAGMA user_version`), so existing caches survive app updates.
+- Durable data (the action log) changes its schema only through numbered migrations (`PRAGMA user_version`, see `crates/core/src/actions.rs`); never edit an applied migration. Pure caches (the photo cache) may instead be emptied when their version changes, since they can be rebuilt.
 - Multi-step changes (a move plus its undo entry, a batch of decisions) run in one transaction.
 - SQL lives only in the data layer of `core`.
 
@@ -109,7 +111,7 @@ Apply these rules both when **writing** and when **reviewing** code (including y
 
 - No network access except the checksum-verified model download.
 - Tauri capabilities and the CSP stay minimal; every new permission or allowed source needs a stated reason.
-- Logs never contain image data; full paths are logged at debug level only.
+- Logs stay on the machine (the logger only runs in debug builds) and never contain image data.
 
 ### Testing
 
@@ -119,7 +121,7 @@ Apply these rules both when **writing** and when **reviewing** code (including y
 
 ### Accessibility
 
-- Everything is usable by keyboard: native `<button>`/`<input>` elements, visible focus, keyboard shortcuts defined in one place.
+- Everything is usable by keyboard: native `<button>`/`<input>` elements, visible focus. Each feature handles its shortcuts in one hook (e.g. `useViewerKeys`, `useUndoShortcut`).
 - Icon-only controls have an `aria-label` from the translation file.
 
 ### Dependencies
