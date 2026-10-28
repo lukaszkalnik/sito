@@ -299,3 +299,16 @@ fn undo_restores_the_photo_even_without_its_date_file() {
         Some(RejectError::Missing(_))
     ));
 }
+
+#[test]
+fn an_edited_copy_leaves_the_shared_date_file_with_its_original() {
+    let dir = TempDir::new().unwrap();
+    let (_, sidecar) = photo_with_sidecar(&dir);
+    let copy = dir.path().join("Album/IMG_1-edytowano.jpg");
+    write(&copy, "edited");
+
+    let rejected = reject(&copy).unwrap();
+
+    assert_eq!(rejected.sidecar, None);
+    assert_eq!(fs::read_to_string(&sidecar).unwrap(), "date");
+}

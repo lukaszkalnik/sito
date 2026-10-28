@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use super::naming::match_sidecars;
+use super::naming::{is_edited_copy, match_sidecars};
 use super::sidecar::read_sidecar;
 use crate::scan::is_photo;
 
@@ -35,6 +35,29 @@ pub fn pair_sidecars(photos: &[&Path], sidecars: &[&Path]) -> Vec<(usize, usize)
 /// The Takeout date file of the photo at `path`, if its folder has one.
 #[must_use]
 pub fn find_sidecar(path: &Path) -> Option<PathBuf> {
+    find_in_folder(path).map(|found| found.path)
+}
+
+/// The Takeout date file that belongs to the photo at `path` alone: not one
+/// it shares with other photos, as an edited copy shares its original's.
+/// Moving the photo may take this file along.
+#[must_use]
+pub fn find_own_sidecar(path: &Path) -> Option<PathBuf> {
+    let found = find_in_folder(path)?;
+    let edited_copy = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(is_edited_copy);
+    (found.users == 1 && !edited_copy).then_some(found.path)
+}
+
+/// A photo's date file and how many photos of the folder use it.
+struct Found {
+    path: PathBuf,
+    users: usize,
+}
+
+fn find_in_folder(path: &Path) -> Option<Found> {
     let folder = path.parent()?;
     let (photos, sidecars): (Vec<PathBuf>, Vec<PathBuf>) = std::fs::read_dir(folder)
         .ok()?
@@ -44,10 +67,12 @@ pub fn find_sidecar(path: &Path) -> Option<PathBuf> {
     let photo_index = photos.iter().position(|photo| photo == path)?;
     let photos: Vec<&Path> = photos.iter().map(PathBuf::as_path).collect();
     let sidecar_paths: Vec<&Path> = sidecars.iter().map(PathBuf::as_path).collect();
-    pair_sidecars(&photos, &sidecar_paths)
-        .into_iter()
-        .find(|&(photo, _)| photo == photo_index)
-        .map(|(_, sidecar)| sidecars[sidecar].clone())
+    let pairs = pair_sidecars(&photos, &sidecar_paths);
+    let (_, sidecar) = pairs.iter().find(|&&(photo, _)| photo == photo_index)?;
+    Some(Found {
+        path: sidecars[*sidecar].clone(),
+        users: pairs.iter().filter(|(_, s)| s == sidecar).count(),
+    })
 }
 
 /// Matches photos not yet in `pairs` to unused date files by their `title`.

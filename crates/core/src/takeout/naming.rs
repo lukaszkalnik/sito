@@ -9,29 +9,55 @@ const JSON: &str = ".json";
 /// Takeout limits file names to this many characters (with `.json`) and cuts
 /// longer date file names short; shorter names are never truncated.
 const TRUNCATED_NAME_LEN: usize = 46;
+/// Endings Google Photos gives the names of edited copies, in the export's
+/// language (lower case). An edited copy has no date file of its own.
+const EDITED_SUFFIXES: &[&str] = &[
+    "-edited",
+    "-edytowano",
+    "-bearbeitet",
+    "-modifié",
+    "-editado",
+    "-modificato",
+    "-bewerkt",
+    "-redigeret",
+    "-redigert",
+    "-redigerad",
+    "-muokattu",
+    "-upraveno",
+    "-upravené",
+    "-szerkesztett",
+];
 
 /// Pairs photos with their Takeout date files within one folder.
 ///
-/// Returns `(photo index, sidecar index)` pairs; every photo and every sidecar
-/// appears at most once. Rules, from the most to the least specific:
+/// Returns `(photo index, sidecar index)` pairs. Every photo appears at most
+/// once, and so does every sidecar, except that edited copies share their
+/// original's. Names are compared ignoring letter case (Takeout writes e.g.
+/// `10(6).jpg` next to `10.JPG.supplemental-metadata(6).json`). Rules, from
+/// the most to the least specific:
 ///
 /// 1. `IMG.jpg` ↔ `IMG.jpg.supplemental-metadata.json`
 /// 2. duplicates: `IMG(1).jpg` ↔ `IMG.jpg.supplemental-metadata(1).json`
 /// 3. older exports: `IMG.jpg` ↔ `IMG.jpg.json`, `IMG(1).jpg` ↔ `IMG.jpg(1).json`
 /// 4. truncated long names: the date file's name (without `(n)` and `.json`)
 ///    is the start of `IMG.jpg.supplemental-metadata`; the longest one wins.
+/// 5. edited copies: `IMG-edited.jpg` (in the export's language, e.g.
+///    `IMG-edytowano.jpg`) shares the date file of `IMG.jpg`.
 #[must_use]
 pub fn match_sidecars(photos: &[&str], sidecars: &[&str]) -> Vec<(usize, usize)> {
-    let index: HashMap<&str, usize> = sidecars.iter().enumerate().map(|(i, s)| (*s, i)).collect();
+    let photos: Vec<String> = photos.iter().map(|name| name.to_lowercase()).collect();
+    let sidecars: Vec<String> = sidecars.iter().map(|name| name.to_lowercase()).collect();
+    let index: HashMap<&str, usize> = sidecars
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (s.as_str(), i))
+        .collect();
     let mut taken = vec![false; sidecars.len()];
     let mut pairs = Vec::new();
     let mut unmatched = Vec::new();
 
     for (photo_index, photo) in photos.iter().enumerate() {
-        let found = exact_names(photo)
-            .into_iter()
-            .find_map(|name| index.get(name.as_str()).copied().filter(|&i| !taken[i]));
-        match found {
+        match find_exact(photo, &index, &taken) {
             Some(sidecar) => {
                 taken[sidecar] = true;
                 pairs.push((photo_index, sidecar));
@@ -39,13 +65,51 @@ pub fn match_sidecars(photos: &[&str], sidecars: &[&str]) -> Vec<(usize, usize)>
             None => unmatched.push(photo_index),
         }
     }
+    let sidecar_names: Vec<&str> = sidecars.iter().map(String::as_str).collect();
+    let mut still_unmatched = Vec::new();
     for photo_index in unmatched {
-        if let Some(sidecar) = truncated_match(photos[photo_index], sidecars, &taken) {
-            taken[sidecar] = true;
-            pairs.push((photo_index, sidecar));
+        match truncated_match(&photos[photo_index], &sidecar_names, &taken) {
+            Some(sidecar) => {
+                taken[sidecar] = true;
+                pairs.push((photo_index, sidecar));
+            }
+            None => still_unmatched.push(photo_index),
         }
     }
+    let shared = vec![false; sidecars.len()];
+    pairs.extend(still_unmatched.into_iter().filter_map(|photo_index| {
+        let original = original_of(&photos[photo_index])?;
+        find_exact(&original, &index, &shared).map(|sidecar| (photo_index, sidecar))
+    }));
     pairs
+}
+
+/// Rules 1–3: the first date file `photo` accepts that is not `taken`.
+fn find_exact(photo: &str, index: &HashMap<&str, usize>, taken: &[bool]) -> Option<usize> {
+    exact_names(photo)
+        .into_iter()
+        .find_map(|name| index.get(name.as_str()).copied().filter(|&i| !taken[i]))
+}
+
+/// Whether `photo` is named like an edited copy (`IMG-edited.jpg`, in any of
+/// the export languages).
+#[must_use]
+pub fn is_edited_copy(photo: &str) -> bool {
+    original_of(&photo.to_lowercase()).is_some()
+}
+
+/// The original's name of an edited copy: `IMG-edited(1).jpg` → `IMG(1).jpg`.
+fn original_of(photo: &str) -> Option<String> {
+    let (stem, ext) = photo.rsplit_once('.')?;
+    let (base, number) = split_number(stem).map_or((stem, None), |(b, n)| (b, Some(n)));
+    let original = EDITED_SUFFIXES
+        .iter()
+        .find_map(|suffix| base.strip_suffix(suffix))
+        .filter(|original| !original.is_empty())?;
+    Some(match number {
+        Some(n) => format!("{original}({n}).{ext}"),
+        None => format!("{original}.{ext}"),
+    })
 }
 
 /// The date file names rules 1–3 accept for `photo`, best first.
@@ -197,6 +261,39 @@ mod tests {
                 &[photo],
                 &["Screenshot_20200101-120000_Some_Long_App_Na.json"]
             ),
+            NONE
+        );
+    }
+
+    #[test]
+    fn ignores_letter_case() {
+        assert_eq!(
+            pairs(&["10(6).jpg"], &["10.JPG.supplemental-metadata(6).json"]),
+            [("10(6).jpg", "10.JPG.supplemental-metadata(6).json")]
+        );
+    }
+
+    #[test]
+    fn edited_copies_share_the_date_file_of_their_original() {
+        let photos = ["415.jpg", "415-edytowano.jpg", "4-edited(1).jpg"];
+        let sidecars = [
+            "415.jpg.supplemental-metadata.json",
+            "4.jpg.supplemental-metadata(1).json",
+        ];
+        assert_eq!(
+            pairs(&photos, &sidecars),
+            [
+                ("4-edited(1).jpg", "4.jpg.supplemental-metadata(1).json"),
+                ("415-edytowano.jpg", "415.jpg.supplemental-metadata.json"),
+                ("415.jpg", "415.jpg.supplemental-metadata.json"),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_edited_copy_without_its_originals_file_stays_unmatched() {
+        assert_eq!(
+            pairs(&["-edited.jpg", "a-edited.jpg"], &["b.jpg.json"]),
             NONE
         );
     }

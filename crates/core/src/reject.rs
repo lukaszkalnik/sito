@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 use crate::scan::REJECTED_DIR;
-use crate::takeout::find_sidecar;
+use crate::takeout::find_own_sidecar;
 
 /// Name ending given to a date file moved along with its photo, so it pairs
 /// with the photo by name wherever the photo is renamed to.
@@ -85,8 +85,9 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
 /// can be logged before it happens. A file already there with the same name
 /// is kept: the photo is then named `<stem> (2).<ext>`, `(3)` and so on.
 ///
-/// A Google Takeout date file of the photo goes along, named after the
-/// photo's new name (`<name>.supplemental-metadata.json`).
+/// The photo's own Google Takeout date file goes along, named after the
+/// photo's new name (`<name>.supplemental-metadata.json`); a date file it
+/// shares with other photos (an edited copy's) stays.
 ///
 /// # Errors
 ///
@@ -104,7 +105,7 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
         source,
     })?;
     let target = free_name(&dir, name).ok_or_else(|| RejectError::Occupied(dir.join(name)))?;
-    let sidecar = find_sidecar(path).and_then(|from| {
+    let sidecar = find_own_sidecar(path).and_then(|from| {
         let mut sidecar_name = target.file_name()?.to_os_string();
         sidecar_name.push(SIDECAR_SUFFIX);
         let to = free_name(&dir, &sidecar_name)?;
