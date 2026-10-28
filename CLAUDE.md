@@ -202,7 +202,7 @@ The Tauri layer exposes commands (e.g. `start_scan`, `get_groups`, `set_decision
 
 ## Roadmap
 
-Features are described only there and in the slice and idea files, never in this file. The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every slice has its own file from the moment it is added (`docs/slices/NN-name.md`, also drafts and work in progress; ideas in `docs/ideas/`); the roadmap is only a table of links to those files with each slice's status, never a description of a slice. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the roadmap's order decides what comes next. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
+Features are described only in the roadmap, slice and idea files, never in this file. The work plan lives in [docs/ROADMAP.md](docs/ROADMAP.md): small vertical slices, each testable in the running app. Every slice has its own file from the moment it is added (`docs/slices/NN-name.md`, also drafts and work in progress; ideas in `docs/ideas/`); the roadmap is only a table of links to those files with each slice's status, never a description of a slice. Slice numbers are permanent IDs (never renumbered; a new slice takes the next free number); the roadmap's order decides what comes next. Plan each slice in plan mode first, save the approved plan into its `docs/slices/NN-name.md`, then implement and update its status in both files.
 
 ## Commands
 
