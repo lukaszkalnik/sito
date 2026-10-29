@@ -303,6 +303,7 @@ mod tests {
     use sito_core::metadata::Orientation;
 
     use super::*;
+    use sito_core::timeline::ExifInfo;
 
     fn photo(path: &str, source: TimeSource) -> Photo {
         Photo {
@@ -316,8 +317,10 @@ mod tests {
             time_source: source,
             sidecar: None,
             companion: None,
-            orientation: Orientation::NORMAL,
-            camera: None,
+            exif: ExifInfo::Read {
+                orientation: Orientation::NORMAL,
+                camera: None,
+            },
         }
     }
 

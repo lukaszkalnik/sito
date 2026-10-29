@@ -11,7 +11,8 @@ use sito_core::photo_cache::PhotoCache;
 use sito_core::scan::{FileStamp, StampedFile};
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
-    Photo, TimeSource, TimelineProgress, build_timeline, build_timeline_cached, cached_timeline,
+    ExifInfo, Photo, ReadMode, TimeSource, TimelineProgress, build_timeline, build_timeline_cached,
+    cached_timeline,
 };
 use tempfile::TempDir;
 
@@ -35,7 +36,7 @@ fn gallery() -> TempDir {
 /// How many photos a scan had to read (the total of its reading progress).
 fn scan_reading(root: &Path, cache: &mut PhotoCache) -> u64 {
     let mut total = 0;
-    build_timeline_cached(root, Some(cache), |progress| {
+    build_timeline_cached(root, Some(cache), ReadMode::Full, |progress| {
         if let TimelineProgress::Reading { total: t, .. } = progress {
             total = t;
         }
@@ -98,8 +99,9 @@ fn a_cached_scan_gives_the_same_timeline() {
     let mut cache = PhotoCache::open_in_memory().unwrap();
     let fresh = build_timeline(dir.path(), |_| {}).unwrap();
 
-    build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
-    let from_cache = build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    let from_cache =
+        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
 
     assert_eq!(from_cache, fresh);
     assert_eq!(from_cache.rejected.len(), 1);
@@ -109,7 +111,8 @@ fn a_cached_scan_gives_the_same_timeline() {
 fn the_cache_alone_shows_the_folder_as_last_scanned() {
     let dir = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    let scanned = build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+    let scanned =
+        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
 
     let instant = cached_timeline(dir.path(), &cache).unwrap();
 
@@ -127,11 +130,11 @@ fn the_cache_alone_shows_the_folder_as_last_scanned() {
 fn photos_that_are_gone_are_forgotten() {
     let dir = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
     let before = cache.photos_under(dir.path()).unwrap().len();
 
     fs::remove_file(dir.path().join("broken-date.jpg")).unwrap();
-    build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
 
     let after = cache.photos_under(dir.path()).unwrap();
     assert_eq!(after.len(), before - 1);
@@ -143,11 +146,11 @@ fn keeps_the_photos_of_other_folders() {
     let first = gallery();
     let second = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    build_timeline_cached(first.path(), Some(&mut cache), |_| {}).unwrap();
-    build_timeline_cached(second.path(), Some(&mut cache), |_| {}).unwrap();
+    build_timeline_cached(first.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    build_timeline_cached(second.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
 
     fs::remove_file(second.path().join("broken-date.jpg")).unwrap();
-    build_timeline_cached(second.path(), Some(&mut cache), |_| {}).unwrap();
+    build_timeline_cached(second.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
 
     assert_eq!(
         cache.photos_under(first.path()).unwrap().len(),
@@ -172,8 +175,10 @@ fn stores_every_field() {
             time_source: TimeSource::Exif,
             sidecar: None,
             companion: None,
-            orientation: Orientation::from_exif(6),
-            camera: Some("Google Pixel 8".into()),
+            exif: ExifInfo::Read {
+                orientation: Orientation::from_exif(6),
+                camera: Some("Google Pixel 8".into()),
+            },
         },
         Photo {
             path: PathBuf::from("b.jpg"),
@@ -186,8 +191,10 @@ fn stores_every_field() {
             time_source: TimeSource::FileModified,
             sidecar: None,
             companion: None,
-            orientation: Orientation::NORMAL,
-            camera: None,
+            exif: ExifInfo::Read {
+                orientation: Orientation::NORMAL,
+                camera: None,
+            },
         },
     ];
 
@@ -210,9 +217,12 @@ fn stores_a_takeout_time_its_date_file_and_raw_companion() {
             .and_hms_opt(12, 0, 0)
             .unwrap(),
         time_source: TimeSource::Takeout(TakeoutUse::Corrected),
-        sidecar: Some(FileStamp {
-            size: 512,
-            modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
+        sidecar: Some(StampedFile {
+            path: PathBuf::from("c.jpg.supplemental-metadata.json"),
+            stamp: FileStamp {
+                size: 512,
+                modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000)),
+            },
         }),
         companion: Some(StampedFile {
             path: PathBuf::from("c.ORF"),
@@ -221,8 +231,10 @@ fn stores_a_takeout_time_its_date_file_and_raw_companion() {
                 modified: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_100)),
             },
         }),
-        orientation: Orientation::NORMAL,
-        camera: None,
+        exif: ExifInfo::Read {
+            orientation: Orientation::NORMAL,
+            camera: None,
+        },
     };
 
     cache.store(std::slice::from_ref(&photo)).unwrap();
@@ -248,8 +260,10 @@ fn leaves_out_paths_that_are_not_unicode() {
         time_source: TimeSource::Exif,
         sidecar: None,
         companion: None,
-        orientation: Orientation::NORMAL,
-        camera: None,
+        exif: ExifInfo::Read {
+            orientation: Orientation::NORMAL,
+            camera: None,
+        },
     };
 
     cache.store(&[photo]).unwrap();
@@ -264,7 +278,7 @@ fn keeps_its_contents_across_reopening() {
     let file = db.path().join("photos.db");
     {
         let mut cache = PhotoCache::open(&file).unwrap();
-        build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
     }
 
     let mut cache = PhotoCache::open(&file).unwrap();
@@ -279,7 +293,7 @@ fn a_cache_of_another_version_starts_empty() {
     let file = db.path().join("photos.db");
     {
         let mut cache = PhotoCache::open(&file).unwrap();
-        build_timeline_cached(dir.path(), Some(&mut cache), |_| {}).unwrap();
+        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
     }
     let conn = rusqlite::Connection::open(&file).unwrap();
     conn.execute("UPDATE meta SET value = 0 WHERE key = 'version'", [])

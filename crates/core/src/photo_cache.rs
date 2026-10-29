@@ -16,11 +16,11 @@ use thiserror::Error;
 use crate::metadata::Orientation;
 use crate::scan::{FileStamp, StampedFile};
 use crate::takeout::TakeoutUse;
-use crate::timeline::{Photo, TimeSource};
+use crate::timeline::{ExifInfo, Photo, TimeSource};
 
 /// Changes whenever what a scan reads from a photo changes; a cache written
 /// by another version is emptied, so every photo is read again once.
-pub const CACHE_VERSION: i64 = 3;
+pub const CACHE_VERSION: i64 = 4;
 
 const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
@@ -80,8 +80,9 @@ impl PhotoCache {
                  mtime_ns         INTEGER,
                  taken_at         TEXT NOT NULL,
                  time_source      TEXT NOT NULL,
-                 orientation      INTEGER NOT NULL,
+                 orientation      INTEGER,
                  camera           TEXT,
+                 sidecar_path     TEXT,
                  sidecar_size     INTEGER,
                  sidecar_mtime_ns INTEGER,
                  companion_path     TEXT,
@@ -106,6 +107,22 @@ impl PhotoCache {
             .collect())
     }
 
+    /// The cached photos inside `root` whose EXIF is still pending, in path
+    /// order (the order a scan finds them in).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be read.
+    pub fn pending_under(&self, root: &Path) -> Result<Vec<Photo>, CacheError> {
+        let mut pending: Vec<Photo> = self
+            .photos_under(root)?
+            .into_iter()
+            .filter(|photo| photo.exif == ExifInfo::Pending)
+            .collect();
+        pending.sort_by(|a, b| a.path.cmp(&b.path));
+        Ok(pending)
+    }
+
     /// All cached photos, of every folder ever scanned.
     ///
     /// # Errors
@@ -114,7 +131,7 @@ impl PhotoCache {
     pub fn all(&self) -> Result<Vec<Photo>, CacheError> {
         let mut statement = self.conn.prepare(
             "SELECT path, size, mtime_ns, taken_at, time_source, orientation, camera,
-                    sidecar_size, sidecar_mtime_ns,
+                    sidecar_path, sidecar_size, sidecar_mtime_ns,
                     companion_path, companion_size, companion_mtime_ns
              FROM photos",
         )?;
@@ -127,11 +144,8 @@ impl PhotoCache {
                 time_source: row.get(4)?,
                 orientation: row.get(5)?,
                 camera: row.get(6)?,
-                sidecar_size: row.get(7)?,
-                sidecar_mtime_ns: row.get(8)?,
-                companion_path: row.get(9)?,
-                companion_size: row.get(10)?,
-                companion_mtime_ns: row.get(11)?,
+                sidecar: (row.get(7)?, row.get(8)?, row.get(9)?),
+                companion: (row.get(10)?, row.get(11)?, row.get(12)?),
             })
         })?;
         let mut photos = Vec::new();
@@ -157,20 +171,25 @@ impl PhotoCache {
             let mut insert = transaction.prepare(
                 "INSERT OR REPLACE INTO photos
                      (path, size, mtime_ns, taken_at, time_source, orientation, camera,
-                      sidecar_size, sidecar_mtime_ns,
+                      sidecar_path, sidecar_size, sidecar_mtime_ns,
                       companion_path, companion_size, companion_mtime_ns)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )?;
             for photo in photos {
-                let Some(path) = photo.path.to_str() else {
+                // Paths that are not valid Unicode are not stored (see above).
+                let (Some(path), Some(sidecar), Some(companion)) = (
+                    photo.path.to_str(),
+                    stamp_columns(photo.sidecar.as_ref()),
+                    stamp_columns(photo.companion.as_ref()),
+                ) else {
                     continue;
                 };
-                let companion_path = match &photo.companion {
-                    Some(companion) => match companion.path.to_str() {
-                        Some(text) => Some(text),
-                        None => continue,
-                    },
-                    None => None,
+                let (orientation, camera) = match &photo.exif {
+                    ExifInfo::Read {
+                        orientation,
+                        camera,
+                    } => (Some(i64::from(orientation.value())), camera.as_deref()),
+                    ExifInfo::Pending => (None, None),
                 };
                 insert.execute(params![
                     path,
@@ -178,25 +197,14 @@ impl PhotoCache {
                     photo.modified.and_then(to_nanos),
                     photo.taken_at.format(TIME_FORMAT).to_string(),
                     source_code(photo.time_source),
-                    i64::from(photo.orientation.value()),
-                    photo.camera,
-                    photo
-                        .sidecar
-                        .map(|stamp| i64::try_from(stamp.size).unwrap_or(i64::MAX)),
-                    photo
-                        .sidecar
-                        .and_then(|stamp| stamp.modified)
-                        .and_then(to_nanos),
-                    companion_path,
-                    photo
-                        .companion
-                        .as_ref()
-                        .map(|c| i64::try_from(c.stamp.size).unwrap_or(i64::MAX)),
-                    photo
-                        .companion
-                        .as_ref()
-                        .and_then(|c| c.stamp.modified)
-                        .and_then(to_nanos),
+                    orientation,
+                    camera,
+                    sidecar.0,
+                    sidecar.1,
+                    sidecar.2,
+                    companion.0,
+                    companion.1,
+                    companion.2,
                 ])?;
             }
         }
@@ -231,6 +239,9 @@ impl PhotoCache {
     }
 }
 
+/// A stored file reference: path, size and modification time.
+type StampColumns = (Option<String>, Option<i64>, Option<i64>);
+
 /// One row of the `photos` table.
 struct Row {
     path: String,
@@ -238,43 +249,59 @@ struct Row {
     mtime_ns: Option<i64>,
     taken_at: String,
     time_source: String,
-    orientation: i64,
+    /// `NULL` while the photo's EXIF is pending.
+    orientation: Option<i64>,
     camera: Option<String>,
-    sidecar_size: Option<i64>,
-    sidecar_mtime_ns: Option<i64>,
-    companion_path: Option<String>,
-    companion_size: Option<i64>,
-    companion_mtime_ns: Option<i64>,
+    sidecar: StampColumns,
+    companion: StampColumns,
 }
 
 impl Row {
     fn into_photo(self) -> Option<Photo> {
         let taken_at = NaiveDateTime::parse_from_str(&self.taken_at, TIME_FORMAT).ok()?;
-        let sidecar = self.sidecar_size.map(|size| FileStamp {
-            size: u64::try_from(size).unwrap_or_default(),
-            modified: self.sidecar_mtime_ns.and_then(from_nanos),
-        });
+        let exif = match self.orientation {
+            Some(value) => ExifInfo::Read {
+                orientation: Orientation::from_exif(u16::try_from(value).unwrap_or(1)),
+                camera: self.camera,
+            },
+            None => ExifInfo::Pending,
+        };
         Some(Photo {
             path: PathBuf::from(self.path),
             size: u64::try_from(self.size).unwrap_or_default(),
             modified: self.mtime_ns.and_then(from_nanos),
             taken_at,
             time_source: source_from_code(&self.time_source)?,
-            orientation: Orientation::from_exif(u16::try_from(self.orientation).unwrap_or(1)),
-            camera: self.camera,
-            sidecar,
-            companion: self.companion_path.map(|path| StampedFile {
-                path: PathBuf::from(path),
-                stamp: FileStamp {
-                    size: self
-                        .companion_size
-                        .and_then(|size| u64::try_from(size).ok())
-                        .unwrap_or_default(),
-                    modified: self.companion_mtime_ns.and_then(from_nanos),
-                },
-            }),
+            exif,
+            sidecar: stamped_file(self.sidecar),
+            companion: stamped_file(self.companion),
         })
     }
+}
+
+/// The columns of an optional file reference; `None` if its path is not
+/// valid Unicode and cannot be stored unchanged.
+fn stamp_columns(file: Option<&StampedFile>) -> Option<(Option<&str>, Option<i64>, Option<i64>)> {
+    let Some(file) = file else {
+        return Some((None, None, None));
+    };
+    Some((
+        Some(file.path.to_str()?),
+        Some(i64::try_from(file.stamp.size).unwrap_or(i64::MAX)),
+        file.stamp.modified.and_then(to_nanos),
+    ))
+}
+
+fn stamped_file((path, size, mtime_ns): StampColumns) -> Option<StampedFile> {
+    Some(StampedFile {
+        path: PathBuf::from(path?),
+        stamp: FileStamp {
+            size: size
+                .and_then(|size| u64::try_from(size).ok())
+                .unwrap_or_default(),
+            modified: mtime_ns.and_then(from_nanos),
+        },
+    })
 }
 
 /// How a [`TimeSource`] is stored.

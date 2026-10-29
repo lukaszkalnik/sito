@@ -52,7 +52,7 @@ pub enum DisplayError {
 /// Fails if the file cannot be read or holds nothing a browser can show.
 pub fn display_jpeg(photo: &Photo, cache: &ThumbnailCache) -> Result<Vec<u8>, DisplayError> {
     let path = photo.path.as_path();
-    let orientation = photo.orientation;
+    let orientation = photo.orientation();
     match photo_kind(path) {
         Some(PhotoKind::Jpeg) => std::fs::read(path).map_err(|source| DisplayError::Io {
             path: path.to_path_buf(),
@@ -80,6 +80,7 @@ pub fn display_jpeg(photo: &Photo, cache: &ThumbnailCache) -> Result<Vec<u8>, Di
 mod tests {
     use super::*;
     use crate::metadata::Orientation;
+    use crate::timeline::ExifInfo;
 
     fn fixture(dir: &str, name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -96,8 +97,10 @@ mod tests {
             modified: meta.modified().ok(),
             taken_at: chrono::NaiveDateTime::default(),
             time_source: crate::timeline::TimeSource::Exif,
-            orientation: Orientation::from_exif(orientation),
-            camera: None,
+            exif: ExifInfo::Read {
+                orientation: Orientation::from_exif(orientation),
+                camera: None,
+            },
             sidecar: None,
             companion: None,
         }

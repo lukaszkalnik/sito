@@ -9,7 +9,7 @@ use chrono::NaiveDate;
 use image::{Rgb, RgbImage};
 use sito_core::metadata::Orientation;
 use sito_core::thumbnail::{ThumbnailCache, ThumbnailError};
-use sito_core::timeline::{Photo, TimeSource};
+use sito_core::timeline::{ExifInfo, Photo, TimeSource};
 use tempfile::TempDir;
 use walkdir::WalkDir;
 
@@ -25,8 +25,10 @@ fn photo(path: PathBuf) -> Photo {
         time_source: TimeSource::Exif,
         sidecar: None,
         companion: None,
-        orientation: Orientation::NORMAL,
-        camera: None,
+        exif: ExifInfo::Read {
+            orientation: Orientation::NORMAL,
+            camera: None,
+        },
     }
 }
 

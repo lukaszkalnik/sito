@@ -86,7 +86,7 @@ mod tests {
     use super::*;
     use crate::metadata::Orientation;
     use crate::takeout::TakeoutUse;
-    use crate::timeline::TimeSource;
+    use crate::timeline::{ExifInfo, TimeSource};
 
     fn at(seconds: i64) -> NaiveDateTime {
         NaiveDate::from_ymd_opt(2024, 6, 1)
@@ -108,8 +108,10 @@ mod tests {
                 time_source: TimeSource::Exif,
                 sidecar: None,
                 companion: None,
-                orientation: Orientation::NORMAL,
-                camera: None,
+                exif: ExifInfo::Read {
+                    orientation: Orientation::NORMAL,
+                    camera: None,
+                },
             })
             .collect();
         photos.sort_by_key(|p| std::cmp::Reverse(p.taken_at));

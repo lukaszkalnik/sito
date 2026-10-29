@@ -200,7 +200,7 @@ impl AppState {
 mod tests {
     use chrono::NaiveDate;
     use sito_core::metadata::Orientation;
-    use sito_core::timeline::TimeSource;
+    use sito_core::timeline::{ExifInfo, TimeSource};
 
     use super::*;
 
@@ -230,8 +230,10 @@ mod tests {
             time_source: TimeSource::Exif,
             sidecar: None,
             companion: None,
-            orientation: Orientation::NORMAL,
-            camera: None,
+            exif: ExifInfo::Read {
+                orientation: Orientation::NORMAL,
+                camera: None,
+            },
         }
     }
 

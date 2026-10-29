@@ -58,7 +58,7 @@ impl PhotoCacheState {
         on_progress: impl FnMut(TimelineProgress),
     ) -> Result<Timeline, ScanError> {
         let mut cache = self.lock();
-        timeline::build_timeline_cached(root, cache.as_mut(), on_progress)
+        timeline::build_timeline_cached(root, cache.as_mut(), timeline::ReadMode::Full, on_progress)
     }
 
     /// Removes thumbnails of photos no longer in the cache and keeps the

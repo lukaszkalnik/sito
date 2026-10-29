@@ -7,7 +7,7 @@ use image::GenericImageView;
 use sito_core::decode::{DecodeError, decode_photo};
 use sito_core::metadata::{Orientation, read_photo_metadata};
 use sito_core::thumbnail::{ThumbnailCache, render_photo};
-use sito_core::timeline::{Photo, TimeSource, build_timeline};
+use sito_core::timeline::{ExifInfo, Photo, TimeSource, build_timeline};
 use tempfile::TempDir;
 
 fn fixture(name: &str) -> PathBuf {
@@ -92,8 +92,10 @@ fn photo(path: PathBuf) -> Photo {
         modified: meta.modified().ok(),
         taken_at: chrono::NaiveDateTime::default(),
         time_source: TimeSource::Exif,
-        orientation: Orientation::from_exif(6),
-        camera: None,
+        exif: ExifInfo::Read {
+            orientation: Orientation::from_exif(6),
+            camera: None,
+        },
         sidecar: None,
         companion: None,
     }
@@ -146,7 +148,10 @@ fn viewer_jpegs_of_large_scans_are_at_most_4096_px() {
         .save(&path)
         .unwrap();
     let mut scan = photo(path);
-    scan.orientation = Orientation::NORMAL;
+    scan.exif = ExifInfo::Read {
+        orientation: Orientation::NORMAL,
+        camera: None,
+    };
 
     let jpeg = ThumbnailCache::new(dir.path().join("cache"))
         .display_jpeg_for(&scan)

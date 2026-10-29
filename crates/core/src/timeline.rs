@@ -1,22 +1,24 @@
 //! All photos of a folder tree, with capture times, sorted newest first.
 
+mod pending;
+mod read;
+
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use chrono::{DateTime, Local, NaiveDateTime};
-use rayon::prelude::*;
+use chrono::NaiveDateTime;
 
-use crate::metadata::{Orientation, is_plausible_capture_time, read_photo_metadata};
+pub use pending::{Completion, complete_pending};
+
+use crate::metadata::{Orientation, read_photo_metadata};
 use crate::photo_cache::{CacheError, PhotoCache};
 use crate::scan::{
-    FileStamp, FoundFile, ScanError, StampedFile, find_companion, find_photos, is_in_rejected_dir,
+    FoundFile, ScanError, StampedFile, find_companion, find_photos, is_in_rejected_dir,
 };
-use crate::takeout::{ChosenTime, TakeoutUse, choose_time, find_sidecar, read_sidecar};
-
-/// Number of photos whose metadata is read between two progress reports.
-const READ_CHUNK: usize = 200;
+use crate::takeout::{TakeoutUse, find_sidecar};
+use read::{read_photos, to_photo};
 
 /// Where a photo's capture time came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +43,21 @@ impl TimeSource {
     }
 }
 
+/// What the photo's own EXIF says, once it has been read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExifInfo {
+    /// Not read yet: a quick first scan dated the photo from its Takeout
+    /// date file alone ([`ReadMode::TakeoutFirst`]).
+    Pending,
+    /// Read from the photo file.
+    Read {
+        /// EXIF orientation.
+        orientation: Orientation,
+        /// Camera description, e.g. `Google Pixel 8`.
+        camera: Option<String>,
+    },
+}
+
 /// One photo on the timeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Photo {
@@ -54,15 +71,35 @@ pub struct Photo {
     pub taken_at: NaiveDateTime,
     /// Where [`Photo::taken_at`] came from.
     pub time_source: TimeSource,
-    /// EXIF orientation.
-    pub orientation: Orientation,
-    /// Camera description, e.g. `Google Pixel 8`.
-    pub camera: Option<String>,
-    /// Size and modification time of the photo's Takeout date file when it
-    /// was read, `None` without one.
-    pub sidecar: Option<FileStamp>,
+    /// The photo's EXIF orientation and camera, or that they are not read yet.
+    pub exif: ExifInfo,
+    /// The photo's Takeout date file as it was when read, `None` without one.
+    pub sidecar: Option<StampedFile>,
     /// The RAW file of a RAW+JPEG pair (this photo is the pair's JPEG).
     pub companion: Option<StampedFile>,
+}
+
+impl Photo {
+    /// The photo's orientation: from its EXIF, read from the file now if it
+    /// is still pending.
+    #[must_use]
+    pub fn orientation(&self) -> Orientation {
+        match &self.exif {
+            ExifInfo::Read { orientation, .. } => *orientation,
+            ExifInfo::Pending => read_photo_metadata(&self.path).orientation,
+        }
+    }
+}
+
+/// How much of each photo a scan reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadMode {
+    /// Every photo file is opened and its EXIF read.
+    Full,
+    /// Photos with a Takeout date file are dated from it alone and their
+    /// EXIF left [`ExifInfo::Pending`] for [`complete_pending`]: opening each
+    /// photo is what makes a first scan slow on a hard disk.
+    TakeoutFirst,
 }
 
 /// The photos of one folder tree, newest first.
@@ -164,13 +201,14 @@ pub fn build_timeline(
     root: &Path,
     on_progress: impl FnMut(TimelineProgress),
 ) -> Result<Timeline, ScanError> {
-    build_timeline_cached(root, None, on_progress)
+    build_timeline_cached(root, None, ReadMode::Full, on_progress)
 }
 
-/// Like [`build_timeline`], but takes photos whose size and modification time
-/// are unchanged from `cache` instead of reading them, and stores what it
-/// read; photos under `root` that are gone are removed from the cache. Only
-/// the photos that really need reading count in the reading progress.
+/// Like [`build_timeline`], but takes photos whose files are unchanged from
+/// `cache` instead of reading them, reads the others as `mode` says, and
+/// stores what it read; photos under `root` that are gone are removed from
+/// the cache. Only the photos that really need reading count in the reading
+/// progress. Cached photos whose EXIF is still pending stay pending.
 ///
 /// The cache only speeds things up: if it cannot be read or written, every
 /// photo is read as without one.
@@ -182,6 +220,7 @@ pub fn build_timeline(
 pub fn build_timeline_cached(
     root: &Path,
     cache: Option<&mut PhotoCache>,
+    mode: ReadMode,
     mut on_progress: impl FnMut(TimelineProgress),
 ) -> Result<Timeline, ScanError> {
     let found = find_photos(root, |p| {
@@ -192,7 +231,7 @@ pub fn build_timeline_cached(
 
     let all_files: Vec<&FoundFile> = found.photos.iter().chain(&found.rejected).collect();
     let (mut photos, to_read) = split_cached(&all_files, cache.as_deref(), root);
-    let read = read_photos(&to_read, &mut on_progress);
+    let read = read_photos(&to_read, mode, &mut on_progress);
 
     if let Some(cache) = cache {
         update_cache(cache, root, &read, &all_files);
@@ -229,28 +268,13 @@ fn split_cached<'a>(
     (photos, to_read)
 }
 
-/// Whether `file` and its Takeout date file are as cached in `photo`.
+/// Whether `file`, its Takeout date file and its RAW companion are as
+/// cached in `photo`.
 fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
     photo.size == file.size
         && photo.modified == file.modified
-        && photo.sidecar == file.sidecar.as_ref().map(|sidecar| sidecar.stamp)
+        && photo.sidecar == file.sidecar
         && photo.companion == file.companion
-}
-
-/// Reads the metadata of `files` in parallel, reporting progress after each
-/// chunk of [`READ_CHUNK`] files.
-fn read_photos(files: &[&FoundFile], on_progress: &mut impl FnMut(TimelineProgress)) -> Vec<Photo> {
-    let total = files.len() as u64;
-    let mut read = Vec::with_capacity(files.len());
-    on_progress(TimelineProgress::Reading { done: 0, total });
-    for chunk in files.chunks(READ_CHUNK) {
-        read.par_extend(chunk.par_iter().map(|file| to_photo(file)));
-        on_progress(TimelineProgress::Reading {
-            done: read.len() as u64,
-            total,
-        });
-    }
-    read
 }
 
 /// Stores the freshly `read` photos in `cache` and forgets cached photos
@@ -287,41 +311,4 @@ fn sorted_timeline(root: &Path, photos: Vec<Photo>, unreadable_entries: u64) -> 
 /// Returns an error if the cache cannot be read.
 pub fn cached_timeline(root: &Path, cache: &PhotoCache) -> Result<Timeline, CacheError> {
     Ok(sorted_timeline(root, cache.photos_under(root)?, 0))
-}
-
-fn to_photo(file: &FoundFile) -> Photo {
-    let meta = read_photo_metadata(&file.path);
-    let now = Local::now().naive_local();
-    // A date file that cannot be read leaves the photo with its own date.
-    let takeout = file
-        .sidecar
-        .as_ref()
-        .and_then(|sidecar| read_sidecar(&sidecar.path).ok());
-    let (taken_at, time_source) = match (takeout, meta.captured) {
-        (Some(takeout), exif) => match choose_time(exif, takeout.taken, now, |utc| {
-            utc.with_timezone(&Local).naive_local()
-        }) {
-            ChosenTime::Exif(time) => (time, TimeSource::Exif),
-            ChosenTime::Takeout(time, reason) => (time, TimeSource::Takeout(reason)),
-        },
-        (None, Some(exif)) if is_plausible_capture_time(exif.local, now) => {
-            (exif.local, TimeSource::Exif)
-        }
-        (None, _) => (local_time(file.modified), TimeSource::FileModified),
-    };
-    Photo {
-        path: file.path.clone(),
-        size: file.size,
-        modified: file.modified,
-        taken_at,
-        time_source,
-        orientation: meta.orientation,
-        camera: meta.camera,
-        sidecar: file.sidecar.as_ref().map(|sidecar| sidecar.stamp),
-        companion: file.companion.clone(),
-    }
-}
-
-fn local_time(time: Option<SystemTime>) -> NaiveDateTime {
-    DateTime::<Local>::from(time.unwrap_or(SystemTime::UNIX_EPOCH)).naive_local()
 }

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
 
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone};
-use sito_core::timeline::{TimeSource, TimelineProgress, build_timeline, read_photo};
+use sito_core::timeline::{ExifInfo, TimeSource, TimelineProgress, build_timeline, read_photo};
 use tempfile::TempDir;
 
 fn fixtures() -> PathBuf {
@@ -96,8 +96,15 @@ fn keeps_exif_details() {
         .unwrap();
     assert_eq!(rotated.taken_at, at(2024, 5, 31, 18, 15, 0));
     assert_eq!(rotated.time_source, TimeSource::Exif);
-    assert_eq!(rotated.orientation.value(), 6);
-    assert_eq!(rotated.camera.as_deref(), Some("Google Pixel 8"));
+    let ExifInfo::Read {
+        orientation,
+        camera,
+    } = &rotated.exif
+    else {
+        panic!("EXIF not read: {:?}", rotated.exif);
+    };
+    assert_eq!(orientation.value(), 6);
+    assert_eq!(camera.as_deref(), Some("Google Pixel 8"));
     assert_eq!(timeline.root, dir.path());
 }
 

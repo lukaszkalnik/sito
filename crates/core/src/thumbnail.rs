@@ -103,7 +103,7 @@ impl ThumbnailCache {
             Err(source) => return Err(ThumbnailError::Io { path, source }),
         }
 
-        let bytes = render_photo(&photo.path, photo.orientation, self.max_edge)?;
+        let bytes = render_photo(&photo.path, photo.orientation(), self.max_edge)?;
         // Best effort, see above: a full disk must not hide the thumbnail.
         let _ = store_atomically(&path, &bytes);
         Ok(bytes)
@@ -140,7 +140,7 @@ impl ThumbnailCache {
                 path: photo.path.clone(),
                 source,
             })?;
-        let bytes = with_orientation(bytes, photo.orientation);
+        let bytes = with_orientation(bytes, photo.orientation());
         // Best effort, like thumbnails.
         let _ = store_atomically(&path, &bytes);
         Ok(bytes)

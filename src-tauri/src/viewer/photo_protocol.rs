@@ -57,7 +57,7 @@ mod tests {
     use std::path::PathBuf;
 
     use sito_core::metadata::Orientation;
-    use sito_core::timeline::TimeSource;
+    use sito_core::timeline::{ExifInfo, TimeSource};
     use tauri::http::header::CONTENT_TYPE;
 
     use super::*;
@@ -69,8 +69,10 @@ mod tests {
             modified: None,
             taken_at: chrono::NaiveDateTime::default(),
             time_source: TimeSource::Exif,
-            orientation: Orientation::NORMAL,
-            camera: None,
+            exif: ExifInfo::Read {
+                orientation: Orientation::NORMAL,
+                camera: None,
+            },
             sidecar: None,
             companion: None,
         }

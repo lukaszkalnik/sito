@@ -6,9 +6,13 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use sito_core::photo_cache::PhotoCache;
 use sito_core::reject::{reject, restore};
 use sito_core::takeout::TakeoutUse;
-use sito_core::timeline::{Photo, TimeSource, build_timeline, read_photo};
+use sito_core::timeline::{
+    Completion, ExifInfo, Photo, ReadMode, TimeSource, build_timeline, build_timeline_cached,
+    cached_timeline, complete_pending, read_photo,
+};
 use tempfile::TempDir;
 
 /// A copy of the Takeout album fixture (see fixtures/README.md).
@@ -98,4 +102,86 @@ fn a_rejected_and_restored_photo_keeps_its_takeout_date() {
         assert_eq!(read.taken_at.date(), year_1976);
         assert_eq!(read.time_source, TimeSource::Takeout(TakeoutUse::Corrected));
     }
+}
+
+/// Scans `dir` in [`ReadMode::TakeoutFirst`] into a fresh cache.
+fn quick_scan(dir: &TempDir) -> PhotoCache {
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::TakeoutFirst, |_| {}).unwrap();
+    cache
+}
+
+/// Reads the pending photos of `dir` into `cache`, stopping when `should_stop` says so.
+fn complete(dir: &TempDir, cache: &mut PhotoCache, should_stop: impl Fn() -> bool) -> Completion {
+    let pending = cache.pending_under(dir.path()).unwrap();
+    complete_pending(
+        &pending,
+        |read| cache.store(read).unwrap(),
+        |_, _| {},
+        should_stop,
+    )
+}
+
+#[test]
+fn a_quick_first_scan_dates_photos_from_their_date_files_alone() {
+    let dir = album();
+
+    let cache = quick_scan(&dir);
+    let timeline = cached_timeline(dir.path(), &cache).unwrap();
+
+    let by_path: HashMap<String, &Photo> = timeline
+        .photos
+        .iter()
+        .map(|p| {
+            (
+                p.path.file_name().unwrap().to_string_lossy().into_owned(),
+                p,
+            )
+        })
+        .collect();
+    let img = by_path["IMG_1.jpg"];
+    assert_eq!(img.exif, ExifInfo::Pending);
+    assert_eq!(
+        (img.taken_at, img.time_source),
+        (
+            local("2024-06-01 10:00:05"),
+            TimeSource::Takeout(TakeoutUse::MissingExif)
+        )
+    );
+    assert!(matches!(
+        by_path["no-sidecar_reset-clock.jpg"].exif,
+        ExifInfo::Read { .. }
+    ));
+}
+
+#[test]
+fn completing_a_quick_scan_gives_the_full_scan_result() {
+    let dir = album();
+    let mut cache = quick_scan(&dir);
+
+    let completion = complete(&dir, &mut cache, || false);
+
+    assert_eq!(completion, Completion::Finished);
+    assert_eq!(cache.pending_under(dir.path()).unwrap(), Vec::new());
+    let full = build_timeline(dir.path(), |_| {}).unwrap();
+    assert_eq!(
+        cached_timeline(dir.path(), &cache).unwrap().photos,
+        full.photos
+    );
+}
+
+#[test]
+fn a_stopped_completion_resumes_later() {
+    let dir = album();
+    let mut cache = quick_scan(&dir);
+    let pending = cache.pending_under(dir.path()).unwrap().len();
+
+    let stopped = complete(&dir, &mut cache, || true);
+    // A rescan keeps the unread photos pending.
+    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::TakeoutFirst, |_| {}).unwrap();
+
+    assert_eq!(stopped, Completion::Stopped);
+    assert_eq!(cache.pending_under(dir.path()).unwrap().len(), pending);
+    assert_eq!(complete(&dir, &mut cache, || false), Completion::Finished);
+    assert_eq!(cache.pending_under(dir.path()).unwrap(), Vec::new());
 }
