@@ -11,6 +11,7 @@ These findings come from the user's first real test of Sito on their own photos 
 1. **Portrait photos fill the viewer's height,** letterboxed at the sides.
    - The viewer uses `object-fit: contain` on an absolutely positioned `<img>`, so portrait photos should already fill the height.
    - To check first: whether EXIF-rotated photos (stored landscape with an orientation tag) are measured before rotation, or whether a min-size or the series strip shrinks the area.
+   - **The grid tiles too** (found 2026-10-29 while testing slice 29): tiles are a fixed landscape box with `object-fit: cover`, so a portrait photo shows only a landscape strip from its middle. In the Takeout's `Zdjęcia z roku 2015`, the `NNN(1).jpg` scans are portrait files whose picture is stored sideways without an orientation tag (a second upload of `NNN.jpg`). Their middle strip looks like a landscape photo turned by Sito. Showing portrait photos uncropped in their tile (narrower, background at the sides) would make such files recognisable.
 2. **"Odrzuć" is clearly separated from "Cofnij"** and has a solid red background.
    - Placing it apart, e.g. at the other end of the bar or next to the photo, avoids pressing the wrong one.
 3. **"Zaakceptuj"** marks a photo as accepted, e.g. as the first pick in a large series.
