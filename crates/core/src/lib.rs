@@ -9,6 +9,7 @@ pub mod actions;
 pub mod decode;
 pub mod display;
 pub mod metadata;
+pub mod navigation;
 pub mod photo_cache;
 pub mod raw;
 pub mod reject;
