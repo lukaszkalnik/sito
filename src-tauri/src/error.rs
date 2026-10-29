@@ -19,3 +19,20 @@ pub enum CommandError {
     /// Unexpected failure inside the app.
     Internal,
 }
+
+/// Runs `work` on a blocking thread, off the main thread that also handles
+/// the window, so a command with a lot to do never freezes the app.
+///
+/// # Errors
+///
+/// [`CommandError::Internal`] if `work` panicked.
+pub async fn off_main_thread<T: Send + 'static>(
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Result<T, CommandError> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|err| {
+            log::error!("background task failed: {err}");
+            CommandError::Internal
+        })
+}

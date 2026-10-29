@@ -9,7 +9,7 @@ use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::error::CommandError;
+use crate::error::{CommandError, off_main_thread};
 use crate::reject::TIMELINE_CHANGED;
 use crate::thumbnails::Thumbnails;
 use photo_cache::PhotoCacheState;
@@ -288,16 +288,31 @@ fn clean_thumbnails_in_background(app: AppHandle) {
     });
 }
 
-/// Returns the timeline of the last finished scan (empty if none).
-// Tauri injects `State` by value into commands.
-#[allow(clippy::needless_pass_by_value)]
+/// Returns the timeline of the last finished scan (empty if none). Built off
+/// the main thread: for tens of thousands of photos it takes a while.
 #[tauri::command]
-pub fn get_timeline(state: State<'_, AppState>) -> Vec<TimelineEntryDto> {
-    state.scan().as_ref().map_or_else(Vec::new, |scan| {
-        scan.photos()
-            .map(|(id, photo)| TimelineEntryDto::new(id, photo, &scan.timeline.root))
-            .collect()
-    })
+pub async fn get_timeline(app: AppHandle) -> Result<Vec<TimelineEntryDto>, CommandError> {
+    off_main_thread(move || timeline_entries(&app.state::<AppState>())).await
+}
+
+/// The entries of the shown timeline. The scan is locked only to copy its
+/// photos, so thumbnails (which look photos up in it) are not held up.
+fn timeline_entries(state: &AppState) -> Vec<TimelineEntryDto> {
+    let (root, photos): (PathBuf, Vec<(usize, Photo)>) = {
+        let scan = state.scan();
+        let Some(scan) = scan.as_ref() else {
+            return Vec::new();
+        };
+        let photos = scan
+            .photos()
+            .map(|(id, photo)| (id, photo.clone()))
+            .collect();
+        (scan.timeline.root.clone(), photos)
+    };
+    photos
+        .iter()
+        .map(|(id, photo)| TimelineEntryDto::new(*id, photo, &root))
+        .collect()
 }
 
 #[cfg(test)]

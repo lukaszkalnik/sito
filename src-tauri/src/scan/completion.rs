@@ -18,7 +18,7 @@ pub const SCAN_COMPLETING: &str = "scan-completing";
 
 /// How often at most the timeline is updated while the second pass runs:
 /// every update makes the UI reload the timeline and its series.
-const UPDATE_EVERY: Duration = Duration::from_secs(10);
+const UPDATE_EVERY: Duration = Duration::from_secs(30);
 
 /// How often at most the progress is sent to the UI; the core reports it
 /// after every photo.

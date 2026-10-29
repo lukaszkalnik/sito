@@ -243,7 +243,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::series::series_of;
+    use crate::series::series_with_removed;
 
     /// The two fixture photos 5 s apart, which form the only series.
     const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";
@@ -282,7 +282,8 @@ mod tests {
 
     /// File names of each series' photos, newest first.
     fn series_names(scan: &Scan) -> Vec<Vec<String>> {
-        series_of(scan, DEFAULT_MAX_GAP)
+        let (all, removed) = scan.photos_with_removed();
+        series_with_removed(&all, &removed, DEFAULT_MAX_GAP)
             .iter()
             .map(|s| {
                 scan.timeline.photos[s.start..s.start + s.len]

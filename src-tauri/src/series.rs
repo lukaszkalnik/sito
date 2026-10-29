@@ -4,8 +4,10 @@ use std::time::Duration;
 
 use serde::Serialize;
 use sito_core::series::{self, DEFAULT_MAX_GAP, Series};
-use tauri::State;
+use sito_core::timeline::Photo;
+use tauri::{AppHandle, Manager};
 
+use crate::error::{CommandError, off_main_thread};
 use crate::scan::state::{AppState, Scan};
 
 /// One series as sent to the UI: a range of timeline entries.
@@ -29,25 +31,40 @@ impl From<Series> for SeriesDto {
 
 /// Returns the series of the last finished scan (empty if none). Neighbouring
 /// photos at most `max_gap_seconds` apart form a series; `None` uses the
-/// default gap.
-// Tauri injects `State` by value into commands.
-#[allow(clippy::needless_pass_by_value)]
+/// default gap. Found off the main thread, as for the timeline.
 #[tauri::command]
-pub fn get_series(max_gap_seconds: Option<u32>, state: State<'_, AppState>) -> Vec<SeriesDto> {
+pub async fn get_series(
+    max_gap_seconds: Option<u32>,
+    app: AppHandle,
+) -> Result<Vec<SeriesDto>, CommandError> {
     let max_gap = max_gap_seconds.map_or(DEFAULT_MAX_GAP, |s| Duration::from_secs(s.into()));
-    state.scan().as_ref().map_or_else(Vec::new, |scan| {
-        series_of(scan, max_gap)
+    off_main_thread(move || {
+        // Copied under the lock, grouped after it.
+        let Some((all, removed)) = app
+            .state::<AppState>()
+            .scan()
+            .as_ref()
+            .map(Scan::photos_with_removed)
+        else {
+            return Vec::new();
+        };
+        series_with_removed(&all, &removed, max_gap)
             .into_iter()
             .map(SeriesDto::from)
             .collect()
     })
+    .await
 }
 
-/// The series of `scan`'s timeline. Rejected photos still shape them, so a
-/// series stays one while any of its photos is left.
-pub(crate) fn series_of(scan: &Scan, max_gap: Duration) -> Vec<Series> {
-    let (all, removed) = scan.photos_with_removed();
-    series::without_removed(&series::find_time_series(&all, max_gap), &removed)
+/// The series of `all` photos (newest first), leaving out the `removed` ones.
+/// Rejected photos still shape them, so a series stays one while any of its
+/// photos is left.
+pub(crate) fn series_with_removed(
+    all: &[Photo],
+    removed: &[bool],
+    max_gap: Duration,
+) -> Vec<Series> {
+    series::without_removed(&series::find_time_series(all, max_gap), removed)
 }
 
 #[cfg(test)]
