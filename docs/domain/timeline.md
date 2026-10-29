@@ -14,8 +14,11 @@ How the grid of photos and the photo viewer behave while they load, for gallerie
 
 ## Viewer
 
-- While it waits for the photo and the timeline around it, the viewer shows a spinner; in a folder of 34,600 photos this takes a few seconds ([slice 30](../slices/30-lazy-timeline.md) plans to make it fast).
+- The viewer loads one photo at a time, never the whole timeline: for the photo shown it gets the photo, the photos of its series (the strip), the previous and next photo of the view and the photo to show after rejecting it. The backend works these out from the series of the current gap, which it finds once per change of the timeline.
+- Until the photo's details arrive, the viewer shows a spinner.
+- The details of the previous and next photo are fetched ahead, together with the photos themselves, so stepping needs no wait. Fetched details are kept until the view (mode, gap) or the timeline changes.
 - Stepping to another photo keeps the previous one for a moment, then shows a spinner if the new one is still loading.
+- When the timeline changes (a rejection or undo in either window, a refresh, the EXIF pass), the viewer fetches the shown photo's details again.
 
 ## Staying responsive
 

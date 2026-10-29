@@ -1,6 +1,6 @@
 # Slice 30 – Load the viewer lazily
 
-**Status:** 📝 planned
+**Status:** 🧪 ready for testing (what it established is in [docs/domain/timeline.md](../domain/timeline.md#viewer))
 
 ## Context
 
@@ -75,3 +75,21 @@ Ports the rules from `ui/src/features/viewer/navigation.ts` to positions on the 
 ## Related slices
 
 - [Slice 29a](29a-fast-scan-test-fixes.md) item 7 (measurements), [slice 31](31-lazy-grid.md) (the grid), [slice 14](14-edit-series.md) (editing series changes the layout), [slice 16](16-show-rejected.md) (rejected photos as a view).
+
+## Implementation (2026-10-29)
+
+Done as planned, with two deviations:
+- Plan commits 3 and 4 became one (`feat: get_viewer_photo command`): the new `Scan` accessors are only used by the command, so the cache alone would not pass clippy's dead-code check.
+- `Scan::len` is called `photo_count`, so clippy does not ask for an `is_empty`.
+
+Commits: `b1f56bd` core navigation, `4bb6072` command and series cache, `bc886a9` shared `useTimelineRevision`, `2bd7633` viewer UI.
+
+**Checks:** cargo fmt, clippy and tests; oxlint, Prettier, `tsc -b`, Vitest (178 tests); Playwright 41 of 42. The failing one, `thumbnails.spec.ts` "loads the visible thumbnails top to bottom before the rows rendered ahead", is flaky and not caused by this slice: it failed 2 of 4 runs on the code from before it (`35fd02c`) too. To look into separately.
+
+## Testing (next)
+
+In the debug build `target\debug\sito.exe`, on `F:\Google Photos`:
+1. Opening a photo from the grid: the viewer shows it in well under a second (before, 3–5 s).
+2. Stepping with the arrow keys and buttons is instant, in both views; the series strip and stepping across series match the grid.
+3. Rejecting in the viewer goes on with the next photo of the series (or the view), and "Cofnij" shows the restored photo.
+4. If opening is still slow, keeping the viewer window alive becomes slice 30a.
