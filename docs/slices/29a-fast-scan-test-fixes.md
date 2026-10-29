@@ -40,11 +40,19 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Measured** (network log of the webview over the Chrome DevTools Protocol, debug app started with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`): nothing hangs, the backend answers every request. A folder opened or a scroll position reached requests its thumbnails top to bottom in one burst (30 requests in 85 ms on opening, 72 within 15 ms after dragging the scrollbar; rows 20–50 ms apart), visible rows first, then the 4 rows rendered ahead below the screen. Separate scroll steps came 360–400 ms apart. Uncached thumbnails took about 0.6 s each on the SSD and about 1 s on the USB disk during the EXIF pass, with 2 workers.
 
-**Cause:** the thumbnail pool ran the newest request first, so within one burst it rendered the rows below the screen first and the visible first page last.
+**Cause:** every rendered tile requested its thumbnail 150 ms after mounting, visible or not, and the thumbnail pool ran the newest request first. Within one render it so rendered the rows rendered ahead below the screen first and the visible page last; after a jump into the middle, the rows rendered ahead above the screen were part of the same render too.
 
-**Fix:** `BurstQueue` (`src-tauri/src/thumbnails/burst_queue.rs`, unit tests there) serves the newest burst first and each burst in the order it came. A burst is a run of requests less than 100 ms apart, reaching back at most 300 ms from its newest request so a long continuous scroll does not chain back to the photos it scrolled past. The pool is now `BurstPool` (`thumbnails/burst_pool.rs`, formerly `lifo_pool.rs`).
+**Fix (as the user suggested):** the UI decides what loads. Tiles take turns in a queue (`ui/src/features/timeline/thumbnailQueue.ts`, unit tests there; `useThumbnailTurn` connects a tile): at most 3 load at once (one more than the 2 render workers); the visible tiles go first, top to bottom; while nothing visible waits, the tiles rendered ahead off screen, nearest first. Ranks are taken from the tiles' positions at the moment a turn is handed out. A tile gets a turn only after waiting 150 ms (so tiles flying past never load, and all tiles of one render compete together); one that unmounts or gets a new URL leaves the queue. Loading ahead stops where the grid stops rendering (4 rows above and below the screen). The backend pool (`thumbnails/worker_pool.rs`, formerly `lifo_pool.rs`) now keeps the order it gets. A first attempt timing bursts of requests in the backend (`6e32784`) was reverted. E2e test: `loads the visible thumbnails top to bottom before the rows rendered ahead` in `ui/e2e/thumbnails.spec.ts`.
 
-**Checked (2026-10-29, debug build):** opening `F:\Google Photos\Takeout\Zdjęcia Google\Kreta 2019` (thumbnails not cached): the page filled top down; the 43 requests (one burst of 97 ms) were rendered in the order they were sent, neighbours swapped only by the two parallel workers.
+**Checked (2026-10-29, debug build, after item 5):** in `Złote Gody`, dragging the scrollbar near the bottom (thumbnails not cached): the first thumbnail after 0.3 s, 20 within 3.4 s, the partly visible top row first, then the visible rows top to bottom, then the rows rendered ahead above, nearest first; all 56 requests done.
+
+## 5. Thumbnails ten times slower in the debug build ✅
+
+**Found (2026-10-29)** while checking item 4: each uncached thumbnail of `Złote Gody` (10 MP JPEGs) took about 2.2 s, so the screen filled at about one tile per second.
+
+**Cause:** timing one photo: the downscaled `jpeg-decoder` decode took 2.3 s in a debug build and 0.18 s in a release build (a full decode with the `image` crate 0.24 s in both). `jpeg-decoder` is optimized in dev builds already, but its decoder is generic over the reader, so the decoding code is compiled inside `sito-core`, which was not.
+
+**Fix:** `[profile.dev.package.sito-core] opt-level = 3` in `Cargo.toml`: the debug build now takes 0.22 s, like the release. The installed app was never affected.
 
 ## Note: the installed app resets the cache
 
@@ -52,4 +60,4 @@ Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cach
 
 ## Testing (next)
 
-All four fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2 and 3 in the app, the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
+All five fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
