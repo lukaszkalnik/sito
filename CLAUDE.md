@@ -34,8 +34,8 @@ Platforms: developed on Windows, macOS later.
 - **Pause at process milestones so the context can be cleared.** At each point below, stop before starting the next piece of work and offer the user the chance to clear the context:
   - a plan is approved and saved into its slice file (before implementing it);
   - a slice is implemented and ready for testing (status 🧪);
-  - testing of a slice is finished (the user's OK, before the release);
-  - a release is published and installed.
+  - testing of a slice is finished (the user's OK);
+  - a release is published and installed. Releases are made only when the user asks for one, not after every slice; between them the user tests debug builds.
 
   Before pausing, make sure the slice files and the roadmap record where things stand (status, what is done, what comes next), so a fresh session can continue from them alone.
 - **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
