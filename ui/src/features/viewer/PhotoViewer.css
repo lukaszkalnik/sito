@@ -181,8 +181,9 @@
 .viewer-strip {
   display: flex;
   flex: none;
-  gap: 6px;
-  padding: 0.5rem 1rem;
+  gap: 8px;
+  /* Room for the current item's glow, which the scroll box would clip. */
+  padding: 14px 1rem;
   overflow-x: auto;
 }
 
@@ -196,6 +197,9 @@
   overflow: hidden;
   background: #222;
   cursor: pointer;
+  /* Dimmed, so the current photo stands out among its series. */
+  opacity: 0.55;
+  transition: opacity 0.15s ease-out;
 }
 
 .viewer-strip-item img {
@@ -205,8 +209,15 @@
   display: block;
 }
 
+.viewer-strip-item:hover,
+.viewer-strip-item:focus-visible,
 .viewer-strip-item--current {
-  border-color: var(--accent);
+  opacity: 1;
+}
+
+.viewer-strip-item--current {
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 10px 2px var(--accent);
 }
 
 .viewer--empty {
