@@ -1,6 +1,6 @@
 # Slice 12 – User feedback 1
 
-**Status:** 🧪 ready for testing (plan approved and implemented 2026-10-29)
+**Status:** ✅ done (tested by the user on 2026-10-29; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
 
 ## Context
 

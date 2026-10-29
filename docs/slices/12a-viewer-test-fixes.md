@@ -1,6 +1,6 @@
 # Slice 12a – Fixes from testing slice 12 (viewer)
 
-**Status:** 🧪 ready for testing (implemented 2026-10-29)
+**Status:** ✅ done (tested by the user on 2026-10-29; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
 
 ## Context
 
