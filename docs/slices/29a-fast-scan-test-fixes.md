@@ -72,7 +72,15 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Checked (2026-10-29):** while `get_timeline` ran (3.5 s), `get_undo_state` answered in 3 ms; the webview's only long tasks were the 180 ms per reload, about every 30 s.
 
-**Later:** the 8.5 MB payload could shrink (e.g. `relativePath` repeats `relativeDir` and `name`), which would also cut the 180 ms.
+**Later:** [slice 30](30-lazy-timeline.md) loads the timeline lazily instead of 8.5 MB at once.
+
+## 8. A few seconds of black when the viewer opens ✅
+
+**Found (2026-10-29):** opening a photo showed a black window for a few seconds without a loading indicator.
+
+**Cause** (screenshots after the click): black at 0.5 and 1.5 s, the bar at 3 s, the photo at 5 s. Until its request and the whole timeline have arrived (3.5 s for 34,600 photos), the viewer rendered an empty `<main class="viewer">`.
+
+**Fix:** it shows the spinner it uses for slow photos (`LoadingSpinner`, tests in `ViewerApp.test.tsx`). Opening itself gets fast with [slice 30](30-lazy-timeline.md).
 
 ## Retest on an empty photo cache (2026-10-29, 20:07)
 
@@ -88,4 +96,4 @@ Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cach
 
 ## Testing (next)
 
-All seven fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
+All eight fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
