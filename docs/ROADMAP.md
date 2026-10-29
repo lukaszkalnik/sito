@@ -32,7 +32,9 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 29 | [Faster first scan of Takeout folders](slices/29-fast-takeout-scan.md) | ✅ |
 | 29a | [Fixes from testing slice 29](slices/29a-fast-scan-test-fixes.md) | ✅ |
 | 30 | [Load the viewer lazily](slices/30-lazy-timeline.md) | ✅ |
-| 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
+| 12 | [User feedback 1](slices/12-user-feedback-1.md) | 🚧 |
+| 32 | [Accept a photo](slices/32-accept-photo.md) | 📝 |
+| 33 | [Several cameras at one event](slices/33-split-by-camera.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
