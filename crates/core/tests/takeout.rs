@@ -185,3 +185,29 @@ fn a_stopped_completion_resumes_later() {
     assert_eq!(complete(&dir, &mut cache, || false), Completion::Finished);
     assert_eq!(cache.pending_under(dir.path()).unwrap(), Vec::new());
 }
+
+#[test]
+fn completing_does_not_wait_for_the_busy_rayon_pool() {
+    let dir = album();
+    let cache = quick_scan(&dir);
+    let pending = cache.pending_under(dir.path()).unwrap();
+    // Every rayon thread waits until its sender is dropped, like a pool full
+    // of slow image decoding.
+    let blockers: Vec<_> = (0..rayon::current_num_threads())
+        .map(|_| {
+            let (release, wait) = std::sync::mpsc::channel::<()>();
+            rayon::spawn(move || wait.recv().unwrap_or_default());
+            release
+        })
+        .collect();
+
+    let (finished, result) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let completion = complete_pending(&pending, |_| {}, |_, _| {}, || false);
+        finished.send(completion).unwrap();
+    });
+
+    let completion = result.recv_timeout(std::time::Duration::from_secs(30));
+    drop(blockers);
+    assert_eq!(completion, Ok(Completion::Finished));
+}
