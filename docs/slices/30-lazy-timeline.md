@@ -1,6 +1,6 @@
 # Slice 30 – Load the viewer lazily
 
-**Status:** 🧪 ready for testing (what it established is in [docs/domain/timeline.md](../domain/timeline.md#viewer))
+**Status:** ✅ done (what it established is in [docs/domain/timeline.md](../domain/timeline.md#viewer))
 
 ## Context
 
@@ -11,7 +11,7 @@ Both windows load the whole timeline at once: `get_timeline` sends every entry (
 
 **Scope (decided 2026-10-29):** this slice makes only the **viewer** lazy. The grid is [slice 31](31-lazy-grid.md), at the end of the roadmap; it builds on the backend series cache added here.
 
-**Keeping the viewer window alive (hidden) between opens:** decided after measuring. If opening is still slow after this slice, it becomes a fix sub-slice (30a).
+**Keeping the viewer window alive (hidden) between opens:** decided after measuring. Not needed: with this slice the viewer opens "lightning fast" (user, 2026-10-29), so there is no slice 30a.
 
 ## Plan (approved 2026-10-29)
 
@@ -86,10 +86,12 @@ Commits: `b1f56bd` core navigation, `4bb6072` command and series cache, `bc886a9
 
 **Checks:** cargo fmt, clippy and tests; oxlint, Prettier, `tsc -b`, Vitest (178 tests); Playwright 41 of 42. The failing one, `thumbnails.spec.ts` "loads the visible thumbnails top to bottom before the rows rendered ahead", is flaky and not caused by this slice: it failed 2 of 4 runs on the code from before it (`35fd02c`) too. To look into separately.
 
-## Testing (next)
+## Testing
 
 In the debug build `target\debug\sito.exe`, on `F:\Google Photos`:
 1. Opening a photo from the grid: the viewer shows it in well under a second (before, 3–5 s).
 2. Stepping with the arrow keys and buttons is instant, in both views; the series strip and stepping across series match the grid.
 3. Rejecting in the viewer goes on with the next photo of the series (or the view), and "Cofnij" shows the restored photo.
 4. If opening is still slow, keeping the viewer window alive becomes slice 30a.
+
+**Result (2026-10-29):** the user tested the debug build: the viewer "works lightning fast". Slice done; keeping the window alive is not needed.
