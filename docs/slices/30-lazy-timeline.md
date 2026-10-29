@@ -1,32 +1,77 @@
-# Slice 30 – Load the timeline lazily
+# Slice 30 – Load the viewer lazily
 
-**Status:** 📝 concept drafted (plan in plan mode when the slice starts)
+**Status:** 📝 planned
 
 ## Context
 
 Both windows load the whole timeline at once: `get_timeline` sends every entry (name, folder, relative path, time, time source, format) and `get_series` every series, and the UI works out everything else from that. For the user's Takeout (34,600 photos, measured 2026-10-29 in the debug build, slice 29a item 7) that is 8.5 MB of JSON and about 3.5 s per call, plus a long task of about 180 ms in the webview to parse it.
 
 - **The viewer** loads it on every open, only to show one photo, its series strip and the way to the previous and next photo; until then it shows a spinner (slice 29a; before, a black window). Opening a photo takes about 3–5 s in a large folder.
-- **The grid** loads it after every scan, every refresh and every `timeline-changed` (each rejection and undo, and every 30 s during the EXIF pass of slice 29).
+- **The grid** loads it after every scan, every refresh and every `timeline-changed`.
 
-## Concept
+**Scope (decided 2026-10-29):** this slice makes only the **viewer** lazy. The grid is [slice 31](31-lazy-grid.md), at the end of the roadmap; it builds on the backend series cache added here.
 
-- **Viewer:** one command returns what the viewer shows for a request (scan, photo id, mode, gap): the photo's entry, its series' entries for the strip, the previous and next photo ids in the current view (also across series in series mode) and the day. Navigation rules (today `ui/src/features/viewer/navigation.ts`, `afterReject`) move to the backend, where the timeline and series already are. Stepping asks again (a few KB per step; previous/next photos are still preloaded).
-- **Grid:** the virtualizer needs the row layout (days, series blocks, rows) and only the entries of the rows on screen. The backend could send the layout in a compact form (or the UI a count per day and series) and the entries of a range of rows on request, cached in the UI.
-- **Refresh:** `timeline-changed` then only invalidates what is cached; the next visible rows are fetched again.
-- Reconsider then whether the viewer window should stay alive (hidden) between opens, which would also save its start-up.
+**Keeping the viewer window alive (hidden) between opens:** decided after measuring. If opening is still slow after this slice, it becomes a fix sub-slice (30a).
 
-## Open questions
+## Plan (approved 2026-10-29)
 
-- How the grid's layout is computed without all entries in the UI (in Rust, sent as rows; or counts only).
-- What the UI caches and for how long; how stepping through the viewer stays instant.
-- What happens to the e2e mocks of `get_timeline` / `get_series`.
+Goal: the viewer asks the backend for one photo's "page" (a few KB). Stepping stays instant because the neighbouring pages are prefetched.
+
+### Core: `crates/core/src/navigation.rs` (new, pure, unit-tested)
+
+Ports the rules from `ui/src/features/viewer/navigation.ts` to positions on the timeline, using binary search over the sorted `series` (no full order vector):
+- `pub enum View { Series, All }`: which photos are stepped through.
+- `pub fn neighbours(count, series: &[Series], view, position) -> Neighbours { previous: Option<usize>, next: Option<usize> }`. `position` need not be in the view (a single photo opened in series mode).
+- `pub fn series_of(series, position) -> Option<Series>`.
+- `pub fn after_reject(count, series, view, position) -> Option<usize>`: the same rule as `afterReject`.
+- Tests: the cases from `navigation.test.ts`, plus ends, empty series, and a position outside every series.
+
+### src-tauri: series cache in `Scan` (`src-tauri/src/scan/state.rs`)
+
+- Add `revision: u64`, bumped by `refresh`, `update_photos`, `remove` and `restore`. Add `series: Option<(Duration, u64, Arc<Vec<Series>>)>`: the cached series for one gap at one revision.
+- `pub(crate) fn cached_series(state: &AppState, max_gap) -> Option<Arc<Vec<Series>>>` (in `src-tauri/src/series.rs`): on a hit, return the cache. On a miss, copy `photos_with_removed` under the lock, compute with `series_with_removed` after releasing it, then store the result only if the revision is unchanged.
+- `get_series` uses it too, so the grid and the viewer share the computation (slice 31 builds on this).
+- Accessors: `Scan::position_of(id)` and `Scan::entry_at(position) -> Option<(usize, &Photo)>`. `Scan::photo` reuses `position_of`.
+- Rust tests: cache hit, and invalidation after remove, restore and update.
+
+### src-tauri: `get_viewer_photo` command (`src-tauri/src/viewer/page.rs`, new)
+
+- Input: `ViewerRequest`. `ViewMode` maps to `core::navigation::View` with `From`.
+- Output: `Option<ViewerPhotoDto>`, `None` when the scan id differs or the photo is not on the timeline (yet):
+  `{ entry: TimelineEntryDto, previous: Option<id>, next: Option<id>, series: Vec<TimelineEntryDto> (empty if not in a series), afterReject: Option<id> }`.
+- Runs in `off_main_thread`. It locks only to look up positions, ids and the few photos it needs, then builds the DTOs. `TimelineEntryDto::new` becomes `pub(crate)`. Register the command in `lib.rs`.
+- Tests on a small `Scan`: a page in both modes, a stale scan id, a rejected id.
+
+### UI (viewer)
+
+- `viewer/api.ts`: `ViewerPhoto` type and a typed `getViewerPhoto(request)` wrapper.
+- Move `useTimelineRevision` out of `useTimelineEntries.ts` into `ui/src/features/reject/useTimelineRevision.ts` (a separate `refactor:` commit) so the viewer can use it too.
+- `viewer/useViewerPhoto.ts` (new): state `{kind:'loading'} | {kind:'ready', photo} | {kind:'missing'} | {kind:'error'}`. It loads the page for the request and keeps the previous photo shown while the next one loads (no spinner flash). A small cache, keyed by id, is cleared when mode, gap, scan or timeline revision changes. After each load it prefetches the `previous` and `next` pages, so stepping is answered from the cache.
+- `PhotoViewer.tsx`: props become `photo: ViewerPhoto` and `onShow(id)`. The strip renders `photo.series`, and the step buttons and keys use `photo.previous` / `photo.next`; photo preloading is unchanged.
+- `ViewerApp.tsx`: no `useTimelineEntries`. Reject uses `photo.afterReject`. `missing` with a real id shows the spinner (a restored photo whose `timeline-changed` is pending; it reloads on the next revision), and `NO_PHOTO` shows `EmptyViewer` as today.
+- Delete `viewer/navigation.ts` and its test (the rules now live in core).
+- Update the Vitest tests (`PhotoViewer.test.tsx`, `ViewerApp.test.tsx`) and the e2e mock (`ui/e2e/tauri-mock.ts`: `get_viewer_photo` computed from the mock timeline/series with the same simple rules). `viewer.spec.ts` / `reject.spec.ts` must stay green, plus one check that the viewer no longer invokes `get_timeline`.
+
+### Docs
+
+- After implementing: `docs/domain/timeline.md` describes how the viewer loads (per photo, neighbours prefetched).
+
+### Commits (on `main`, pushed one by one)
+
+1. `docs: plan slice 30 (lazy viewer); grid moves to slice 31`
+2. `feat(core): viewer navigation rules`
+3. `refactor: cache series per gap in the scan`
+4. `feat: get_viewer_photo command`
+5. `refactor(ui): share useTimelineRevision`
+6. `feat(ui): load the viewer one photo at a time` (incl. the e2e mock and tests)
+7. `docs: slice 30 ready for testing` (status 🧪, domain doc)
+
+## Verification
+
+- `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
+- `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e` (one heavy job at a time)
+- The user, in the debug build on `F:\Google Photos` (34,600 photos): the viewer opens in well under a second, stepping is instant, the series strip is correct in both modes, rejecting continues as before, and undo shows the restored photo. If opening is still slow → slice 30a (keep the window alive).
 
 ## Related slices
 
-- [Slice 29a](29a-fast-scan-test-fixes.md) item 7 (measurements), [slice 14](14-edit-series.md) (editing series changes the layout), [slice 16](16-show-rejected.md) (rejected photos as a view).
-
-## Verification (outline)
-
-- In `F:\Google Photos` (34,600 photos) the viewer opens in well under a second, and stepping stays instant.
-- Rejecting, undoing and the EXIF pass's updates no longer move 8.5 MB.
+- [Slice 29a](29a-fast-scan-test-fixes.md) item 7 (measurements), [slice 31](31-lazy-grid.md) (the grid), [slice 14](14-edit-series.md) (editing series changes the layout), [slice 16](16-show-rejected.md) (rejected photos as a view).
