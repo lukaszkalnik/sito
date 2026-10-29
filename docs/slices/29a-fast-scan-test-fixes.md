@@ -23,3 +23,13 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 **Fix:** a queued thumbnail job first checks that its scan is still the one shown (`AppState::is_current`) and otherwise answers `410 Gone` without rendering (`thumbnail_response` in `src-tauri/src/thumbnails.rs`, unit test there).
 
 **Check:** open the Takeout, scroll a bit, open another folder: its first page loads at once.
+
+## 3. A resumed EXIF pass seems to start over ✅ (fix to check)
+
+**Found (2026-10-29):** opening `F:\Google Photos` (which contains the Takeout folder scanned before) showed „Sprawdzanie zmian…” for about 37 s, then „Uzupełnianie dat z EXIF” counted from 0 of 26,400, although 8,200 of the 34,600 photos had been read before. The line also only appeared after the first chunk of 200 photos.
+
+**Fix:** the progress counts all photos of the folder: photos whose EXIF was read before count as done (`PhotoCacheState::pending` returns them with the pending ones; `progress` in `scan/completion.rs`, unit test there). A first `scan-completing` with the starting count is sent before the first chunk, so the line appears at once.
+
+**Not changed:** the warm refresh („Sprawdzanie zmian…”) still shows no progress; on that disk the folder walk alone takes about 35 s.
+
+**Check:** restart the app on `F:\Google Photos`: after „Sprawdzanie zmian…”, the line appears at once and continues from the count it had.
