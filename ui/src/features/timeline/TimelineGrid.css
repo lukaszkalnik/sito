@@ -123,6 +123,11 @@
   opacity: 1;
 }
 
+/* Uncropped, so a portrait file (even a scan lying on its side) shows its real shape. */
+.timeline-tile--portrait .timeline-tile-image {
+  object-fit: contain;
+}
+
 .timeline-tile--instant .timeline-tile-image {
   transition: none;
 }

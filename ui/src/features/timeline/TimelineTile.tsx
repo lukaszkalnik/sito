@@ -1,14 +1,18 @@
-import { useRef, useState } from 'react';
+import { type SyntheticEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
 import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
-import { rememberLoaded, wasLoaded } from './loadedThumbnails';
+import { rememberLoaded, shapeFrom, shapeOf, type ThumbnailShape } from './loadedThumbnails';
 import { useThumbnailTurn } from './useThumbnailTurn';
 
 type ThumbnailStatus = 'loading' | 'loaded' | 'error';
+
+/** How loading the thumbnail at `src` ended. */
+type ThumbnailResult =
+  { src: string; status: 'loaded'; shape: ThumbnailShape } | { src: string; status: 'error' };
 
 interface TimelineTileProps {
   entry: TimelineEntry;
@@ -28,20 +32,24 @@ interface TimelineTileProps {
  */
 function useThumbnailStatus(src: string, settled: () => void) {
   // Remembers which URL the status belongs to, so a reused tile starts fresh.
-  const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
-  const instant = wasLoaded(src);
-  const status: ThumbnailStatus =
-    result?.src === src ? result.status : instant ? 'loaded' : 'loading';
-  const onLoad = () => {
+  const [result, setResult] = useState<ThumbnailResult | null>(null);
+  const remembered = shapeOf(src);
+  const instant = remembered !== undefined;
+  const current = result?.src === src ? result : null;
+  const status: ThumbnailStatus = current ? current.status : instant ? 'loaded' : 'loading';
+  const shape = (current?.status === 'loaded' ? current.shape : remembered) ?? 'landscape';
+  const onLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    const loadedShape = shapeFrom(image.naturalWidth, image.naturalHeight);
     settled();
-    rememberLoaded(src);
-    setResult({ src, status: 'loaded' });
+    rememberLoaded(src, loadedShape);
+    setResult({ src, status: 'loaded', shape: loadedShape });
   };
   const onError = () => {
     settled();
     setResult({ src, status: 'error' });
   };
-  return { status, instant, onLoad, onError };
+  return { status, shape, instant, onLoad, onError };
 }
 
 /** Icon shown in place of a thumbnail that could not be loaded. */
@@ -86,10 +94,16 @@ function TileCaption({ entry, showFolder }: { entry: TimelineEntry; showFolder: 
 }
 
 /** The CSS classes of a tile. */
-function tileClass(status: ThumbnailStatus, instant: boolean, highlighted: boolean): string {
+function tileClass(
+  status: ThumbnailStatus,
+  shape: ThumbnailShape,
+  instant: boolean,
+  highlighted: boolean,
+): string {
   return [
     'timeline-tile',
     `timeline-tile--${status}`,
+    shape === 'portrait' && 'timeline-tile--portrait',
     instant && 'timeline-tile--instant',
     highlighted && 'timeline-tile--highlighted',
   ]
@@ -126,12 +140,13 @@ export function TimelineTile({
   const tileRef = useRef<HTMLLIElement>(null);
   const src = thumbnailUrl(scanId, entry.id);
   const { turn, finished } = useThumbnailTurn(tileRef, src);
-  const { status, instant, onLoad, onError } = useThumbnailStatus(src, finished);
+  const { status, shape, instant, onLoad, onError } = useThumbnailStatus(src, finished);
 
   return (
     <li
       ref={tileRef}
-      className={tileClass(status, instant, highlighted)}
+      className={tileClass(status, shape, instant, highlighted)}
+      data-shape={shape}
       title={entry.relativePath}
       data-testid="timeline-tile"
     >

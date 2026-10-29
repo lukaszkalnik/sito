@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TimelineEntry } from './api';
 import '../../i18n';
-import { forgetLoaded } from './loadedThumbnails';
+import { forgetLoaded, rememberLoaded } from './loadedThumbnails';
 import { THUMBNAIL_DELAY_MS, THUMBNAIL_SLOTS } from './thumbnailQueue';
 import { TimelineTile } from './TimelineTile';
 
@@ -173,6 +173,28 @@ describe('TimelineTile', () => {
       'timeline-tile--loaded',
       'timeline-tile--instant',
     );
+  });
+
+  it('shows a portrait thumbnail uncropped once it has loaded', () => {
+    const { image } = renderTile();
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    expect(screen.getByTestId('timeline-tile')).toHaveAttribute('data-shape', 'landscape');
+
+    const img = image()!;
+    Object.defineProperty(img, 'naturalWidth', { value: 1360 });
+    Object.defineProperty(img, 'naturalHeight', { value: 2008 });
+    fireEvent.load(img);
+
+    expect(screen.getByTestId('timeline-tile')).toHaveAttribute('data-shape', 'portrait');
+    expect(screen.getByTestId('timeline-tile')).toHaveClass('timeline-tile--portrait');
+  });
+
+  it('shows a portrait thumbnail seen before as portrait at once', () => {
+    rememberLoaded('thumb://localhost/7?scan=3', 'portrait');
+
+    renderTile();
+
+    expect(screen.getByTestId('timeline-tile')).toHaveAttribute('data-shape', 'portrait');
   });
 
   it('still waits for thumbnails of another scan', () => {
