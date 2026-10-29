@@ -70,6 +70,36 @@ impl Scan {
         self.timeline = timeline;
     }
 
+    /// Replaces the photos that have the paths of `read` with those (e.g.
+    /// once their EXIF is read), keeping their ids, and puts the timeline
+    /// back in order, as their capture times may have changed.
+    pub fn update_photos(&mut self, read: &[Photo]) {
+        let read: HashMap<&Path, &Photo> = read
+            .iter()
+            .map(|photo| (photo.path.as_path(), photo))
+            .collect();
+        let removed = self.removed.values_mut().map(|(_, photo)| photo);
+        for photo in self
+            .timeline
+            .photos
+            .iter_mut()
+            .chain(&mut self.timeline.rejected)
+            .chain(removed)
+        {
+            if let Some(&newer) = read.get(photo.path.as_path()) {
+                photo.clone_from(newer);
+            }
+        }
+        let mut entries: Vec<(usize, Photo)> = self
+            .ids
+            .drain(..)
+            .zip(self.timeline.photos.drain(..))
+            .collect();
+        entries.sort_by(|a, b| compare_photos(&a.1, &b.1));
+        (self.ids, self.timeline.photos) = entries.into_iter().unzip();
+        self.timeline.rejected.sort_by(compare_photos);
+    }
+
     /// The photos with their ids, in timeline order.
     pub fn photos(&self) -> impl Iterator<Item = (usize, &Photo)> {
         self.ids.iter().copied().zip(&self.timeline.photos)
@@ -184,6 +214,23 @@ impl AppState {
             }
             _ => false,
         }
+    }
+
+    /// Updates photos of scan `scan_id` (see [`Scan::update_photos`]).
+    /// Returns `false`, changing nothing, if another scan has replaced it.
+    pub fn update_photos(&self, scan_id: u64, read: &[Photo]) -> bool {
+        match self.scan().as_mut() {
+            Some(scan) if scan.id == scan_id => {
+                scan.update_photos(read);
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether scan `scan_id` is the one shown.
+    pub fn is_current(&self, scan_id: u64) -> bool {
+        self.scan().as_ref().is_some_and(|scan| scan.id == scan_id)
     }
 
     /// Photo `id` of scan `scan_id`, or `None` if that scan is no longer
@@ -421,5 +468,54 @@ mod tests {
             state.photo(current, 1).map(|p| p.path),
             Some(PathBuf::from("d.jpg"))
         );
+    }
+
+    #[test]
+    fn updated_photos_move_to_their_new_time_and_keep_their_ids() {
+        let mut scan = Scan::new(7, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+        // Its EXIF says c.jpg is the newest.
+        let newer_c = photo("c.jpg", 0).taken_at + chrono::Duration::seconds(5);
+
+        scan.update_photos(&[Photo {
+            taken_at: newer_c,
+            ..photo("c.jpg", 2)
+        }]);
+
+        assert_eq!(
+            names(&scan),
+            [
+                (2, "c.jpg".to_owned()),
+                (0, "a.jpg".to_owned()),
+                (1, "b.jpg".to_owned())
+            ]
+        );
+        assert_eq!(scan.photo(2).map(|p| p.taken_at), Some(newer_c));
+    }
+
+    #[test]
+    fn updates_reach_removed_photos_too() {
+        let mut scan = Scan::new(7, timeline(&["a.jpg", "b.jpg"]));
+        let removed = scan.remove(1).unwrap();
+        let read = Photo {
+            size: 99,
+            ..removed
+        };
+
+        scan.update_photos(std::slice::from_ref(&read));
+        let (all, _) = scan.photos_with_removed();
+
+        assert!(all.contains(&read));
+    }
+
+    #[test]
+    fn updates_of_a_replaced_scan_change_nothing() {
+        let state = AppState::default();
+        let old = state.set_timeline(timeline(&["a.jpg"]));
+        let current = state.set_timeline(timeline(&["a.jpg"]));
+
+        assert!(!state.is_current(old));
+        assert!(state.is_current(current));
+        assert!(!state.update_photos(old, &[photo("a.jpg", 9)]));
+        assert_eq!(state.photo(current, 0), Some(photo("a.jpg", 0)));
     }
 }

@@ -15,6 +15,7 @@ use crate::thumbnails::Thumbnails;
 use photo_cache::PhotoCacheState;
 use state::AppState;
 
+pub mod completion;
 pub mod photo_cache;
 pub mod state;
 
@@ -193,7 +194,9 @@ pub const SCAN_REFRESHED: &str = "scan-refreshed";
 /// rescanned in the background (the summary says `refreshing`), and the
 /// result replaces the timeline with [`TIMELINE_CHANGED`] and
 /// [`SCAN_REFRESHED`]. Otherwise the folder is scanned now, sending progress
-/// through `on_progress`. Either way only new or changed photos are read.
+/// through `on_progress`. Either way only new or changed photos are read,
+/// photos with a Takeout date file without their EXIF at first; that is read
+/// afterwards in the background (see [`completion::complete_in_background`]).
 #[tauri::command]
 pub async fn start_scan(
     path: PathBuf,
@@ -223,7 +226,9 @@ pub async fn start_scan(
     match result {
         Ok(Ok(timeline)) => {
             let mut summary = ScanSummaryDto::new(0, &timeline);
+            let root = timeline.root.clone();
             summary.scan_id = state.set_timeline(timeline);
+            completion::complete_in_background(app.clone(), root, summary.scan_id);
             clean_thumbnails_in_background(app);
             Ok(summary)
         }
@@ -272,6 +277,7 @@ fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64) {
         }
         app.state::<PhotoCacheState>()
             .clean_thumbnails(&app.state::<Thumbnails>());
+        completion::complete_in_background(app, path, scan_id);
     });
 }
 

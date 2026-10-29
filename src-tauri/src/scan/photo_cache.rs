@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use sito_core::photo_cache::PhotoCache;
 use sito_core::scan::ScanError;
-use sito_core::timeline::{self, Timeline, TimelineProgress};
+use sito_core::timeline::{self, Photo, ReadMode, Timeline, TimelineProgress};
 
 use crate::thumbnails::Thumbnails;
 
@@ -48,6 +48,8 @@ impl PhotoCacheState {
     }
 
     /// Scans `root`, reading only photos the cache does not know unchanged.
+    /// Photos with a Takeout date file are dated from it alone and their
+    /// EXIF left pending (see [`Self::pending`]).
     ///
     /// # Errors
     ///
@@ -58,7 +60,37 @@ impl PhotoCacheState {
         on_progress: impl FnMut(TimelineProgress),
     ) -> Result<Timeline, ScanError> {
         let mut cache = self.lock();
-        timeline::build_timeline_cached(root, cache.as_mut(), timeline::ReadMode::Full, on_progress)
+        // Without a cache, pending photos could never be completed.
+        let mode = if cache.is_some() {
+            ReadMode::TakeoutFirst
+        } else {
+            ReadMode::Full
+        };
+        timeline::build_timeline_cached(root, cache.as_mut(), mode, on_progress)
+    }
+
+    /// The cached photos of `root` whose EXIF is still pending, in path order.
+    pub fn pending(&self, root: &Path) -> Vec<Photo> {
+        let cache = self.lock();
+        let Some(cache) = cache.as_ref() else {
+            return Vec::new();
+        };
+        cache.pending_under(root).unwrap_or_else(|err| {
+            log::warn!("cannot list photos with pending EXIF: {err}");
+            Vec::new()
+        })
+    }
+
+    /// Stores freshly read `photos` in the cache.
+    pub fn store(&self, photos: &[Photo]) {
+        let mut cache = self.lock();
+        let Some(cache) = cache.as_mut() else {
+            return;
+        };
+        if let Err(err) = cache.store(photos) {
+            // They are read again next time.
+            log::warn!("cannot cache {} photos: {err}", photos.len());
+        }
     }
 
     /// Removes thumbnails of photos no longer in the cache and keeps the
