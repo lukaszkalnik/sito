@@ -24,11 +24,12 @@ pub const DEFAULT_MAX_EDGE: u32 = 400;
 /// JPEG quality of thumbnails (1–100).
 const JPEG_QUALITY: u8 = 80;
 
-/// JPEG quality of full-size display images (1–100).
+/// JPEG quality of display images (1–100).
 const DISPLAY_JPEG_QUALITY: u8 = 90;
 
-/// The size marker in the cache key of a full-size display image.
-const FULL_SIZE: u32 = u32::MAX;
+/// Longest edge of a display image in pixels: sharp on any screen, while a
+/// large scan's JPEG stays a few MB instead of 10–18 MB in the cache.
+pub const DISPLAY_MAX_EDGE: u32 = 4096;
 
 /// Part of every cache key. Bump it when thumbnails are rendered differently,
 /// so old cache files are no longer used.
@@ -68,7 +69,7 @@ impl ThumbnailCache {
     /// Where the full-size display image of `photo` is (or will be) stored.
     #[must_use]
     pub fn display_path_for(&self, photo: &Photo) -> PathBuf {
-        self.key_path(photo, FULL_SIZE)
+        self.key_path(photo, DISPLAY_MAX_EDGE)
     }
 
     fn key_path(&self, photo: &Photo, edge: u32) -> PathBuf {
@@ -108,8 +109,9 @@ impl ThumbnailCache {
         Ok(bytes)
     }
 
-    /// Returns the full-size JPEG of `photo` for viewing, converting and
-    /// storing it first if needed: for photos a browser cannot show (TIFF).
+    /// Returns a JPEG of `photo` for viewing, at most [`DISPLAY_MAX_EDGE`]
+    /// pixels on its longest edge, converting and storing it first if
+    /// needed: for photos a browser cannot show (TIFF).
     /// It carries the photo's orientation, so the viewer turns it upright.
     /// It lives next to the thumbnails and counts in the same size limit.
     ///
@@ -126,6 +128,11 @@ impl ThumbnailCache {
         }
 
         let image = decode_photo(&photo.path, None)?;
+        let image = if image.width().max(image.height()) > DISPLAY_MAX_EDGE {
+            image.resize(DISPLAY_MAX_EDGE, DISPLAY_MAX_EDGE, FilterType::Lanczos3)
+        } else {
+            image
+        };
         let mut bytes = Vec::new();
         JpegEncoder::new_with_quality(Cursor::new(&mut bytes), DISPLAY_JPEG_QUALITY)
             .encode_image(&image.into_rgb8())

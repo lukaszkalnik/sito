@@ -30,5 +30,5 @@ Slice 27a 🧪 in both files; debug build, started only when the user says no sc
 ## Progress
 
 - ✅ 1. Loading indicator in the viewer (2026-10-29): a teal spinner over the photo area after 300 ms while a photo loads, gone on load or error; Vitest and e2e tests.
-- ⬜ 2. Viewer JPEGs of TIFFs at most 4096 px.
+- ✅ 2. Viewer JPEGs of TIFFs at most 4096 px (2026-10-29): resized with Lanczos3, cache key marker 4096 so full-size files from the test build are cleaned as orphans; test with a 6000×3000 TIFF.
 - ⬜ 3. Done (status 🧪, debug build).

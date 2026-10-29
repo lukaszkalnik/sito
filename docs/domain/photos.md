@@ -8,7 +8,7 @@ Sito works on large photo galleries taken with Android phones: 10,000+ photos pe
 
 - Scans and reproductions are often TIFF. Metadata comes from the TIFF tags (`DateTimeOriginal`, else `DateTime`; scans often have none and then use a Takeout date or the file date).
 - Only the **first page** of a multi-page TIFF is shown; the file is one photo and moves as a whole.
-- A browser cannot show TIFF, so the viewer gets a full-size JPEG converted once and kept in the thumbnail cache (counted in its size limit). Decoding is limited to 1 GiB of memory and one TIFF at a time; a larger or broken file shows „Nie udało się wczytać zdjęcia.”
+- A browser cannot show TIFF, so the viewer gets a JPEG of at most 4096 px on the long edge, converted once and kept in the thumbnail cache (counted in its size limit). Zooming to 100 % (slice 13) shows that resolution for larger scans. Decoding is limited to 1 GiB of memory and one TIFF at a time; a larger or broken file shows „Nie udało się wczytać zdjęcia.”
 - Tiles show a „TIFF” badge.
 
 ## RAW files

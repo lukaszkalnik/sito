@@ -137,3 +137,21 @@ fn tiffs_are_on_the_timeline() {
     // too (it is a .tif file) and dated by the file.
     assert_eq!(timeline.photos.len(), 7);
 }
+
+#[test]
+fn viewer_jpegs_of_large_scans_are_at_most_4096_px() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join("wide-scan.tif");
+    image::RgbImage::from_pixel(6000, 3000, image::Rgb([90, 140, 200]))
+        .save(&path)
+        .unwrap();
+    let mut scan = photo(path);
+    scan.orientation = Orientation::NORMAL;
+
+    let jpeg = ThumbnailCache::new(dir.path().join("cache"))
+        .display_jpeg_for(&scan)
+        .unwrap();
+
+    let image = image::load_from_memory(&jpeg).unwrap();
+    assert_eq!(image.dimensions(), (4096, 2048));
+}
