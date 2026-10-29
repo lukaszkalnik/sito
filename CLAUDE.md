@@ -31,7 +31,13 @@ Platforms: developed on Windows, macOS later.
   - Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` (clippy pedantic is enabled workspace-wide)
   - Frontend: oxlint (`--deny-warnings`), Prettier, `tsc -b`
 - **Commit and push every self-contained change, directly on `main`.** No feature branches or pull requests: always commit on `main` and push to `main`. One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
-- **Pause after each release.** When a release is published and installed, stop before starting the next piece of work and offer the user the chance to clear the context. Make sure the slice files and the roadmap record where things stand, so a fresh session can continue from them.
+- **Pause at process milestones so the context can be cleared.** At each point below, stop before starting the next piece of work and offer the user the chance to clear the context:
+  - a plan is approved and saved into its slice file (before implementing it);
+  - a slice is implemented and ready for testing (status 🧪);
+  - testing of a slice is finished (the user's OK, before the release);
+  - a release is published and installed.
+
+  Before pausing, make sure the slice files and the roadmap record where things stand (status, what is done, what comes next), so a fresh session can continue from them alone.
 - **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
 - **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands. Run them before pushing changes that touch the affected flow.
 - **Local tool locations (Windows dev machine):** all toolchains live under `D:\Lukasz\tools` (C: is nearly full): Rust (`RUSTUP_HOME`, `CARGO_HOME`), Node, GitHub CLI, uv, npm cache/global prefix (`npm_config_cache`, `npm_config_prefix`), Playwright browsers (`PLAYWRIGHT_BROWSERS_PATH`), VS Build Tools. Never install large tools or caches on C:.
