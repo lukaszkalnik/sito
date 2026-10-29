@@ -199,9 +199,6 @@
   overflow: hidden;
   background: #222;
   cursor: pointer;
-  /* Dimmed, so the current photo stands out among its series. */
-  opacity: 0.55;
-  transition: opacity 0.15s ease-out;
 }
 
 .viewer-strip-item img {
@@ -209,12 +206,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.viewer-strip-item:hover,
-.viewer-strip-item:focus-visible,
-.viewer-strip-item--current {
-  opacity: 1;
 }
 
 .viewer-strip-item--current {
