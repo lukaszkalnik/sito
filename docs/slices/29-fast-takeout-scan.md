@@ -1,6 +1,6 @@
 # Slice 29 – Faster first scan of Takeout folders
 
-**Status:** 🧪 ready for testing (what it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout))
+**Status:** ✅ done (what it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout))
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Slice 29a – Fixes from testing slice 29
 
-**Status:** 🧪 ready for testing
+**Status:** ✅ done (what it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout) and [docs/domain/timeline.md](../domain/timeline.md))
 
 Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google Photos` (34,600 photos, USB hard disk).
 

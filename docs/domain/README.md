@@ -7,4 +7,5 @@ What Sito works on and how it behaves **today**, independent of how the code is 
 | [Photos](photos.md) | The galleries Sito works on, what a series is, capture times |
 | [Grouping](grouping.md) | How photos become series |
 | [Rejecting](rejecting.md) | What happens to photos the user rejects |
+| [Timeline and viewer](timeline.md) | How the grid and the viewer load: thumbnail order, spinners, staying responsive |
 | [Licenses](licenses.md) | Sito's license and the third-party notices shown in the app |
