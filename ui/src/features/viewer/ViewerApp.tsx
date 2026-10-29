@@ -2,19 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { rejectPhoto, type Undone } from '../reject/api';
-import type { Series, TimelineEntry } from '../timeline/api';
 import {
   closeWindow,
   onViewerContext,
   onViewerShow,
   takeViewerRequest,
+  type ViewerPhoto,
   type ViewerRequest,
 } from './api';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
-import { useTimelineEntries } from '../timeline/useTimelineEntries';
-import { afterReject } from './navigation';
 import { LoadingSpinner, PhotoViewer } from './PhotoViewer';
+import { useViewerPhoto } from './useViewerPhoto';
 
 /** Photo id meaning "no photo left to show". */
 const NO_PHOTO = -1;
@@ -41,28 +40,25 @@ function EmptyViewer({ canUndo, undo }: Pick<UndoControls, 'canUndo' | 'undo'>) 
 
 interface ReadyViewerProps {
   request: ViewerRequest;
-  entries: readonly TimelineEntry[];
-  series: readonly Series[];
+  photo: ViewerPhoto;
   onShowId: (id: number) => void;
   undo: UndoControls;
 }
 
 /**
- * Rejects the photo at `position` and shows the one {@link afterReject}
- * picks, reporting the outcome in a toast. Ignores calls while one is running.
+ * Rejects the photo shown and shows the one the backend picked for after it,
+ * reporting the outcome in a toast. Ignores calls while one is running.
  */
-function useReject({ request, entries, series, onShowId, undo }: ReadyViewerProps) {
+function useReject({ photo, onShowId, undo }: ReadyViewerProps) {
   const { t } = useTranslation();
   const rejecting = useRef(false);
   const { showToast } = undo;
-  return async (position: number) => {
-    const entry = entries[position];
-    if (!entry || rejecting.current) return;
+  return async () => {
+    if (rejecting.current) return;
     rejecting.current = true;
-    const after = afterReject(entries.length, series, request.mode, position);
     try {
-      const rejected = await rejectPhoto(entry.id);
-      onShowId(after === null ? NO_PHOTO : (entries[after]?.id ?? NO_PHOTO));
+      const rejected = await rejectPhoto(photo.entry.id);
+      onShowId(photo.afterReject ?? NO_PHOTO);
       showToast({ text: t('reject.done', { name: rejected.name }), kind: 'undoable' });
     } catch {
       showToast({ text: t('reject.failed'), kind: 'error' });
@@ -72,38 +68,25 @@ function useReject({ request, entries, series, onShowId, undo }: ReadyViewerProp
   };
 }
 
-/** The viewer once the timeline has loaded. */
+/** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
-  const { request, entries, series, onShowId, undo } = props;
+  const { request, photo, onShowId, undo } = props;
   const reject = useReject(props);
   const close = useCallback(() => void closeWindow(), []);
-  const position = entries.findIndex((entry) => entry.id === request.id);
-
-  if (position >= 0) {
-    return (
-      <PhotoViewer
-        entries={entries}
-        series={series}
-        mode={request.mode}
-        scanId={request.scanId}
-        position={position}
-        onShow={(next) => {
-          const shown = entries[next];
-          if (shown) onShowId(shown.id);
-        }}
-        onClose={close}
-        onReject={() => void reject(position)}
-        canUndo={undo.canUndo}
-        onUndo={() => void undo.undo()}
-      />
-    );
-  }
-  // A restored photo whose timeline is still reloading.
-  if (request.id !== NO_PHOTO) return <ViewerLoading />;
-  return <EmptyViewer canUndo={undo.canUndo} undo={undo.undo} />;
+  return (
+    <PhotoViewer
+      photo={photo}
+      scanId={request.scanId}
+      onShow={onShowId}
+      onClose={close}
+      onReject={() => void reject()}
+      canUndo={undo.canUndo}
+      onUndo={() => void undo.undo()}
+    />
+  );
 }
 
-/** The viewer while it waits for its photo, the timeline around it or a restored photo. */
+/** The viewer while it waits for its photo, or for a restored photo to be back. */
 function ViewerLoading() {
   return (
     <main className="viewer">
@@ -112,7 +95,37 @@ function ViewerLoading() {
   );
 }
 
-/** Loads the scan the request belongs to and shows its photo. */
+/** Loads the photo of `request` and shows it. */
+function ViewerPage({
+  request,
+  onShowId,
+  undo,
+}: {
+  request: ViewerRequest;
+  onShowId: (id: number) => void;
+  undo: UndoControls;
+}) {
+  const { t } = useTranslation();
+  const state = useViewerPhoto(request);
+  switch (state.kind) {
+    case 'loading':
+    // A restored photo whose timeline is still reloading.
+    case 'missing':
+      return <ViewerLoading />;
+    case 'error':
+      return (
+        <main className="viewer">
+          <p role="alert" className="viewer-error">
+            {t('viewer.loadError')}
+          </p>
+        </main>
+      );
+    case 'ready':
+      return <ReadyViewer request={request} photo={state.photo} onShowId={onShowId} undo={undo} />;
+  }
+}
+
+/** Shows the photo of `request`, or a message once every photo was rejected. */
 function LoadedViewer({
   request,
   onShowId,
@@ -120,8 +133,6 @@ function LoadedViewer({
   request: ViewerRequest;
   onShowId: (id: number) => void;
 }) {
-  const { t } = useTranslation();
-  const timeline = useTimelineEntries(request.scanId, request.gap);
   // A restored photo is shown right away.
   const showUndone = useCallback(
     (undone: Undone) => {
@@ -131,25 +142,13 @@ function LoadedViewer({
   );
   const undo = useUndo(showUndone);
 
-  if (timeline.status === 'loading') return <ViewerLoading />;
-  if (timeline.status === 'error') {
-    return (
-      <main className="viewer">
-        <p role="alert" className="viewer-error">
-          {t('viewer.loadError')}
-        </p>
-      </main>
-    );
-  }
   return (
     <>
-      <ReadyViewer
-        request={request}
-        entries={timeline.entries}
-        series={timeline.series}
-        onShowId={onShowId}
-        undo={undo}
-      />
+      {request.id === NO_PHOTO ? (
+        <EmptyViewer canUndo={undo.canUndo} undo={undo.undo} />
+      ) : (
+        <ViewerPage request={request} onShowId={onShowId} undo={undo} />
+      )}
       <Toast message={undo.toast} onUndo={() => void undo.undo()} />
     </>
   );

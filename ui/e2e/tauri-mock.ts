@@ -179,6 +179,33 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       return result;
     }
 
+    /** Mirrors `get_viewer_photo`: the photo with its series and the way on (ids). */
+    function viewerPhoto(request: { id: number; mode: string; gap: number }): unknown {
+      const entries = timeline() as { id: number }[];
+      const ranges = series(request.gap) as { start: number; len: number }[];
+      const position = entries.findIndex((e) => e.id === request.id);
+      if (position < 0) return null;
+      const order =
+        request.mode === 'all'
+          ? entries.map((_, i) => i)
+          : ranges.flatMap((s) => Array.from({ length: s.len }, (_, i) => s.start + i));
+      const previous = order.filter((p) => p < position).at(-1);
+      const next = order.find((p) => p > position);
+      const own = ranges.find((s) => position >= s.start && position < s.start + s.len);
+      let after = next ?? previous;
+      if (own && own.len > 1) {
+        after = position + 1 < own.start + own.len ? position + 1 : position - 1;
+      }
+      const idAt = (p: number | undefined) => (p === undefined ? null : entries[p].id);
+      return {
+        entry: entries[position],
+        previous: idAt(previous),
+        next: idAt(next),
+        series: own ? entries.slice(own.start, own.start + own.len) : [],
+        afterReject: idAt(after),
+      };
+    }
+
     const internals = {
       // Windows-style URLs, as Tauri builds them for custom protocols there.
       convertFileSrc(filePath: string, protocol: string) {
@@ -221,6 +248,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             return timeline();
           case 'get_series':
             return series((args.maxGapSeconds as number | undefined) ?? 10);
+          case 'get_viewer_photo':
+            return viewerPhoto(args.request as { id: number; mode: string; gap: number });
           case 'open_viewer':
             return null;
           case 'take_viewer_request':

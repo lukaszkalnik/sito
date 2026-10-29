@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { mockTauri } from './tauri-mock';
+import { invokedCommands, mockTauri } from './tauri-mock';
 
 // 1×1 grey PNG, served for photos and thumbnails.
 const PIXEL = Buffer.from(
@@ -53,6 +53,11 @@ test('shows the photo and its series, and opens photos from the strip', async ({
     'aria-current',
     'true',
   );
+  // The viewer asks for one photo at a time, never for the whole timeline.
+  const commands = (await invokedCommands(page)).map(({ cmd }) => cmd);
+  expect(commands).toContain('get_viewer_photo');
+  expect(commands).not.toContain('get_timeline');
+  expect(commands).not.toContain('get_series');
 });
 
 test('steps into the next series in the series view', async ({ page }) => {

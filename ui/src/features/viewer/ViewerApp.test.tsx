@@ -1,31 +1,68 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../i18n';
-import { getSeries, getTimeline } from '../timeline/api';
-import { takeViewerRequest } from './api';
+import { canUndo, onTimelineChanged, rejectPhoto } from '../reject/api';
+import type { TimelineEntry } from '../timeline/api';
+import { getTimeline } from '../timeline/api';
+import {
+  getViewerPhoto,
+  onViewerContext,
+  onViewerShow,
+  takeViewerRequest,
+  type ViewerPhoto,
+} from './api';
 import { ViewerApp } from './ViewerApp';
 
 vi.mock('../timeline/api', async (importActual) => ({
   ...(await importActual<typeof import('../timeline/api')>()),
   getTimeline: vi.fn(),
-  getSeries: vi.fn(),
 }));
 vi.mock('../reject/api', async (importActual) => ({
   ...(await importActual<typeof import('../reject/api')>()),
-  canUndo: vi.fn(() => Promise.resolve(false)),
-  onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
+  canUndo: vi.fn(),
+  onTimelineChanged: vi.fn(),
+  rejectPhoto: vi.fn(),
 }));
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
   takeViewerRequest: vi.fn(),
-  onViewerShow: vi.fn(() => Promise.resolve(() => {})),
-  onViewerContext: vi.fn(() => Promise.resolve(() => {})),
+  getViewerPhoto: vi.fn(),
+  onViewerShow: vi.fn(),
+  onViewerContext: vi.fn(),
+  photoUrl: (scanId: number, id: number) => `photo://localhost/${id}?scan=${scanId}`,
+  setWindowTitle: vi.fn(() => Promise.resolve()),
 }));
+
+function entry(id: number): TimelineEntry {
+  return {
+    id,
+    name: `IMG_${id}.jpg`,
+    relativeDir: '',
+    relativePath: `IMG_${id}.jpg`,
+    takenAt: '2024-06-01T12:00:00',
+    timeSource: 'exif',
+    format: 'jpeg',
+  };
+}
+
+/** Photos 3 and 4, each continuing with the other after a rejection. */
+function page(id: number, afterReject: number | null): ViewerPhoto {
+  return { entry: entry(id), previous: null, next: null, series: [], afterReject };
+}
+
+const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' });
 
 describe('ViewerApp', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    const noUnlisten = () => Promise.resolve(() => {});
+    vi.mocked(onViewerShow).mockImplementation(noUnlisten);
+    vi.mocked(onViewerContext).mockImplementation(noUnlisten);
+    vi.mocked(onTimelineChanged).mockImplementation(noUnlisten);
+    vi.mocked(canUndo).mockResolvedValue(false);
+    vi.mocked(takeViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
   });
 
   it('shows a spinner while it waits for its photo', () => {
@@ -33,18 +70,51 @@ describe('ViewerApp', () => {
 
     render(<ViewerApp />);
 
-    expect(screen.getByRole('status', { name: 'Wczytywanie zdjęcia…' })).toBeInTheDocument();
+    expect(spinner()).toBeInTheDocument();
   });
 
-  it('shows a spinner while the timeline around the photo loads', async () => {
-    vi.mocked(takeViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
-    vi.mocked(getTimeline).mockReturnValue(new Promise(() => {}));
-    vi.mocked(getSeries).mockReturnValue(new Promise(() => {}));
+  it('shows a spinner while the photo is looked up', async () => {
+    vi.mocked(getViewerPhoto).mockReturnValue(new Promise(() => {}));
 
     render(<ViewerApp />);
 
-    await vi.waitFor(() => expect(getTimeline).toHaveBeenCalled());
+    await vi.waitFor(() => expect(getViewerPhoto).toHaveBeenCalled());
+    expect(spinner()).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole('status', { name: 'Wczytywanie zdjęcia…' })).toBeInTheDocument();
+  it('shows its photo without loading the whole timeline', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+
+    render(<ViewerApp />);
+
+    expect(await screen.findByText('IMG_3.jpg')).toBeInTheDocument();
+    expect(getViewerPhoto).toHaveBeenCalledWith({ id: 3, scanId: 1, mode: 'all', gap: 10 });
+    expect(getTimeline).not.toHaveBeenCalled();
+  });
+
+  it('continues with the photo the backend picked after a rejection', async () => {
+    vi.mocked(getViewerPhoto).mockImplementation((request) =>
+      Promise.resolve(page(request.id, request.id === 3 ? 4 : null)),
+    );
+    vi.mocked(rejectPhoto).mockResolvedValue({ name: 'IMG_3.jpg' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+
+    expect(rejectPhoto).toHaveBeenCalledWith(3);
+    expect(await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' })).toBeInTheDocument();
+  });
+
+  it('says so once no photo is left', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    vi.mocked(rejectPhoto).mockResolvedValue({ name: 'IMG_3.jpg' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+
+    expect(await screen.findByText('Brak zdjęć do pokazania.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Odrzuć' })).toBeNull();
   });
 });

@@ -1,25 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { PhotoFormat, Series, TimeSource, TimelineEntry } from '../timeline/api';
+import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { thumbnailUrl } from '../timeline/thumbnails';
-import { photoUrl, setWindowTitle, type ViewMode } from './api';
+import { photoUrl, setWindowTitle, type ViewerPhoto } from './api';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
 import { useMountedFor } from '../timeline/useMountedFor';
-import { navigationOrder, neighbours, seriesOf } from './navigation';
 import './PhotoViewer.css';
 
 interface PhotoViewerProps {
-  entries: readonly TimelineEntry[];
-  series: readonly Series[];
-  mode: ViewMode;
+  /** The photo shown, with its series and neighbours. */
+  photo: ViewerPhoto;
   scanId: number;
-  /** Timeline position of the photo shown. */
-  position: number;
-  onShow: (position: number) => void;
+  /** Shows the photo with the given id. */
+  onShow: (id: number) => void;
   onClose: () => void;
   /** Moves the shown photo into the "Odrzucone" folder. */
   onReject: () => void;
@@ -104,15 +101,14 @@ function useViewerKeys(
 }
 
 /** Fetches the photos `nextId` and `previousId` ahead of time, so stepping to them is instant. */
-function usePreload(scanId: number, nextId: number | undefined, previousId: number | undefined) {
+function usePreload(scanId: number, nextId: number | null, previousId: number | null) {
   useEffect(() => {
     for (const id of [nextId, previousId]) {
-      if (id !== undefined) new Image().src = photoUrl(scanId, id);
+      if (id !== null) new Image().src = photoUrl(scanId, id);
     }
   }, [scanId, nextId, previousId]);
 }
 
-/** Name, date and folder of the photo, with the reject, undo and close buttons. */
 /** Translation keys of the note on where a photo's date comes from; `null` for none. */
 const DATE_SOURCE_NOTES: Readonly<Record<TimeSource, string | null>> = {
   exif: null,
@@ -133,6 +129,7 @@ function FormatNote({ format }: { format: PhotoFormat }) {
   return badge === null ? null : <span className="viewer-format">{t(badge)}</span>;
 }
 
+/** Name, date and folder of the photo, with the reject, undo and close buttons. */
 function ViewerBar({
   entry,
   onReject,
@@ -186,7 +183,7 @@ function StepButton({
   label: string;
   symbol: string;
   side: 'previous' | 'next';
-  onShow: (position: number) => void;
+  onShow: (id: number) => void;
 }) {
   return (
     <button
@@ -203,24 +200,21 @@ function StepButton({
 
 /** Thumbnails of the series of the photo shown, the current one marked. */
 function SeriesStrip({
-  entries,
-  strip,
+  members,
+  currentId,
   scanId,
-  position,
   onShow,
 }: {
-  entries: readonly TimelineEntry[];
-  strip: Series;
+  members: readonly TimelineEntry[];
+  currentId: number;
   scanId: number;
-  position: number;
-  onShow: (position: number) => void;
+  onShow: (id: number) => void;
 }) {
   const { t } = useTranslation();
   return (
     <nav className="viewer-strip" aria-label={t('viewer.series')}>
-      {entries.slice(strip.start, strip.start + strip.len).map((member, i) => {
-        const memberPosition = strip.start + i;
-        const current = memberPosition === position;
+      {members.map((member) => {
+        const current = member.id === currentId;
         return (
           <button
             key={member.id}
@@ -228,7 +222,7 @@ function SeriesStrip({
             className={`viewer-strip-item${current ? ' viewer-strip-item--current' : ''}`}
             aria-label={member.name}
             aria-current={current ? 'true' : undefined}
-            onClick={() => onShow(memberPosition)}
+            onClick={() => onShow(member.id)}
           >
             <img src={thumbnailUrl(scanId, member.id)} alt="" />
           </button>
@@ -238,30 +232,17 @@ function SeriesStrip({
   );
 }
 
-/** The id of the photo at `position`, if there is one. */
-function idAt(entries: readonly TimelineEntry[], position: number | null): number | undefined {
-  return position === null ? undefined : entries[position]?.id;
-}
-
 /** Full-size photo with previous/next navigation and the thumbnails of its series. */
 export function PhotoViewer(props: PhotoViewerProps) {
-  const { entries, series, mode, scanId, position, onShow } = props;
+  const { photo, scanId, onShow } = props;
+  const { entry, previous, next } = photo;
   const { t } = useTranslation();
-  const entry = entries[position];
-  const order = useMemo(
-    () => navigationOrder(entries.length, series, mode),
-    [entries.length, series, mode],
-  );
-  const { previous, next } = neighbours(order, position);
-  const strip = seriesOf(series, position);
 
   useEffect(() => {
-    if (entry) void setWindowTitle(`${entry.name} – Sito`);
-  }, [entry]);
+    void setWindowTitle(`${entry.name} – Sito`);
+  }, [entry.name]);
   useViewerKeys(previous, next, props);
-  usePreload(scanId, idAt(entries, next), idAt(entries, previous));
-
-  if (!entry) return null;
+  usePreload(scanId, next, previous);
 
   return (
     <main className="viewer">
@@ -280,12 +261,11 @@ export function PhotoViewer(props: PhotoViewerProps) {
           <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
         </div>
         <StepButton target={next} label={t('viewer.next')} symbol="›" side="next" onShow={onShow} />
-        {strip && (
+        {photo.series.length > 0 && (
           <SeriesStrip
-            entries={entries}
-            strip={strip}
+            members={photo.series}
+            currentId={entry.id}
             scanId={scanId}
-            position={position}
             onShow={onShow}
           />
         )}

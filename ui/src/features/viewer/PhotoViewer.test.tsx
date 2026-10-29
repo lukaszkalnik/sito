@@ -2,8 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { Series, TimelineEntry } from '../timeline/api';
-import { setWindowTitle } from './api';
+import type { TimelineEntry } from '../timeline/api';
+import { setWindowTitle, type ViewerPhoto } from './api';
 import '../../i18n';
 import { PhotoViewer } from './PhotoViewer';
 
@@ -15,38 +15,51 @@ vi.mock('../timeline/thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
 }));
 
-const entries: TimelineEntry[] = Array.from({ length: 6 }, (_, id) => ({
-  id,
-  name: `IMG_${id}.jpg`,
-  relativeDir: id === 0 ? '' : 'Camera',
-  relativePath: `IMG_${id}.jpg`,
-  takenAt: `2024-06-01T12:00:0${9 - id}`,
-  timeSource: 'exif',
-  format: 'jpeg',
-}));
-// Series at positions 1–3; 0, 4 and 5 are single photos.
-const series: Series[] = [{ start: 1, len: 3 }];
+/** Photo `id` of six, one second apart, newest first. */
+function entry(id: number, timeSource: TimelineEntry['timeSource'] = 'exif'): TimelineEntry {
+  return {
+    id,
+    name: `IMG_${id}.jpg`,
+    relativeDir: id === 0 ? '' : 'Camera',
+    relativePath: `IMG_${id}.jpg`,
+    takenAt: `2024-06-01T12:00:0${9 - id}`,
+    timeSource,
+    format: 'jpeg',
+  };
+}
 
-function renderViewer(position: number, mode: 'series' | 'all' = 'all', canUndo = false) {
-  const onShow = vi.fn();
-  const onClose = vi.fn();
-  const onReject = vi.fn();
-  const onUndo = vi.fn();
-  render(
-    <PhotoViewer
-      entries={entries}
-      series={series}
-      mode={mode}
-      scanId={3}
-      position={position}
-      onShow={onShow}
-      onClose={onClose}
-      onReject={onReject}
-      canUndo={canUndo}
-      onUndo={onUndo}
-    />,
-  );
-  return { onShow, onClose, onReject, onUndo };
+/**
+ * The page of photo `id` in the all view of six photos, where photos 1–3
+ * form a series and 0, 4 and 5 are single photos.
+ */
+function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPhoto {
+  const inSeries = id >= 1 && id <= 3;
+  return {
+    entry: entry(id),
+    previous: id > 0 ? id - 1 : null,
+    next: id < 5 ? id + 1 : null,
+    series: inSeries ? [1, 2, 3].map((member) => entry(member)) : [],
+    afterReject: null,
+    ...changes,
+  };
+}
+
+function viewerProps(photo: ViewerPhoto, canUndo = false) {
+  return {
+    photo,
+    scanId: 3,
+    onShow: vi.fn(),
+    onClose: vi.fn(),
+    onReject: vi.fn(),
+    canUndo,
+    onUndo: vi.fn(),
+  };
+}
+
+function renderViewer(photo: ViewerPhoto, canUndo = false) {
+  const props = viewerProps(photo, canUndo);
+  render(<PhotoViewer {...props} />);
+  return props;
 }
 
 describe('PhotoViewer', () => {
@@ -57,32 +70,8 @@ describe('PhotoViewer', () => {
   it('says when the date comes from Google Takeout', () => {
     const datedBy = (timeSource: TimelineEntry['timeSource']) => {
       cleanup();
-      render(
-        <PhotoViewer
-          entries={[
-            {
-              id: 0,
-              name: 'IMG_0.jpg',
-              relativeDir: '',
-              relativePath: 'IMG_0.jpg',
-              takenAt: '2024-06-01T12:00:09',
-              timeSource,
-              format: 'jpeg',
-            },
-          ]}
-          series={[]}
-          mode="all"
-          scanId={3}
-          position={0}
-          onShow={vi.fn()}
-          onClose={vi.fn()}
-          onReject={vi.fn()}
-          canUndo={false}
-          onUndo={vi.fn()}
-        />,
-      );
+      renderViewer(pageOf(0, { entry: entry(0, timeSource) }));
     };
-
     datedBy('takeout');
     expect(screen.getByText('data z Google Takeout')).toBeInTheDocument();
     datedBy('takeoutCorrected');
@@ -92,7 +81,7 @@ describe('PhotoViewer', () => {
   });
 
   it('shows the photo with its name, time and folder, and titles the window', () => {
-    renderViewer(2);
+    renderViewer(pageOf(2));
 
     expect(screen.getByTestId('viewer-photo-loading')).toHaveAttribute(
       'src',
@@ -105,7 +94,7 @@ describe('PhotoViewer', () => {
   });
 
   it('keeps the shown photo until the next one has loaded', () => {
-    renderViewer(2);
+    renderViewer(pageOf(2));
     const loading = screen.getByTestId('viewer-photo-loading');
 
     fireEvent.load(loading);
@@ -120,7 +109,7 @@ describe('PhotoViewer', () => {
   it('shows a spinner while a photo takes long to load', () => {
     vi.useFakeTimers();
     try {
-      renderViewer(2);
+      renderViewer(pageOf(2));
       const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' });
       expect(spinner()).toBeNull();
 
@@ -137,20 +126,9 @@ describe('PhotoViewer', () => {
   it('replaces the previous photo with the spinner when the next one is slow', () => {
     vi.useFakeTimers();
     try {
-      const props = {
-        entries,
-        series,
-        mode: 'all' as const,
-        scanId: 3,
-        onShow: vi.fn(),
-        onClose: vi.fn(),
-        onReject: vi.fn(),
-        canUndo: false,
-        onUndo: vi.fn(),
-      };
-      const { rerender } = render(<PhotoViewer {...props} position={2} />);
+      const { rerender } = render(<PhotoViewer {...viewerProps(pageOf(2))} />);
       fireEvent.load(screen.getByTestId('viewer-photo-loading'));
-      rerender(<PhotoViewer {...props} position={3} />);
+      rerender(<PhotoViewer {...viewerProps(pageOf(3))} />);
 
       // At first the previous photo stays, so fast photos never flash.
       expect(screen.getByRole('img', { name: 'IMG_3.jpg' })).toHaveAttribute(
@@ -170,7 +148,7 @@ describe('PhotoViewer', () => {
   it('hides the spinner when a photo cannot be loaded', () => {
     vi.useFakeTimers();
     try {
-      renderViewer(2);
+      renderViewer(pageOf(2));
       act(() => vi.advanceTimersByTime(300));
 
       fireEvent.error(screen.getByTestId('viewer-photo-loading'));
@@ -182,7 +160,7 @@ describe('PhotoViewer', () => {
   });
 
   it('reports a photo that cannot be loaded', () => {
-    renderViewer(2);
+    renderViewer(pageOf(2));
 
     fireEvent.error(screen.getByTestId('viewer-photo-loading'));
 
@@ -190,21 +168,10 @@ describe('PhotoViewer', () => {
   });
 
   it('hides the previous photo when the next one cannot be loaded', () => {
-    const props = {
-      entries,
-      series,
-      mode: 'all' as const,
-      scanId: 3,
-      onShow: vi.fn(),
-      onClose: vi.fn(),
-      onReject: vi.fn(),
-      canUndo: false,
-      onUndo: vi.fn(),
-    };
-    const { rerender } = render(<PhotoViewer {...props} position={2} />);
+    const { rerender } = render(<PhotoViewer {...viewerProps(pageOf(2))} />);
     fireEvent.load(screen.getByTestId('viewer-photo-loading'));
 
-    rerender(<PhotoViewer {...props} position={3} />);
+    rerender(<PhotoViewer {...viewerProps(pageOf(3))} />);
     fireEvent.error(screen.getByTestId('viewer-photo-loading'));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
@@ -212,7 +179,7 @@ describe('PhotoViewer', () => {
   });
 
   it('steps to the previous and next photo with buttons and arrow keys', async () => {
-    const { onShow } = renderViewer(2);
+    const { onShow } = renderViewer(pageOf(2));
 
     await userEvent.click(screen.getByRole('button', { name: 'Następne zdjęcie' }));
     expect(onShow).toHaveBeenLastCalledWith(3);
@@ -225,21 +192,15 @@ describe('PhotoViewer', () => {
     expect(onShow).toHaveBeenLastCalledWith(1);
   });
 
-  it('leaves the series in the all view', async () => {
-    const all = renderViewer(3, 'all');
-    await userEvent.click(screen.getByRole('button', { name: 'Następne zdjęcie' }));
-    expect(all.onShow).toHaveBeenLastCalledWith(4);
-  });
-
-  it('stops at the ends of the series view', () => {
-    renderViewer(3, 'series');
+  it('stops at the ends of the view', () => {
+    renderViewer(pageOf(3, { next: null }));
 
     expect(screen.getByRole('button', { name: 'Następne zdjęcie' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Poprzednie zdjęcie' })).toBeEnabled();
   });
 
   it('shows the series strip and opens a photo from it', async () => {
-    const { onShow } = renderViewer(2);
+    const { onShow } = renderViewer(pageOf(2));
     const strip = screen.getByRole('navigation', { name: 'Zdjęcia w serii' });
     const items = strip.querySelectorAll('button');
 
@@ -254,7 +215,7 @@ describe('PhotoViewer', () => {
   });
 
   it('has no strip for a single photo, and names the root folder', () => {
-    renderViewer(0);
+    renderViewer(pageOf(0));
 
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(screen.getByText('folder główny')).toBeInTheDocument();
@@ -262,7 +223,7 @@ describe('PhotoViewer', () => {
   });
 
   it('rejects the photo with the button and the Delete key', async () => {
-    const { onReject } = renderViewer(2);
+    const { onReject } = renderViewer(pageOf(2));
 
     await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
     await userEvent.keyboard('{Delete}');
@@ -271,18 +232,18 @@ describe('PhotoViewer', () => {
   });
 
   it('offers Cofnij only when there is something to undo', async () => {
-    renderViewer(2);
+    renderViewer(pageOf(2));
     expect(screen.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
     cleanup();
 
-    const { onUndo } = renderViewer(2, 'all', true);
+    const { onUndo } = renderViewer(pageOf(2), true);
     await userEvent.click(screen.getByRole('button', { name: 'Cofnij' }));
 
     expect(onUndo).toHaveBeenCalledOnce();
   });
 
   it('closes with Escape and the close button', async () => {
-    const { onClose } = renderViewer(2);
+    const { onClose } = renderViewer(pageOf(2));
 
     await userEvent.keyboard('{Escape}');
     await userEvent.click(screen.getByRole('button', { name: 'Zamknij' }));

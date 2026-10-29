@@ -2,6 +2,8 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { emitTo, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
+import type { TimelineEntry } from '../timeline/api';
+
 /** Which photos the viewer steps through; mirrors the timeline view. */
 export type ViewMode = 'series' | 'all';
 
@@ -14,6 +16,27 @@ export interface ViewerRequest {
   mode: ViewMode;
   /** Time gap of the series, in seconds. */
   gap: number;
+}
+
+/** One photo as the viewer shows it. Mirrors `ViewerPhotoDto`. */
+export interface ViewerPhoto {
+  readonly entry: TimelineEntry;
+  /** Id of the previous photo of the view, `null` at the start. */
+  readonly previous: number | null;
+  /** Id of the next photo of the view, `null` at the end. */
+  readonly next: number | null;
+  /** The photos of its series, newest first (empty for a single photo). */
+  readonly series: readonly TimelineEntry[];
+  /** Id of the photo to show once this one is rejected, `null` if none is left. */
+  readonly afterReject: number | null;
+}
+
+/**
+ * What the viewer shows for `request`, or `null` if the photo is not on the
+ * timeline of that scan (e.g. a restored photo that is not back yet).
+ */
+export async function getViewerPhoto(request: ViewerRequest): Promise<ViewerPhoto | null> {
+  return invoke<ViewerPhoto | null>('get_viewer_photo', { request });
 }
 
 /** The main window's view, sent to an open viewer when it changes. */
