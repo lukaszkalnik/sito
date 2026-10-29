@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimelineEntry } from './api';
 import '../../i18n';
 import { forgetLoaded } from './loadedThumbnails';
-import { THUMBNAIL_DELAY_MS, TimelineTile } from './TimelineTile';
+import { THUMBNAIL_DELAY_MS, THUMBNAIL_SLOTS } from './thumbnailQueue';
+import { TimelineTile } from './TimelineTile';
 
 vi.mock('./thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
@@ -96,6 +97,30 @@ describe('TimelineTile', () => {
     expect(screen.getByTestId('timeline-tile')).toHaveClass('timeline-tile--loading');
   });
 
+  it('lets the next tile load once a thumbnail has arrived', () => {
+    const { container } = render(
+      <ul>
+        {[1, 2, 3, 4].map((id) => (
+          <TimelineTile
+            key={id}
+            entry={{ ...entry, id }}
+            scanId={3}
+            showFolder={false}
+            onOpen={vi.fn()}
+          />
+        ))}
+      </ul>,
+    );
+    const images = () => [...container.querySelectorAll('img')];
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    expect(images()).toHaveLength(THUMBNAIL_SLOTS);
+
+    const [first] = images();
+    if (first) fireEvent.load(first);
+
+    expect(images()).toHaveLength(THUMBNAIL_SLOTS + 1);
+  });
+
   it('marks the tile as loaded when the thumbnail arrives', () => {
     const { image } = renderTile();
     act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
@@ -128,6 +153,9 @@ describe('TimelineTile', () => {
         <TimelineTile entry={entry} scanId={4} showFolder onOpen={vi.fn()} />
       </ul>,
     );
+    // The new scan's thumbnail takes its turn in the queue like any other.
+    expect(image()).toBeNull();
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
 
     expect(image()).toHaveAttribute('src', 'thumb://localhost/7?scan=4');
   });

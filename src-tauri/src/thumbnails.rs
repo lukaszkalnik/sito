@@ -12,24 +12,22 @@ use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
 use crate::protocol::{error_response, jpeg_response, parse_request};
 use crate::scan::state::AppState;
-use lifo_pool::LifoPool;
+use worker_pool::WorkerPool;
 
-mod lifo_pool;
+mod worker_pool;
 
 /// Name of the URI scheme.
 pub const SCHEME: &str = "thumb";
 
 /// Threads rendering thumbnails. Few on purpose: decoding is memory hungry,
-/// and the UI only asks for what is on screen. The newest request is served
-/// first, so after a fast scroll the photos on screen come before those
-/// scrolled past.
+/// and the UI asks for only a few thumbnails at a time, visible ones first.
 const WORKERS: usize = 2;
 
 /// Renders and caches thumbnails off the main thread.
 #[derive(Debug)]
 pub struct Thumbnails {
     cache: ThumbnailCache,
-    pool: LifoPool,
+    pool: WorkerPool,
 }
 
 impl Thumbnails {
@@ -39,7 +37,7 @@ impl Thumbnails {
     ///
     /// Returns an error if the worker threads cannot be started.
     pub fn new(cache_dir: PathBuf) -> std::io::Result<Self> {
-        let pool = LifoPool::new(WORKERS, "thumbnail")?;
+        let pool = WorkerPool::new(WORKERS, "thumbnail")?;
         Ok(Self {
             cache: ThumbnailCache::new(cache_dir),
             pool,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { TimelineEntry } from './api';
@@ -6,10 +6,7 @@ import { FORMAT_BADGES } from './formatBadges';
 import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
 import { rememberLoaded, wasLoaded } from './loadedThumbnails';
-import { useMountedFor } from './useMountedFor';
-
-/** How long a tile must stay on screen before its thumbnail is requested. */
-export const THUMBNAIL_DELAY_MS = 150;
+import { useThumbnailTurn } from './useThumbnailTurn';
 
 type ThumbnailStatus = 'loading' | 'loaded' | 'error';
 
@@ -27,19 +24,23 @@ interface TimelineTileProps {
 /**
  * Load status of the thumbnail at `src`, and the handlers that update it. A
  * thumbnail seen before is cached by the webview, so it counts as loaded (and
- * `instant`) at once.
+ * `instant`) at once. `settled` is called once the thumbnail has loaded or failed.
  */
-function useThumbnailStatus(src: string) {
+function useThumbnailStatus(src: string, settled: () => void) {
   // Remembers which URL the status belongs to, so a reused tile starts fresh.
   const [result, setResult] = useState<{ src: string; status: ThumbnailStatus } | null>(null);
   const instant = wasLoaded(src);
   const status: ThumbnailStatus =
     result?.src === src ? result.status : instant ? 'loaded' : 'loading';
   const onLoad = () => {
+    settled();
     rememberLoaded(src);
     setResult({ src, status: 'loaded' });
   };
-  const onError = () => setResult({ src, status: 'error' });
+  const onError = () => {
+    settled();
+    setResult({ src, status: 'error' });
+  };
   return { status, instant, onLoad, onError };
 }
 
@@ -122,17 +123,19 @@ export function TimelineTile({
   highlighted = false,
 }: TimelineTileProps) {
   const { t } = useTranslation();
-  const delayPassed = useMountedFor(THUMBNAIL_DELAY_MS);
+  const tileRef = useRef<HTMLLIElement>(null);
   const src = thumbnailUrl(scanId, entry.id);
-  const { status, instant, onLoad, onError } = useThumbnailStatus(src);
+  const { turn, finished } = useThumbnailTurn(tileRef, src);
+  const { status, instant, onLoad, onError } = useThumbnailStatus(src, finished);
 
   return (
     <li
+      ref={tileRef}
       className={tileClass(status, instant, highlighted)}
       title={entry.relativePath}
       data-testid="timeline-tile"
     >
-      {(delayPassed || instant) && status !== 'error' && (
+      {(turn || instant) && status !== 'error' && (
         <img
           className="timeline-tile-image"
           src={src}

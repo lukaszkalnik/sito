@@ -83,3 +83,33 @@ test('shows a hint when a thumbnail cannot be loaded', async ({ page }) => {
   await expect(firstTile).toContainText('IMG_10000.jpg');
   await expect(page.getByTestId('timeline-tile').nth(1)).toHaveClass(/timeline-tile--loaded/);
 });
+
+test('loads the visible thumbnails top to bottom before the rows rendered ahead', async ({
+  page,
+}) => {
+  const requested = await serveThumbnails(page);
+  await openTimeline(page);
+  await expect(page.getByTestId('timeline-tile').first()).toHaveClass(/timeline-tile--loaded/);
+  const timeline = page.getByTestId('timeline');
+
+  await timeline.evaluate((el) => {
+    el.scrollTop = el.scrollHeight / 2;
+  });
+  // The thumbnails of the tiles on screen, top to bottom and left to right.
+  const visible = async () =>
+    timeline.evaluate((el) => {
+      const view = el.getBoundingClientRect();
+      return [...el.querySelectorAll('[data-testid="timeline-tile"]')]
+        .filter((tile) => {
+          const rect = tile.getBoundingClientRect();
+          return rect.bottom > view.top && rect.top < view.bottom;
+        })
+        .map((tile) => tile.querySelector('img')?.getAttribute('src') ?? '');
+    });
+  await expect.poll(async () => (await visible()).every((src) => src !== '')).toBe(true);
+
+  const onScreen = (await visible()).map((src) => src.replace('http://thumb.localhost', ''));
+  // Only the middle of the timeline: the top page may still be loading ahead.
+  const middle = requested.filter((path) => Number(/^\/(\d+)/.exec(path)?.[1]) > PHOTOS / 4);
+  expect(middle.slice(0, onScreen.length)).toEqual(onScreen);
+});

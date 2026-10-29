@@ -1,9 +1,9 @@
-//! A small thread pool that runs the newest job first.
+//! A small thread pool that runs jobs in the order they were queued.
 //!
-//! Thumbnails are requested for every tile that stays on screen briefly, so a
-//! fast scroll queues many renders for photos already scrolled past. Running
-//! the newest first renders what is on screen now before those.
+//! The UI decides which thumbnails to request and when (visible tiles top to
+//! bottom, a few at a time), so the pool keeps that order.
 
+use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::thread;
@@ -12,22 +12,22 @@ type Job = Box<dyn FnOnce() + Send>;
 
 #[derive(Default)]
 struct Shared {
-    jobs: Mutex<Vec<Job>>,
+    jobs: Mutex<VecDeque<Job>>,
     ready: Condvar,
 }
 
-/// Worker threads taking the most recently added job first.
-pub struct LifoPool {
+/// Worker threads taking jobs in the order they were queued.
+pub struct WorkerPool {
     shared: Arc<Shared>,
 }
 
-impl fmt::Debug for LifoPool {
+impl fmt::Debug for WorkerPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LifoPool").finish_non_exhaustive()
+        f.debug_struct("WorkerPool").finish_non_exhaustive()
     }
 }
 
-impl LifoPool {
+impl WorkerPool {
     /// Starts `workers` threads named `<name>-<n>`; they live as long as the app.
     ///
     /// # Errors
@@ -44,13 +44,13 @@ impl LifoPool {
         Ok(Self { shared })
     }
 
-    /// Queues `job`; it runs before every job queued earlier and not started yet.
+    /// Queues `job`; it runs after every job queued earlier.
     pub fn spawn(&self, job: impl FnOnce() + Send + 'static) {
         self.shared
             .jobs
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .push(Box::new(job));
+            .push_back(Box::new(job));
         self.shared.ready.notify_one();
     }
 }
@@ -60,7 +60,7 @@ fn work(shared: &Shared) {
         let job = {
             let mut jobs = shared.jobs.lock().unwrap_or_else(PoisonError::into_inner);
             loop {
-                if let Some(job) = jobs.pop() {
+                if let Some(job) = jobs.pop_front() {
                     break job;
                 }
                 jobs = shared
@@ -81,8 +81,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runs_the_newest_waiting_job_first() {
-        let pool = LifoPool::new(1, "test").unwrap();
+    fn runs_waiting_jobs_in_the_order_they_were_queued() {
+        let pool = WorkerPool::new(1, "test").unwrap();
         let (gate_open, gate) = mpsc::channel::<()>();
         let (started, has_started) = mpsc::channel::<()>();
         // Keep the only worker busy while the other jobs are queued.
@@ -107,12 +107,12 @@ mod tests {
             all_done.recv_timeout(Duration::from_secs(5)).unwrap();
         }
 
-        assert_eq!(*order.lock().unwrap(), [3, 2, 1]);
+        assert_eq!(*order.lock().unwrap(), [1, 2, 3]);
     }
 
     #[test]
     fn several_workers_run_every_job() {
-        let pool = LifoPool::new(2, "test").unwrap();
+        let pool = WorkerPool::new(2, "test").unwrap();
         let (done, all_done) = mpsc::channel::<usize>();
         for n in 0..50 {
             let done = done.clone();
