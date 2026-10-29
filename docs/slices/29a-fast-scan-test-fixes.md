@@ -60,7 +60,7 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Fix:** `complete_pending` reports `(done, total)` after every photo (still storing in chunks of 200; test `completing_reports_progress_after_every_photo`); `scan/completion.rs` sends it to the UI at most once a second (`PROGRESS_EVERY`) and always for the last photo.
 
-**Not a bug:** folders without Takeout date files (e.g. `D:PulpitZłote Gody`) have no background pass and so no such line: their EXIF is read in the first scan.
+**Not a bug:** folders without Takeout date files (e.g. `D:\Pulpit\Złote Gody`) have no background pass and so no such line: their EXIF is read in the first scan.
 
 ## Note: the installed app resets the cache
 
