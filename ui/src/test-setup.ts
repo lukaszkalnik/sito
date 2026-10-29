@@ -7,6 +7,11 @@ afterEach(() => {
   cleanup();
 });
 
+// jsdom does no layout, so it has no scrolling into view; tests spy on this stub.
+if (!('scrollIntoView' in Element.prototype)) {
+  Object.assign(Element.prototype, { scrollIntoView() {} });
+}
+
 // jsdom has no modal dialogs; enough of them for components that use one.
 if (!('showModal' in HTMLDialogElement.prototype)) {
   Object.assign(HTMLDialogElement.prototype, {

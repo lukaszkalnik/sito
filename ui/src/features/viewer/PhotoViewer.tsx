@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
@@ -212,6 +212,11 @@ function SeriesStrip({
   onShow: (id: number) => void;
 }) {
   const { t } = useTranslation();
+  const currentRef = useRef<HTMLButtonElement>(null);
+  // Stepping through a long series would otherwise leave the strip behind.
+  useEffect(() => {
+    currentRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [currentId]);
   return (
     <nav className="viewer-strip" aria-label={t('viewer.series')}>
       {members.map((member) => {
@@ -219,6 +224,7 @@ function SeriesStrip({
         return (
           <button
             key={member.id}
+            ref={current ? currentRef : undefined}
             type="button"
             className={`viewer-strip-item${current ? ' viewer-strip-item--current' : ''}`}
             aria-label={member.name}

@@ -214,6 +214,20 @@ describe('PhotoViewer', () => {
     expect(onShow).toHaveBeenLastCalledWith(3);
   });
 
+  it('scrolls the strip to keep the current photo visible', () => {
+    const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const props = viewerProps(pageOf(1));
+    const { rerender } = render(<PhotoViewer {...props} />);
+    scrolled.mockClear();
+
+    rerender(<PhotoViewer {...props} photo={pageOf(3)} />);
+
+    expect(scrolled).toHaveBeenCalledTimes(1);
+    expect(scrolled.mock.contexts[0]).toBe(screen.getByRole('button', { name: 'IMG_3.jpg' }));
+    expect(scrolled).toHaveBeenCalledWith({ inline: 'nearest', block: 'nearest' });
+    scrolled.mockRestore();
+  });
+
   it('has no strip for a single photo, and names the root folder', () => {
     renderViewer(pageOf(0));
 
