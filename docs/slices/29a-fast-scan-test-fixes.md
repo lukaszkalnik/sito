@@ -1,6 +1,6 @@
 # Slice 29a – Fixes from testing slice 29
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing
 
 Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google Photos` (34,600 photos, USB hard disk).
 
@@ -34,6 +34,22 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Check:** restart the app on `F:\Google Photos`: after „Sprawdzanie zmian…”, the line appears at once and continues from the count it had.
 
+## 4. The first page of thumbnails is rendered last ✅ (fix to check)
+
+**Found (2026-10-29):** after item 2, opening `D:\Pulpit\Złote Gody` still showed two thumbnails of the first page and then nothing for a while; tiles further down loaded first.
+
+**Measured** (network log of the webview over the Chrome DevTools Protocol, debug app started with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222`): nothing hangs, the backend answers every request. A folder opened or a scroll position reached requests its thumbnails top to bottom in one burst (30 requests in 85 ms on opening, 72 within 15 ms after dragging the scrollbar; rows 20–50 ms apart), visible rows first, then the 4 rows rendered ahead below the screen. Separate scroll steps came 360–400 ms apart. Uncached thumbnails took about 0.6 s each on the SSD and about 1 s on the USB disk during the EXIF pass, with 2 workers.
+
+**Cause:** the thumbnail pool ran the newest request first, so within one burst it rendered the rows below the screen first and the visible first page last.
+
+**Fix:** `BurstQueue` (`src-tauri/src/thumbnails/burst_queue.rs`, unit tests there) serves the newest burst first and each burst in the order it came. A burst is a run of requests less than 100 ms apart, reaching back at most 300 ms from its newest request so a long continuous scroll does not chain back to the photos it scrolled past. The pool is now `BurstPool` (`thumbnails/burst_pool.rs`, formerly `lifo_pool.rs`).
+
+**Checked (2026-10-29, debug build):** opening `F:\Google Photos\Takeout\Zdjęcia Google\Kreta 2019` (thumbnails not cached): the page filled top down; the 43 requests (one burst of 97 ms) were rendered in the order they were sent, neighbours swapped only by the two parallel workers.
+
 ## Note: the installed app resets the cache
 
 Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cache: it uses cache version 3, this slice version 4, and each version throws away a cache of the other. The EXIF read so far is then read again. Until slice 29 is released, test with the debug build only.
+
+## Testing (next)
+
+All four fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2 and 3 in the app, the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
