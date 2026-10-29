@@ -229,3 +229,34 @@ fn clean_of_a_cache_never_written_does_nothing() {
 
     assert_eq!(cache.clean(&[], 0).unwrap().bytes_left, 0);
 }
+
+#[test]
+fn a_photo_with_pending_exif_gets_an_upright_thumbnail() {
+    let rotated = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/exif/rotated_orientation-6.jpg");
+    let pending = Photo {
+        exif: ExifInfo::Pending,
+        ..photo(rotated.clone())
+    };
+    let read = Photo {
+        exif: ExifInfo::Read {
+            orientation: Orientation::from_exif(6),
+            camera: None,
+        },
+        ..photo(rotated)
+    };
+    let cache_dir = TempDir::new().unwrap();
+
+    let from_pending = ThumbnailCache::new(cache_dir.path().join("a"))
+        .get_or_create(&pending)
+        .unwrap();
+    let from_read = ThumbnailCache::new(cache_dir.path().join("b"))
+        .get_or_create(&read)
+        .unwrap();
+
+    let sideways = ThumbnailCache::new(cache_dir.path().join("c"))
+        .get_or_create(&photo(pending.path.clone()))
+        .unwrap();
+    assert_eq!(from_pending, from_read);
+    assert_ne!(from_pending, sideways);
+}
