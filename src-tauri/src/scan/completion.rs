@@ -20,6 +20,10 @@ pub const SCAN_COMPLETING: &str = "scan-completing";
 /// every update makes the UI reload the timeline and its series.
 const UPDATE_EVERY: Duration = Duration::from_secs(10);
 
+/// How often at most the progress is sent to the UI; the core reports it
+/// after every photo.
+const PROGRESS_EVERY: Duration = Duration::from_secs(1);
+
 /// Progress of the second pass, as sent to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -68,16 +72,22 @@ fn complete(app: &AppHandle, pending: &Pending, scan_id: u64) {
     let state = app.state::<AppState>();
     let mut unapplied: Vec<Photo> = Vec::new();
     let mut throttle = Throttle::new(UPDATE_EVERY, Instant::now());
-    let report = |done, total| {
+    let mut progress_throttle = Throttle::new(PROGRESS_EVERY, Instant::now());
+    let send = |done, total| {
         emit(
             app,
             SCAN_COMPLETING,
             progress(scan_id, pending.read, done, total),
         );
     };
-    // Shows the status line now rather than after the first chunk, which
-    // takes a while on a hard disk.
-    report(0, pending.photos.len());
+    // Shows the status line now rather than after the first photos, which
+    // take a while on a hard disk.
+    send(0, pending.photos.len());
+    let report = |done, total| {
+        if done == total || progress_throttle.is_due(Instant::now()) {
+            send(done, total);
+        }
+    };
     let completion = complete_pending(
         &pending.photos,
         |read| {

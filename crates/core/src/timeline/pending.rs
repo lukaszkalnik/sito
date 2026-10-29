@@ -14,16 +14,17 @@ pub enum Completion {
 }
 
 /// Reads the EXIF of `pending` photos one at a time on the calling thread,
-/// in their order, in chunks of a few hundred: each chunk is handed to
-/// `store` and reported to `on_chunk` as `(done, total)`. Before each chunk,
-/// `should_stop` may end the work; the photos not read yet stay pending.
+/// in their order, reporting `(done, total)` to `on_progress` after each
+/// photo. The photos read are handed to `store` in chunks of a few hundred.
+/// Before each chunk, `should_stop` may end the work; the photos not read
+/// yet stay pending.
 ///
 /// It never uses the rayon pool, so image decoding (which does) is not held
 /// up while it runs.
 pub fn complete_pending(
     pending: &[Photo],
     mut store: impl FnMut(&[Photo]),
-    mut on_chunk: impl FnMut(usize, usize),
+    mut on_progress: impl FnMut(usize, usize),
     should_stop: impl Fn() -> bool,
 ) -> Completion {
     let total = pending.len();
@@ -35,10 +36,16 @@ pub fn complete_pending(
         // Sequential on purpose: this runs while the timeline is in use, and
         // parallel reads would fill the rayon pool that decodes thumbnails
         // (and are no faster on a hard disk).
-        let read: Vec<Photo> = chunk.iter().map(|photo| to_photo(&found(photo))).collect();
+        let read: Vec<Photo> = chunk
+            .iter()
+            .map(|photo| {
+                let read = to_photo(&found(photo));
+                done += 1;
+                on_progress(done, total);
+                read
+            })
+            .collect();
         store(&read);
-        done += read.len();
-        on_chunk(done, total);
     }
     Completion::Finished
 }

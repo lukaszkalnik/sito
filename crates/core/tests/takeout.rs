@@ -171,6 +171,28 @@ fn completing_a_quick_scan_gives_the_full_scan_result() {
 }
 
 #[test]
+fn completing_reports_progress_after_every_photo() {
+    let dir = album();
+    let cache = quick_scan(&dir);
+    let pending = cache.pending_under(dir.path()).unwrap();
+    let mut progress = Vec::new();
+
+    complete_pending(
+        &pending,
+        |_| {},
+        |done, total| progress.push((done, total)),
+        || false,
+    );
+
+    let total = pending.len();
+    assert!(total > 1, "the album has several photos with date files");
+    assert_eq!(
+        progress,
+        (1..=total).map(|done| (done, total)).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn a_stopped_completion_resumes_later() {
     let dir = album();
     let mut cache = quick_scan(&dir);
