@@ -62,10 +62,30 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Not a bug:** folders without Takeout date files (e.g. `D:\Pulpit\Złote Gody`) have no background pass and so no such line: their EXIF is read in the first scan.
 
+## 7. The app lags while the EXIF pass runs ✅
+
+**Found (2026-10-29):** during the EXIF pass, clicks and scrolling sometimes reacted only after a few seconds.
+
+**Measured** (CDP, debug build, 34,600 photos): `get_timeline` took 4.4 s and `get_series` 0.17 s, both synchronous commands, which Tauri runs on the main thread that also handles the window; the EXIF pass reloaded the timeline every 10 s. Building the entries took 0.35 s, serializing them 0.92 s (8.5 MB of JSON), the rest was the transfer into the webview. In the webview itself each reload is a single long task of about 180 ms.
+
+**Fix:** both commands are `async` and do their work on a blocking thread (`off_main_thread` in `src-tauri/src/error.rs`), holding the scan lock only to copy the photos; the EXIF pass updates the timeline every 30 s instead of 10.
+
+**Checked (2026-10-29):** while `get_timeline` ran (3.5 s), `get_undo_state` answered in 3 ms; the webview's only long tasks were the 180 ms per reload, about every 30 s.
+
+**Later:** the 8.5 MB payload could shrink (e.g. `relativePath` repeats `relativeDir` and `name`), which would also cut the 180 ms.
+
+## Retest on an empty photo cache (2026-10-29, 20:07)
+
+With all fixes, the photo cache moved aside (`photos.db.old-20261029-200648`, thumbnail cache and action log kept), the debug build reopened `F:\Google Photos`:
+
+- Pass 1: the timeline appeared after about 5 minutes (about 6,500 photos per minute; before slice 29: 35–40 minutes).
+- Thumbnails of the first page appeared within seconds; the EXIF line counted up about once a second, at about 70 photos per second.
+- Clicks stayed responsive during reloads (item 7).
+
 ## Note: the installed app resets the cache
 
 Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cache: it uses cache version 3, this slice version 4, and each version throws away a cache of the other. The EXIF read so far is then read again. Until slice 29 is released, test with the debug build only.
 
 ## Testing (next)
 
-All six fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
+All seven fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
