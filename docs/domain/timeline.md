@@ -21,8 +21,8 @@ How the grid of photos and the photo viewer show photos and behave while they lo
 - Stepping to another photo keeps the previous one for a moment, then shows a spinner if the new one is still loading.
 - When the timeline changes (a rejection or undo in either window, a refresh, the EXIF pass), the viewer fetches the shown photo's details again.
 - The photo fills the space between the bar and the strip (or the bottom edge, when it has no series) as large as it fits, uncropped, so a portrait photo fills the height. The webview applies the EXIF orientation, so a rotated photo is measured upright.
-- The bar has „Odrzuć” (solid red) at its left end, far from „Cofnij” and „Zamknij” at its right end.
-- In the series strip, the current photo has a thick accent frame with a glow and the other photos are dimmed. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
+- At the right end of the bar, „Odrzuć” (solid red) is set about one button width apart from „Cofnij” and „Zamknij”, so the two are not hit by mistake.
+- In the series strip, the current photo has a thick accent frame with a glow; the other photos are shown normally. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
 
 ## Staying responsive
 

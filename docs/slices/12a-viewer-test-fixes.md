@@ -1,6 +1,6 @@
 # Slice 12a – Fixes from testing slice 12 (viewer)
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (implemented 2026-10-29)
 
 ## Context
 
