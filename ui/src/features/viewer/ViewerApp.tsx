@@ -14,7 +14,7 @@ import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { useTimelineEntries } from '../timeline/useTimelineEntries';
 import { afterReject } from './navigation';
-import { PhotoViewer } from './PhotoViewer';
+import { LoadingSpinner, PhotoViewer } from './PhotoViewer';
 
 /** Photo id meaning "no photo left to show". */
 const NO_PHOTO = -1;
@@ -99,8 +99,17 @@ function ReadyViewer(props: ReadyViewerProps) {
     );
   }
   // A restored photo whose timeline is still reloading.
-  if (request.id !== NO_PHOTO) return <main className="viewer" />;
+  if (request.id !== NO_PHOTO) return <ViewerLoading />;
   return <EmptyViewer canUndo={undo.canUndo} undo={undo.undo} />;
+}
+
+/** The viewer while it waits for its photo, the timeline around it or a restored photo. */
+function ViewerLoading() {
+  return (
+    <main className="viewer">
+      <LoadingSpinner />
+    </main>
+  );
 }
 
 /** Loads the scan the request belongs to and shows its photo. */
@@ -122,7 +131,7 @@ function LoadedViewer({
   );
   const undo = useUndo(showUndone);
 
-  if (timeline.status === 'loading') return <main className="viewer" />;
+  if (timeline.status === 'loading') return <ViewerLoading />;
   if (timeline.status === 'error') {
     return (
       <main className="viewer">
@@ -171,6 +180,6 @@ export function ViewerApp() {
     [],
   );
 
-  if (!request) return <main className="viewer" />;
+  if (!request) return <ViewerLoading />;
   return <LoadedViewer request={request} onShowId={showId} />;
 }

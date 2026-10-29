@@ -72,11 +72,16 @@ const SPINNER_DELAY_MS = 300;
  * old photo never looks like the one that is loading.
  */
 function WhileLoading({ previous, alt }: { previous: string | null; alt: string }) {
-  const { t } = useTranslation();
   const slow = useMountedFor(SPINNER_DELAY_MS);
   if (!slow) {
     return previous === null ? null : <img className="viewer-photo" src={previous} alt={alt} />;
   }
+  return <LoadingSpinner />;
+}
+
+/** A spinner in the middle of the viewer, announced as „Wczytywanie zdjęcia…”. */
+export function LoadingSpinner() {
+  const { t } = useTranslation();
   return (
     <div className="viewer-loading" role="status" aria-label={t('viewer.loading')}>
       <div className="viewer-spinner" />
