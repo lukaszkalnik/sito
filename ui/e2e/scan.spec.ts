@@ -52,3 +52,27 @@ test('does nothing when the folder dialog is cancelled', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' })).toBeEnabled();
   await expect(page.getByRole('status')).toHaveCount(0);
 });
+
+test('shows the EXIF dates being completed in the background, then hides it', async ({ page }) => {
+  await mockTauri(page, {
+    pickedFolder: 'C:\\Takeout',
+    scanProgress: [],
+    scanResult: { ok: { scanId: 1, photosFound: 50, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 50, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
+    completing: {
+      steps: [
+        { done: 200, total: 34600 },
+        { done: 34600, total: 34600 },
+      ],
+      everyMs: 500,
+    },
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+
+  const status = page.getByRole('status');
+  await expect(status).toContainText(/Uzupełnianie dat z EXIF: 200 z 34\s600\./);
+  await expect(status).not.toContainText('Uzupełnianie dat z EXIF');
+  await expect(status).toContainText('Znaleziono 50 zdjęć.');
+});

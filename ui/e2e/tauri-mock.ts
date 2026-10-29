@@ -49,6 +49,11 @@ export interface TauriMock {
    * `refreshing`): `scan-refreshed` with `summary` after `afterMs`.
    */
   refresh?: { summary: Summary; afterMs: number };
+  /**
+   * Reading EXIF in the background after `start_scan`: one `scan-completing`
+   * event per step (for the scan's id), `everyMs` apart.
+   */
+  completing?: { steps: { done: number; total: number }[]; everyMs: number };
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -203,6 +208,13 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             send?.({ index: m.scanProgress.length, end: true });
             const refresh = m.refresh;
             if (refresh) setTimeout(() => emit('scan-refreshed', refresh.summary), refresh.afterMs);
+            const { scanId } = m.scanResult.ok;
+            m.completing?.steps.forEach((step, i) =>
+              setTimeout(
+                () => emit('scan-completing', { scanId, ...step }),
+                (i + 1) * (m.completing?.everyMs ?? 0),
+              ),
+            );
             return m.scanResult.ok;
           }
           case 'get_timeline':

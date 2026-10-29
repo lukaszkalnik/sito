@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
+import type { Completing } from '../scan/scanReducer';
 import type { Series } from './api';
 import { openViewer, sendViewerContext } from '../viewer/api';
 import { Toast } from '../reject/Toast';
@@ -16,6 +17,8 @@ import './TimelineView.css';
 interface TimelineViewProps {
   path: string;
   summary: ScanSummary;
+  /** Progress of reading EXIF in the background, `null` when none is read. */
+  completing: Completing | null;
   busy: boolean;
   onChooseAnother: () => void;
 }
@@ -126,12 +129,23 @@ function useRevealRestored() {
   return { reveal, showRestored, revealed };
 }
 
+/** Keeps an open viewer stepping through the same photos as this view. */
+function useViewerContext(mode: TimelineMode, gap: number) {
+  useEffect(() => {
+    void sendViewerContext({ mode, gap }).catch(() => {
+      // No viewer window is open; it gets the view when it opens.
+    });
+  }, [mode, gap]);
+}
+
 /** The summary line: photo and series counts and scan notes. */
 function ScanStatus({
   summary,
+  completing,
   timeline,
 }: {
   summary: ScanSummary;
+  completing: Completing | null;
   timeline: TimelineEntriesState;
 }) {
   const { t } = useTranslation();
@@ -145,6 +159,7 @@ function ScanStatus({
       {summary.unreadableEntries > 0 &&
         ` ${t('scan.unreadable', { count: summary.unreadableEntries })}`}
       {summary.refreshing && ` ${t('scan.refreshing')}`}
+      {completing && ` ${t('scan.completing', { ...completing })}`}
     </p>
   );
 }
@@ -199,7 +214,13 @@ function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: Timel
 }
 
 /** Full-window view of a finished scan: summary bar and the timeline grid. */
-export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineViewProps) {
+export function TimelineView({
+  path,
+  summary,
+  completing,
+  busy,
+  onChooseAnother,
+}: TimelineViewProps) {
   const { t } = useTranslation();
   const [gap, changeGap] = useGap(path);
   // A new scan id means another scan finished, so the timeline is reloaded; a
@@ -208,13 +229,7 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
   const [mode, setMode] = useState<TimelineMode>('series');
   const { reveal, showRestored, revealed } = useRevealRestored();
   const { canUndo, undo, toast } = useUndo(showRestored);
-
-  // An open viewer steps through the same photos as this view.
-  useEffect(() => {
-    void sendViewerContext({ mode, gap }).catch(() => {
-      // No viewer window is open; it gets the view when it opens.
-    });
-  }, [mode, gap]);
+  useViewerContext(mode, gap);
 
   return (
     <main className="timeline-view">
@@ -224,7 +239,7 @@ export function TimelineView({ path, summary, busy, onChooseAnother }: TimelineV
           <p className="timeline-bar-path" title={path}>
             {path}
           </p>
-          <ScanStatus summary={summary} timeline={timeline} />
+          <ScanStatus summary={summary} completing={completing} timeline={timeline} />
         </div>
         <GapSlider gap={gap} onChange={changeGap} />
         <ModeToggle mode={mode} onChange={setMode} />

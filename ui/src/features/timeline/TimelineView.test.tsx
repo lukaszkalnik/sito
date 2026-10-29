@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
 import '../../i18n';
+import type { Completing } from '../scan/scanReducer';
 import { sendViewerContext } from '../viewer/api';
 import { loadGap, saveGap } from './gapSetting';
 import { TimelineView } from './TimelineView';
@@ -44,7 +45,7 @@ function pairs(count: number): Series[] {
   return Array.from({ length: count }, (_, i) => ({ start: 2 * i, len: 2 }));
 }
 
-function renderView(photos: number) {
+function renderView(photos: number, completing: Completing | null = null) {
   render(
     <TimelineView
       path="C:\Zdjęcia"
@@ -55,6 +56,7 @@ function renderView(photos: number) {
         withoutDate: 0,
         refreshing: false,
       }}
+      completing={completing}
       busy={false}
       onChooseAnother={() => {}}
     />,
@@ -65,6 +67,17 @@ describe('TimelineView', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     localStorage.clear();
+  });
+
+  it('shows how far reading EXIF in the background has got', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue([]);
+    renderView(2, { done: 1234, total: 34600 });
+
+    // pl-PL groups digits with a space from five digits on.
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      /Uzupełnianie dat z EXIF: 1234 z 34\s600\./,
+    );
   });
 
   it('regroups with the gap from the slider and remembers it for the folder', async () => {

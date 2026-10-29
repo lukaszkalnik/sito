@@ -32,11 +32,11 @@ describe('scanReducer', () => {
     });
 
     state = scanReducer(state, { type: 'scanFinished', summary });
-    expect(state).toEqual({ status: 'done', path: 'C:\\Photos', summary });
+    expect(state).toEqual({ status: 'done', path: 'C:\\Photos', summary, completing: null });
   });
 
   it('restores the previous result when picking is cancelled', () => {
-    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary };
+    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary, completing: null };
 
     const picking = scanReducer(done, { type: 'pickStarted' });
     const restored = scanReducer(picking, { type: 'pickCancelled' });
@@ -73,7 +73,12 @@ describe('scanReducer', () => {
   describe('a background refresh', () => {
     const cached = { ...summary, refreshing: true };
     const fresh = { ...summary, photosFound: 4, refreshing: false };
-    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary: cached };
+    const done: ScanState = {
+      status: 'done',
+      path: 'C:\\Photos',
+      summary: cached,
+      completing: null,
+    };
 
     it('updates the summary of the folder shown', () => {
       expect(scanReducer(done, { type: 'refreshed', summary: fresh })).toEqual({
@@ -96,6 +101,37 @@ describe('scanReducer', () => {
 
       expect(scanReducer(done, { type: 'refreshed', summary: other })).toBe(done);
       expect(scanReducer(scanning, { type: 'refreshed', summary: fresh })).toBe(scanning);
+    });
+  });
+
+  describe('reading EXIF in the background', () => {
+    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary, completing: null };
+    const progress = (done: number, total: number) => ({
+      type: 'completing' as const,
+      completing: { scanId: 1, done, total },
+    });
+
+    it('records its progress until it is complete', () => {
+      const running = scanReducer(done, progress(200, 500));
+      expect(running).toEqual({ ...done, completing: { done: 200, total: 500 } });
+
+      expect(scanReducer(running, progress(500, 500))).toEqual(done);
+    });
+
+    it('also while another folder is being picked', () => {
+      const picking = scanReducer(done, { type: 'pickStarted' });
+
+      expect(scanReducer(picking, progress(200, 500))).toEqual({
+        status: 'picking',
+        previous: { ...done, completing: { done: 200, total: 500 } },
+      });
+    });
+
+    it('is ignored for a scan that is no longer shown', () => {
+      const other = { type: 'completing' as const, completing: { scanId: 99, done: 1, total: 2 } };
+
+      expect(scanReducer(done, other)).toBe(done);
+      expect(scanReducer(scanning, progress(1, 2))).toBe(scanning);
     });
   });
 });

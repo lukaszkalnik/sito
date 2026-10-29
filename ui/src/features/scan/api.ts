@@ -69,3 +69,17 @@ export async function onScanRefreshed(
 ): Promise<UnlistenFn> {
   return listen<ScanSummary>('scan-refreshed', (event) => handler(event.payload));
 }
+
+/** Progress of reading the EXIF that a quick first scan left out. Mirrors `CompletingDto`. */
+export interface ScanCompleting {
+  scanId: number;
+  done: number;
+  total: number;
+}
+
+/** Calls `handler` while the EXIF of a scan's photos is read in the background. */
+export async function onScanCompleting(
+  handler: (completing: ScanCompleting) => void,
+): Promise<UnlistenFn> {
+  return listen<ScanCompleting>('scan-completing', (event) => handler(event.payload));
+}

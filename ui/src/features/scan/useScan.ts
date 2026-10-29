@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { onScanRefreshed, pickFolder, ScanError, scanFolder } from './api';
+import { onScanCompleting, onScanRefreshed, pickFolder, ScanError, scanFolder } from './api';
 import { loadLastFolder, saveLastFolder } from './lastFolder';
 import { initialScanState, scanReducer, type ScanState } from './scanReducer';
 
@@ -56,6 +56,14 @@ export function useScan(): { state: ScanState; chooseAndScan: () => Promise<void
       // Outside the app (e.g. a plain browser) there are no events.
       () => () => {},
     );
+    return () => void unlisten.then((stop) => stop());
+  }, []);
+
+  // A quick first scan reads the EXIF of its photos afterwards.
+  useEffect(() => {
+    const unlisten = onScanCompleting((completing) =>
+      dispatch({ type: 'completing', completing }),
+    ).catch(() => () => {});
     return () => void unlisten.then((stop) => stop());
   }, []);
 

@@ -7,6 +7,7 @@
     "chooseFolder": "Wybierz folder ze zdjęciami",
     "chooseAnother": "Wybierz inny folder",
     "refreshing": "Sprawdzanie zmian…",
+    "completing": "Uzupełnianie dat z EXIF: {{done, number}} z {{total, number}}.",
     "folder": "Folder: {{path}}",
     "result": "Znaleziono {{photos}}.",
     "noPhotos": "Nie znaleziono żadnych zdjęć.",
