@@ -29,19 +29,22 @@ interface PhotoViewerProps {
 }
 
 /**
- * The photo at full size. The previous photo stays until the next one has
- * loaded, so stepping through large photos never flashes an empty window;
- * if the next one cannot be loaded, only the error is shown.
+ * The photo at full size. While the next photo loads, the previous one
+ * stays for a moment, so stepping through photos never flashes an empty
+ * window; a photo that takes longer shows a spinner instead. If it cannot
+ * be loaded, only the error is shown.
  */
 function FullPhoto({ src, alt }: { src: string; alt: string }) {
   const { t } = useTranslation();
   const [loaded, setLoaded] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+  const loading = loaded !== src && failed !== src;
 
   return (
     <div className="viewer-photo-area">
-      {loaded !== null && failed !== src && <img className="viewer-photo" src={loaded} alt={alt} />}
-      {loaded !== src && failed !== src && (
+      {loaded === src && <img className="viewer-photo" src={src} alt={alt} />}
+      {loading && <WhileLoading key={src} previous={loaded} alt={alt} />}
+      {loading && (
         <img
           className="viewer-photo viewer-photo--loading"
           src={src}
@@ -51,7 +54,6 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
           onError={() => setFailed(src)}
         />
       )}
-      {loaded !== src && failed !== src && <LoadingSpinner key={src} />}
       {failed === src && (
         <p role="alert" className="viewer-error">
           {t('viewer.loadError')}
@@ -61,14 +63,20 @@ function FullPhoto({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-/** Delay before the spinner shows, so photos that load fast never flash it. */
+/** How long the previous photo stays while the next one loads, before the spinner replaces it. */
 const SPINNER_DELAY_MS = 300;
 
-/** Shown over the photo area while a photo takes long to load (e.g. a TIFF being converted). */
-function LoadingSpinner() {
+/**
+ * What the viewer shows while a photo loads: the previously shown photo at
+ * first, then a spinner on its own (e.g. while a TIFF is converted), so the
+ * old photo never looks like the one that is loading.
+ */
+function WhileLoading({ previous, alt }: { previous: string | null; alt: string }) {
   const { t } = useTranslation();
-  const visible = useMountedFor(SPINNER_DELAY_MS);
-  if (!visible) return null;
+  const slow = useMountedFor(SPINNER_DELAY_MS);
+  if (!slow) {
+    return previous === null ? null : <img className="viewer-photo" src={previous} alt={alt} />;
+  }
   return (
     <div className="viewer-loading" role="status" aria-label={t('viewer.loading')}>
       <div className="viewer-spinner" />

@@ -134,6 +134,39 @@ describe('PhotoViewer', () => {
     }
   });
 
+  it('replaces the previous photo with the spinner when the next one is slow', () => {
+    vi.useFakeTimers();
+    try {
+      const props = {
+        entries,
+        series,
+        mode: 'all' as const,
+        scanId: 3,
+        onShow: vi.fn(),
+        onClose: vi.fn(),
+        onReject: vi.fn(),
+        canUndo: false,
+        onUndo: vi.fn(),
+      };
+      const { rerender } = render(<PhotoViewer {...props} position={2} />);
+      fireEvent.load(screen.getByTestId('viewer-photo-loading'));
+      rerender(<PhotoViewer {...props} position={3} />);
+
+      // At first the previous photo stays, so fast photos never flash.
+      expect(screen.getByRole('img', { name: 'IMG_3.jpg' })).toHaveAttribute(
+        'src',
+        'photo://localhost/2?scan=3',
+      );
+
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(screen.getByRole('status', { name: 'Wczytywanie zdjęcia…' })).toBeInTheDocument();
+      expect(screen.queryByRole('img', { name: 'IMG_3.jpg' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('hides the spinner when a photo cannot be loaded', () => {
     vi.useFakeTimers();
     try {
