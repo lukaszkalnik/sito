@@ -33,3 +33,7 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 **Not changed:** the warm refresh („Sprawdzanie zmian…”) still shows no progress; on that disk the folder walk alone takes about 35 s.
 
 **Check:** restart the app on `F:\Google Photos`: after „Sprawdzanie zmian…”, the line appears at once and continues from the count it had.
+
+## Note: the installed app resets the cache
+
+Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cache: it uses cache version 3, this slice version 4, and each version throws away a cache of the other. The EXIF read so far is then read again. Until slice 29 is released, test with the debug build only.
