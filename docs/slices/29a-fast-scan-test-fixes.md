@@ -54,10 +54,18 @@ Problems found while testing [slice 29](29-fast-takeout-scan.md) on `F:\Google P
 
 **Fix:** `[profile.dev.package.sito-core] opt-level = 3` in `Cargo.toml`: the debug build now takes 0.22 s, like the release. The installed app was never affected.
 
+## 6. The EXIF progress line hardly moves ✅ (fix to check)
+
+**Found (2026-10-29):** „Uzupełnianie dat z EXIF” only changed once per chunk of 200 photos, 8 s or more on the USB disk.
+
+**Fix:** `complete_pending` reports `(done, total)` after every photo (still storing in chunks of 200; test `completing_reports_progress_after_every_photo`); `scan/completion.rs` sends it to the UI at most once a second (`PROGRESS_EVERY`) and always for the last photo.
+
+**Not a bug:** folders without Takeout date files (e.g. `D:PulpitZłote Gody`) have no background pass and so no such line: their EXIF is read in the first scan.
+
 ## Note: the installed app resets the cache
 
 Starting the installed v0.12.0 while testing (2026-10-29) emptied the photo cache: it uses cache version 3, this slice version 4, and each version throws away a cache of the other. The EXIF read so far is then read again. Until slice 29 is released, test with the debug build only.
 
 ## Testing (next)
 
-All five fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
+All six fixes are in the debug build `target\debug\sito.exe` (start it with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222` to log the webview's thumbnail requests with the CDP logger used for item 4). Still for the user to check: items 2, 3 and 4 in the app (fast scrolling in `Złote Gody`), the EXIF pass finishing on `F:\Google Photos` with dates and series matching a full scan, and the user's OK for slices 29 and 29a before the release.
