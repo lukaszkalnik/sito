@@ -40,3 +40,9 @@ opt-level = 3
 
 [profile.dev.package.nom-exif]
 opt-level = 3
+
+# The JPEG decoder is generic over its reader, so its decoding code is
+# compiled inside sito-core: without this a thumbnail took 2.3 s instead of
+# 0.2 s in debug builds (measured 2026-10-29).
+[profile.dev.package.sito-core]
+opt-level = 3
