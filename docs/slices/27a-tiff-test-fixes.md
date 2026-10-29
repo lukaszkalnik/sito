@@ -1,6 +1,6 @@
 # Slice 27a – Fixes from testing slice 27 (TIFF)
 
-**Status:** 🧪 ready for testing (what it established is in [docs/domain/photos.md](../domain/photos.md))
+**Status:** ✅ done (tested by the user on 2026-10-29; released as v0.12.0; what it established is in [docs/domain/photos.md](../domain/photos.md))
 
 ## Context
 

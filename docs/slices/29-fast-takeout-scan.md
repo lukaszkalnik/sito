@@ -88,7 +88,7 @@ Save Part C into `docs/slices/29-fast-takeout-scan.md` (concept kept above), �
 
 ## Progress
 
-- ⬜ 1. Core: EXIF-pending photos and pass 2
+- 🚧 1. Core: EXIF-pending photos and pass 2. **Work in progress is in `git stash` „slice 29 step 1 (core) work in progress, not compiling yet” (2026-10-29); `git stash pop` to continue.** Done there: `ExifInfo { Pending, Read { orientation, camera } }` replaces `Photo.orientation`/`camera`; `Photo.sidecar` is a `StampedFile` (path needed to finish pending photos); `Photo::orientation()` reads the file when pending; `ReadMode { Full, TakeoutFirst }` and `build_timeline_cached(.., mode, ..)`; reading moved to `timeline/read.rs`, `complete_pending` in `timeline/pending.rs`; photo cache version 4 (nullable `orientation` = pending, `sidecar_path`), `pending_under(root)`; non-test code compiles. Left: `crates/core/tests/photo_cache.rs` (calls `build_timeline_cached` without the mode, uses `FileStamp` for `sidecar`, `.orientation`/`.camera` on photos), `crates/core/tests/timeline.rs` and `tiff.rs` (`.orientation`, `.camera` on `Photo`), new tests for `TakeoutFirst` + `complete_pending`.
 - ⬜ 2. Thumbnails and viewer with unknown orientation
 - ⬜ 3. Tauri: pass 2 in the background
 - ⬜ 4. UI: status line

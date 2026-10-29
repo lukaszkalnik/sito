@@ -27,8 +27,8 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 11 | [Showcase screenshots for the README](slices/11-readme-showcase.md) | ✅ |
 | 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 🧪 |
 | 26 | [RAW photos](slices/26-raw-photos.md) | ✅ |
-| 27 | [TIFF photos](slices/27-tiff-photos.md) | 🧪 |
-| 27a | [Fixes from testing slice 27](slices/27a-tiff-test-fixes.md) | 🧪 |
+| 27 | [TIFF photos](slices/27-tiff-photos.md) | ✅ |
+| 27a | [Fixes from testing slice 27](slices/27a-tiff-test-fixes.md) | ✅ |
 | 29 | [Faster first scan of Takeout folders](slices/29-fast-takeout-scan.md) | 🚧 |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | 📝 |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 📝 |
