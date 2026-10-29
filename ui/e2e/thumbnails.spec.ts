@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { THUMBNAIL_SLOTS } from '../src/features/timeline/thumbnailQueue';
 import { mockTauri } from './tauri-mock';
 
 const PHOTOS = 10000;
@@ -106,10 +107,23 @@ test('loads the visible thumbnails top to bottom before the rows rendered ahead'
         })
         .map((tile) => tile.querySelector('img')?.getAttribute('src') ?? '');
     });
-  await expect.poll(async () => (await visible()).every((src) => src !== '')).toBe(true);
+  // Right after the scroll no row is on screen yet, and an empty list would pass.
+  await expect
+    .poll(async () => {
+      const srcs = await visible();
+      return srcs.length > 0 && srcs.every((src) => src !== '');
+    })
+    .toBe(true);
 
   const onScreen = (await visible()).map((src) => src.replace('http://thumb.localhost', ''));
   // Only the middle of the timeline: the top page may still be loading ahead.
   const middle = requested.filter((path) => Number(/^\/(\d+)/.exec(path)?.[1]) > PHOTOS / 4);
-  expect(middle.slice(0, onScreen.length)).toEqual(onScreen);
+  // Tiles given their turns together are fetched in page order, so once the
+  // last visible tile waits alone, a tile above the screen sharing its batch
+  // may be fetched first. Before that last batch, the order is exact.
+  const exact = onScreen.length - (THUMBNAIL_SLOTS - 1);
+  expect(middle.slice(0, exact)).toEqual(onScreen.slice(0, exact));
+  expect(middle.slice(0, onScreen.length + THUMBNAIL_SLOTS - 1)).toEqual(
+    expect.arrayContaining(onScreen),
+  );
 });
