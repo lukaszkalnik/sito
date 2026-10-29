@@ -2,9 +2,10 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, PoisonError};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use sito_core::series::Series;
 use sito_core::timeline::{Photo, Timeline, compare_photos};
 
 /// The result of one finished scan.
@@ -27,6 +28,11 @@ pub struct Scan {
     /// Ids of removed photos once a refresh found them in the rejected folder
     /// (and so no longer needs them in `removed`), for restoring them.
     removed_ids: HashMap<PathBuf, usize>,
+    /// Counts the changes to the timeline, so work done on a copy of it can
+    /// tell whether it is still up to date.
+    revision: u64,
+    /// The series of the current revision for one gap, found last.
+    series: Option<(Duration, Arc<Vec<Series>>)>,
 }
 
 impl Scan {
@@ -39,7 +45,38 @@ impl Scan {
             next_id: count,
             removed: HashMap::new(),
             removed_ids: HashMap::new(),
+            revision: 0,
+            series: None,
         }
+    }
+
+    /// Changes with every change to the timeline (a refresh, updated photos,
+    /// a removed or restored photo).
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    /// The series for `max_gap` stored with [`Scan::store_series`], if the
+    /// timeline has not changed since.
+    pub fn cached_series(&self, max_gap: Duration) -> Option<Arc<Vec<Series>>> {
+        self.series
+            .as_ref()
+            .filter(|(gap, _)| *gap == max_gap)
+            .map(|(_, series)| Arc::clone(series))
+    }
+
+    /// Keeps `series`, found for `max_gap` on the timeline at `revision`,
+    /// unless the timeline has changed since.
+    pub fn store_series(&mut self, revision: u64, max_gap: Duration, series: Arc<Vec<Series>>) {
+        if revision == self.revision {
+            self.series = Some((max_gap, series));
+        }
+    }
+
+    /// Records a change to the timeline: a new revision without cached series.
+    fn changed(&mut self) {
+        self.revision += 1;
+        self.series = None;
     }
 
     /// Replaces the timeline with a newer scan of the same folder, keeping
@@ -68,6 +105,7 @@ impl Scan {
         }
         self.ids = ids;
         self.timeline = timeline;
+        self.changed();
     }
 
     /// Replaces the photos that have the paths of `read` with those (e.g.
@@ -98,6 +136,7 @@ impl Scan {
         entries.sort_by(|a, b| compare_photos(&a.1, &b.1));
         (self.ids, self.timeline.photos) = entries.into_iter().unzip();
         self.timeline.rejected.sort_by(compare_photos);
+        self.changed();
     }
 
     /// The photos with their ids, in timeline order.
@@ -133,17 +172,35 @@ impl Scan {
 
     /// The photo with id `id`, if it is on the timeline.
     pub fn photo(&self, id: usize) -> Option<&Photo> {
-        let position = self.ids.iter().position(|&other| other == id)?;
-        self.timeline.photos.get(position)
+        self.timeline.photos.get(self.position_of(id)?)
+    }
+
+    /// Number of photos on the timeline.
+    pub fn photo_count(&self) -> usize {
+        self.ids.len()
+    }
+
+    /// Position on the timeline of the photo with id `id`, if it is on it.
+    pub fn position_of(&self, id: usize) -> Option<usize> {
+        self.ids.iter().position(|&other| other == id)
+    }
+
+    /// The id and photo at timeline position `position`.
+    pub fn entry_at(&self, position: usize) -> Option<(usize, &Photo)> {
+        Some((
+            *self.ids.get(position)?,
+            self.timeline.photos.get(position)?,
+        ))
     }
 
     /// Takes the photo with id `id` off the timeline, remembering it for
     /// [`Scan::restore`]; returns it.
     pub fn remove(&mut self, id: usize) -> Option<Photo> {
-        let position = self.ids.iter().position(|&other| other == id)?;
+        let position = self.position_of(id)?;
         self.ids.remove(position);
         let photo = self.timeline.photos.remove(position);
         self.removed.insert(photo.path.clone(), (id, photo.clone()));
+        self.changed();
         Some(photo)
     }
 
@@ -172,6 +229,7 @@ impl Scan {
         };
         let position = self.timeline.insert(photo);
         self.ids.insert(position, id);
+        self.changed();
         Some(id)
     }
 }
@@ -317,6 +375,81 @@ mod tests {
     #[test]
     fn no_photo_before_the_first_scan() {
         assert_eq!(AppState::default().photo(0, 0), None);
+    }
+
+    fn cached_lens(scan: &Scan, max_gap: Duration) -> Option<Vec<usize>> {
+        scan.cached_series(max_gap)
+            .map(|series| series.iter().map(|s| s.len).collect())
+    }
+
+    fn store_one_series(scan: &mut Scan, max_gap: Duration) {
+        scan.store_series(
+            scan.revision(),
+            max_gap,
+            Arc::new(vec![Series { start: 0, len: 2 }]),
+        );
+    }
+
+    #[test]
+    fn series_are_cached_for_their_gap() {
+        let gap = Duration::from_secs(10);
+        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg"]));
+        assert_eq!(cached_lens(&scan, gap), None);
+
+        store_one_series(&mut scan, gap);
+
+        assert_eq!(cached_lens(&scan, gap), Some(vec![2]));
+        assert_eq!(cached_lens(&scan, Duration::from_secs(5)), None);
+    }
+
+    #[test]
+    fn series_found_on_an_older_revision_are_not_stored() {
+        let gap = Duration::from_secs(10);
+        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+        let before = scan.revision();
+        scan.remove(1);
+
+        scan.store_series(before, gap, Arc::new(vec![]));
+
+        assert_eq!(cached_lens(&scan, gap), None);
+    }
+
+    #[test]
+    fn every_change_to_the_timeline_drops_the_cached_series() {
+        let gap = Duration::from_secs(10);
+        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+        let changes: [&dyn Fn(&mut Scan); 4] = [
+            &|scan| {
+                scan.remove(1);
+            },
+            &|scan| {
+                scan.restore(Path::new("b.jpg"), Path::new("x/b.jpg"), |_| None);
+            },
+            &|scan| scan.update_photos(&[photo("a.jpg", 5)]),
+            &|scan| scan.refresh(timeline(&["a.jpg"])),
+        ];
+        for change in changes {
+            store_one_series(&mut scan, gap);
+            let before = scan.revision();
+
+            change(&mut scan);
+
+            assert!(scan.revision() > before);
+            assert_eq!(cached_lens(&scan, gap), None);
+        }
+    }
+
+    #[test]
+    fn photos_are_found_by_position_and_id() {
+        let mut scan = Scan::new(1, timeline(&["a.jpg", "b.jpg", "c.jpg"]));
+        scan.remove(0);
+
+        assert_eq!(scan.photo_count(), 2);
+        assert_eq!(scan.position_of(2), Some(1));
+        assert_eq!(scan.position_of(0), None);
+        let (id, photo) = scan.entry_at(0).unwrap();
+        assert_eq!((id, photo.path.as_path()), (1, Path::new("b.jpg")));
+        assert!(scan.entry_at(2).is_none());
     }
 
     #[test]

@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder
 use crate::error::CommandError;
 use crate::window_fit;
 
+pub mod page;
 pub mod photo_protocol;
 
 /// Label of the viewer window.

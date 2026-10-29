@@ -153,7 +153,7 @@ impl From<TimeSource> for TimeSourceDto {
 }
 
 impl TimelineEntryDto {
-    fn new(id: usize, photo: &Photo, root: &Path) -> Self {
+    pub(crate) fn new(id: usize, photo: &Photo, root: &Path) -> Self {
         let relative = photo.path.strip_prefix(root).unwrap_or(&photo.path);
         let relative_dir = relative
             .parent()
