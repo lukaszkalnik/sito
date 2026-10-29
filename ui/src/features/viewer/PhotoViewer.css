@@ -63,6 +63,8 @@
 }
 
 .viewer-reject {
+  /* With the bar's gap about one button wide, so „Cofnij” is not hit by mistake. */
+  margin-right: 4rem;
   padding: 0.25rem 0.75rem;
   border: 1px solid #c0392b;
   border-radius: 6px;

@@ -129,7 +129,7 @@ function FormatNote({ format }: { format: PhotoFormat }) {
   return badge === null ? null : <span className="viewer-format">{t(badge)}</span>;
 }
 
-/** The reject button, the photo's name, date and folder, and the undo and close buttons. */
+/** Name, date and folder of the photo, with the reject, undo and close buttons. */
 function ViewerBar({
   entry,
   onReject,
@@ -143,10 +143,6 @@ function ViewerBar({
   const { t } = useTranslation();
   return (
     <header className="viewer-bar">
-      {/* At the far end from „Cofnij”, so the two are not mixed up. */}
-      <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
-        {t('reject.button')}
-      </button>
       <p className="viewer-info">
         <span className="viewer-name">{entry.name}</span>
         <span>
@@ -156,6 +152,9 @@ function ViewerBar({
         <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
+      <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
+        {t('reject.button')}
+      </button>
       <button
         type="button"
         className="viewer-close"
