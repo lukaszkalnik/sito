@@ -8,7 +8,7 @@ use serde::Serialize;
 use sito_core::timeline::{Completion, Photo, complete_pending};
 use tauri::{AppHandle, Emitter, Manager};
 
-use super::photo_cache::PhotoCacheState;
+use super::photo_cache::{Pending, PhotoCacheState};
 use super::state::AppState;
 use super::{SCAN_REFRESHED, ScanSummaryDto};
 use crate::reject::TIMELINE_CHANGED;
@@ -38,23 +38,48 @@ pub struct CompletingDto {
 pub fn complete_in_background(app: AppHandle, root: PathBuf, scan_id: u64) {
     tauri::async_runtime::spawn_blocking(move || {
         let pending = app.state::<PhotoCacheState>().pending(&root);
-        if pending.is_empty() {
+        if pending.photos.is_empty() {
             return;
         }
-        log::info!("reading EXIF of {} photos in the background", pending.len());
+        log::info!(
+            "reading EXIF of {} photos in the background ({} read before)",
+            pending.photos.len(),
+            pending.read
+        );
         complete(&app, &pending, scan_id);
     });
 }
 
+/// Progress of scan `scan_id` with `done` of `total` pending photos read,
+/// counting the `already_read` photos of the folder too: a pass resumed after
+/// an interruption goes on from where it stopped.
+fn progress(scan_id: u64, already_read: usize, done: usize, total: usize) -> CompletingDto {
+    CompletingDto {
+        scan_id,
+        done: already_read + done,
+        total: already_read + total,
+    }
+}
+
 /// Runs the second pass over `pending`, applying what it read to scan
 /// `scan_id` at most every [`UPDATE_EVERY`] and in full once it finishes.
-fn complete(app: &AppHandle, pending: &[Photo], scan_id: u64) {
+fn complete(app: &AppHandle, pending: &Pending, scan_id: u64) {
     let cache = app.state::<PhotoCacheState>();
     let state = app.state::<AppState>();
     let mut unapplied: Vec<Photo> = Vec::new();
     let mut throttle = Throttle::new(UPDATE_EVERY, Instant::now());
+    let report = |done, total| {
+        emit(
+            app,
+            SCAN_COMPLETING,
+            progress(scan_id, pending.read, done, total),
+        );
+    };
+    // Shows the status line now rather than after the first chunk, which
+    // takes a while on a hard disk.
+    report(0, pending.photos.len());
     let completion = complete_pending(
-        pending,
+        &pending.photos,
         |read| {
             cache.store(read);
             unapplied.extend_from_slice(read);
@@ -64,17 +89,7 @@ fn complete(app: &AppHandle, pending: &[Photo], scan_id: u64) {
                 emit(app, TIMELINE_CHANGED, ());
             }
         },
-        |done, total| {
-            emit(
-                app,
-                SCAN_COMPLETING,
-                CompletingDto {
-                    scan_id,
-                    done,
-                    total,
-                },
-            );
-        },
+        report,
         || !state.is_current(scan_id),
     );
     match completion {
@@ -141,5 +156,17 @@ mod tests {
         assert!(throttle.is_due(start + Duration::from_secs(10)));
         assert!(!throttle.is_due(start + Duration::from_secs(19)));
         assert!(throttle.is_due(start + Duration::from_secs(21)));
+    }
+
+    #[test]
+    fn a_resumed_pass_counts_the_photos_read_before() {
+        assert_eq!(
+            progress(7, 8_200, 200, 26_400),
+            CompletingDto {
+                scan_id: 7,
+                done: 8_400,
+                total: 34_600,
+            }
+        );
     }
 }

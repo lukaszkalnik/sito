@@ -14,6 +14,15 @@ use crate::thumbnails::Thumbnails;
 /// removed beyond it. Slice 15 turns it into a setting.
 pub const THUMBNAIL_CACHE_LIMIT: u64 = 500 * 1024 * 1024;
 
+/// The cached photos of a folder whose EXIF is still pending.
+#[derive(Debug, Default)]
+pub struct Pending {
+    /// The pending photos, in path order.
+    pub photos: Vec<Photo>,
+    /// How many photos of the folder have their EXIF read already.
+    pub read: usize,
+}
+
 /// The photo cache, or `None` if it could not be opened; scans then read
 /// every photo, as before the cache existed.
 #[derive(Debug)]
@@ -70,15 +79,24 @@ impl PhotoCacheState {
     }
 
     /// The cached photos of `root` whose EXIF is still pending, in path order.
-    pub fn pending(&self, root: &Path) -> Vec<Photo> {
+    pub fn pending(&self, root: &Path) -> Pending {
         let cache = self.lock();
         let Some(cache) = cache.as_ref() else {
-            return Vec::new();
+            return Pending::default();
         };
-        cache.pending_under(root).unwrap_or_else(|err| {
-            log::warn!("cannot list photos with pending EXIF: {err}");
-            Vec::new()
-        })
+        let listed = cache
+            .pending_under(root)
+            .and_then(|photos| Ok((cache.photos_under(root)?.len(), photos)));
+        match listed {
+            Ok((all, photos)) => Pending {
+                read: all.saturating_sub(photos.len()),
+                photos,
+            },
+            Err(err) => {
+                log::warn!("cannot list photos with pending EXIF: {err}");
+                Pending::default()
+            }
+        }
     }
 
     /// Stores freshly read `photos` in the cache.
