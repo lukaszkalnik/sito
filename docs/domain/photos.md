@@ -38,3 +38,12 @@ Sito works on large photo galleries taken with Android phones: 10,000+ photos pe
 - Without any capture time, the file's modification time is shown instead and the photo is marked as dated by the file. Such dates usually come from copying or downloading, so they say little about when the photo was taken; these photos never join a series.
 - Orientation and camera model are read from EXIF too; photos are always shown upright.
 - A new or changed date file makes the next scan read its photo again.
+
+## First scan of a Takeout
+
+Opening each photo file is what makes a first scan slow on a USB hard disk (30–50 ms per file for the seek; a Takeout date file costs about 11 ms), so a first scan of a Takeout reads in two passes:
+
+- **Pass 1** dates every photo that has a Takeout date file from that file alone, without opening the photo, and shows the timeline and series. Photos without a date file are read fully, as always. Without the photo cache everything is read fully.
+- **Pass 2** then reads the EXIF of those photos in the background, in path order, 200 at a time, and stores each batch in the cache. The status line shows „Uzupełnianie dat z EXIF: 1234 z 34 600.”; the timeline stays usable and is updated at most every 10 s and once at the end.
+- **Until pass 2 reaches it**, a photo's time is the Takeout date in the computer's time zone, as for a photo without EXIF. Photos taken in another time zone move by a few hours when their EXIF time replaces it, and their series may change. Thumbnails and the viewer read the orientation from the file, so photos are upright either way.
+- Opening another folder stops pass 2; the photos not read yet stay pending in the cache and pass 2 continues when the folder is opened again. Later scans of the same folder read only new or changed files.

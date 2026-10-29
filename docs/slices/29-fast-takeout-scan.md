@@ -1,6 +1,6 @@
 # Slice 29 – Faster first scan of Takeout folders
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (what it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout))
 
 ## Context
 
@@ -92,4 +92,9 @@ Save Part C into `docs/slices/29-fast-takeout-scan.md` (concept kept above), �
 - ✅ 2. Thumbnails and viewer with unknown orientation: `Photo::orientation()` reads the orientation from the file when pending; thumbnails, viewer JPEGs and `display_jpeg` use it (test in `tests/thumbnail_cache.rs`).
 - ✅ 3. Tauri: pass 2 in the background. `PhotoCacheState::scan` uses `TakeoutFirst` (`Full` without a cache); `scan/completion.rs` runs after a cold scan and after the warm refresh, stores each chunk, emits `scan-completing { scanId, done, total }` per chunk, and patches read photos into the shown scan with `AppState::update_photos` (by path, ids kept, re-sorted) at most every 10 s plus at the end, then `timeline-changed` and `scan-refreshed`. The shown scan is patched rather than reloaded from the cache because rejecting does not update the cache. Stops when `AppState::is_current(scan_id)` is false.
 - ✅ 4. UI: status line. `onScanCompleting` in `scan/api.ts`; the reducer's `done` state has `completing: { done, total } | null` (set by the `completing` action for the shown scan, `null` once `done === total`); `ScanStatus` adds „Uzupełnianie dat z EXIF: … z ….” (`scan.completing`). Vitest for reducer and status line; e2e mock option `completing`, test in `e2e/scan.spec.ts`.
-- ⬜ 5. Docs and check
+- ✅ 5. Docs: `docs/domain/photos.md` „First scan of a Takeout”. Slice 🧪.
+
+## Testing (next)
+
+- Debug build `target\debug\sito.exe`; start it only when the user is not scanning. It shares the installed app's data; the photo cache version went from 3 to 4, so its first launch starts with an empty cache and every folder gets a cold first scan (the installed v0.12.0 then also rebuilds its cache).
+- Check on `F:\Google Photos`: the timeline appears after pass 1 (~a fifth of the 35–40 min); the status line counts up; reopening mid-pass resumes; opening another folder stops pass 2; after pass 2, dates and series match a full scan.
