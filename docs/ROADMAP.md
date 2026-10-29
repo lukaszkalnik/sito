@@ -25,7 +25,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 9 | [Persistence](slices/09-persistence.md) | ✅ |
 | 10 | [Third-party license notices](slices/10-third-party-notices.md) | ✅ |
 | 11 | [Showcase screenshots for the README](slices/11-readme-showcase.md) | ✅ |
-| 25 | [Google Takeout dates](slices/25-takeout-dates.md) | 🧪 |
+| 25 | [Google Takeout dates](slices/25-takeout-dates.md) | ✅ |
 | 26 | [RAW photos](slices/26-raw-photos.md) | ✅ |
 | 27 | [TIFF photos](slices/27-tiff-photos.md) | ✅ |
 | 27a | [Fixes from testing slice 27](slices/27a-tiff-test-fixes.md) | ✅ |
