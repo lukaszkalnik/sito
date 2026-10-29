@@ -119,6 +119,33 @@ describe('ThumbnailQueue', () => {
     expect(started).toEqual(['visible', 'near']);
   });
 
+  it('keeps a slot for a visible tile still in its delay rather than one off screen', () => {
+    const { started, request, advance } = setUp(1);
+    // The row above the screen was rendered a frame before the screen's rows.
+    request('above', [1, 20, 0]);
+    advance(16);
+    request('visible', [0, 0, 0]);
+
+    advance(THUMBNAIL_DELAY_MS - 16);
+    expect(started).toEqual([]);
+
+    advance(16);
+    expect(started).toEqual(['visible']);
+  });
+
+  it('loads off screen once a visible tile still in its delay has left', () => {
+    const { started, request, advance } = setUp(1);
+    request('above', [1, 20, 0]);
+    advance(16);
+    const flyingPast = request('flying past', [0, 0, 0]);
+    advance(THUMBNAIL_DELAY_MS - 16);
+
+    flyingPast.release();
+    advance(16);
+
+    expect(started).toEqual(['above']);
+  });
+
   it('never starts a tile that left before its turn', () => {
     const { started, request, advance } = setUp(1);
     const first = request('first', [0, 0, 0]);

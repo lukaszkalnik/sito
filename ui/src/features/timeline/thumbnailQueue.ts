@@ -33,6 +33,10 @@ export function rankOf(tile: ScreenRect, view: ScreenRect): Rank {
   return [1, distance, tile.left];
 }
 
+function isVisible(rank: Rank): boolean {
+  return rank[0] === 0;
+}
+
 function compareRanks(a: Rank, b: Rank): number {
   return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 }
@@ -123,21 +127,29 @@ export class ThumbnailQueue {
     }
   }
 
+  /**
+   * The best ranked tile that has waited long enough. A tile off screen never
+   * goes while a visible one is still in its delay: rows rendered in an
+   * earlier frame would otherwise take the slots just before the screen's.
+   */
   private best(): Entry | undefined {
     const now = this.clock.now();
     let best: { entry: Entry; rank: Rank } | undefined;
     let soonest = Infinity;
+    let visibleNotReady = false;
     for (const entry of this.waiting) {
+      const rank = entry.rank();
       const ready = entry.since + THUMBNAIL_DELAY_MS;
       if (ready > now) {
         soonest = Math.min(soonest, ready);
+        visibleNotReady ||= isVisible(rank);
         continue;
       }
-      const rank = entry.rank();
       if (best === undefined || compareRanks(rank, best.rank) < 0) best = { entry, rank };
     }
-    if (best === undefined && soonest !== Infinity) this.wakeUp(soonest);
-    return best?.entry;
+    if (best !== undefined && (isVisible(best.rank) || !visibleNotReady)) return best.entry;
+    if (soonest !== Infinity) this.wakeUp(soonest);
+    return undefined;
   }
 }
 
