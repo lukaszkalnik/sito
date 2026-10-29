@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { onTimelineChanged } from '../reject/api';
+import { useTimelineRevision } from '../reject/useTimelineRevision';
 import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
 
 export type TimelineEntriesState =
@@ -10,19 +10,6 @@ export type TimelineEntriesState =
 
 /** A result loaded for one scan; `null` means loading it failed. */
 type Loaded<T> = { scanKey: unknown; value: T | null };
-
-/**
- * Counts the `timeline-changed` events (photos rejected or restored), so
- * effects that depend on it reload.
- */
-function useTimelineRevision(): number {
-  const [revision, setRevision] = useState(0);
-  useEffect(() => {
-    const unlisten = onTimelineChanged(() => setRevision((r) => r + 1));
-    return () => void unlisten.then((stop) => stop());
-  }, []);
-  return revision;
-}
 
 /**
  * Loads the timeline and series of the last scan. `scanKey` changes with
