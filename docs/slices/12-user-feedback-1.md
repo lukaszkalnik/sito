@@ -1,6 +1,6 @@
 # Slice 12 – User feedback 1
 
-**Status:** 🚧 in progress (plan approved 2026-10-29)
+**Status:** 🧪 ready for testing (plan approved and implemented 2026-10-29)
 
 ## Context
 
@@ -46,6 +46,7 @@ These findings come from the user's first real test of Sito on their own photos 
 ### 6. Portrait photos in the viewer (item 1)
 - Check in the debug build with `fixtures/exif/rotated_orientation-6.jpg` (EXIF-rotated) and a plain portrait JPEG, with and without the series strip.
 - If it already fills the height: noted here as confirmed, no code. If not: fix the cause in a separate `fix(ui): …` commit, with a regression test where testable.
+- **Result (2026-10-29): confirmed, no code.** Measured in Chromium with the viewer's CSS: `rotated_orientation-6.jpg` (stored 16 × 12) reports as 12 × 16 and fills the full height of the photo area, with and without the strip, also in a tall window. The `photo:` protocol sends the file's own bytes and the webview applies the EXIF orientation. If the user still sees a portrait photo not filling the height, note the file and window size for a sub-slice.
 
 ### 7. `docs: slice 12 ready for testing`
 - `docs/domain/timeline.md`: grid tiles (portrait shown uncropped) and the viewer (reject at the left, strip marker and follow). Slice and roadmap → 🧪.

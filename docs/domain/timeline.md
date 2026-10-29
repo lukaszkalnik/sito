@@ -1,10 +1,11 @@
 # Timeline and viewer
 
-How the grid of photos and the photo viewer behave while they load, for galleries of tens of thousands of photos.
+How the grid of photos and the photo viewer show photos and behave while they load, for galleries of tens of thousands of photos.
 
 ## Thumbnails in the grid
 
-- Every tile is a landscape box; the thumbnail fills it and is cropped to it (portrait photos show a strip from their middle; [slice 12](../slices/12-user-feedback-1.md) plans to show them uncropped).
+- Every tile is a landscape box. A landscape thumbnail fills it and is cropped to it; a portrait thumbnail (taller than wide, after the EXIF orientation) is shown whole, with the tile background at its sides. So a portrait file whose scene lies on its side (e.g. a sideways scan without an orientation tag) is recognisable as such; Sito does not turn it, since nothing in the file says how.
+- A tile knows a thumbnail's shape once it has loaded; a thumbnail shown before keeps its shape when its tile comes back, without changing from cropped to whole.
 - Thumbnails load in turns, at most 3 at a time (the backend renders 2 at once; an uncached thumbnail of a 10 MP photo takes about 0.2 s, longer on a USB hard disk):
   1. the tiles on screen, top to bottom and left to right;
   2. then, while nothing visible waits, the tiles the grid renders ahead off screen (4 rows above and below), nearest to the screen first. Loading ahead stops there.
@@ -19,6 +20,9 @@ How the grid of photos and the photo viewer behave while they load, for gallerie
 - The details of the previous and next photo are fetched ahead, together with the photos themselves, so stepping needs no wait. Fetched details are kept until the view (mode, gap) or the timeline changes.
 - Stepping to another photo keeps the previous one for a moment, then shows a spinner if the new one is still loading.
 - When the timeline changes (a rejection or undo in either window, a refresh, the EXIF pass), the viewer fetches the shown photo's details again.
+- The photo fills the space between the bar and the strip (or the bottom edge, when it has no series) as large as it fits, uncropped, so a portrait photo fills the height. The webview applies the EXIF orientation, so a rotated photo is measured upright.
+- The bar has „Odrzuć” (solid red) at its left end, far from „Cofnij” and „Zamknij” at its right end.
+- In the series strip, the current photo has a thick accent frame with a glow and the other photos are dimmed. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
 
 ## Staying responsive
 
