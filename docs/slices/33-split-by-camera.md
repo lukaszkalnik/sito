@@ -23,6 +23,8 @@ Example folder: `D:\pulpit\złote gody`, 683 photos from a Canon EOS R6 and a Ca
 
 Every consumer (grid layout `ui/src/features/timeline/layout.ts`, `crates/core/src/navigation.rs`, the viewer page `src-tauri/src/viewer/page.rs`) assumes that a series is a contiguous range `{start, len}` of the timeline. Interleaved cameras break that assumption. The timeline itself stays sorted by time, because ids, thumbnails, insert and remove depend on that. Instead, grouping adds a **display order**: the timeline positions in time order, with each series pulled together at the place of its newest photo. Series are contiguous ranges in that order, so navigation (`neighbours`, `series_of`, `after_reject`) keeps working on display positions unchanged.
 
+The display order is computed **only in the backend** and sent to the UI with the series, so the rule exists once and the grid and viewer can never disagree. Cost for 50,000 photos (estimated): about 0.8 MB in Rust (order plus inverse, cached like the series today), about 1 ms to build, about 300 KB of JSON per regroup (gap or timeline change only; `get_timeline` is several MB), a few ms to parse in the UI.
+
 ### Core (`crates/core`)
 
 1. **`series.rs`: grouping by camera.**
@@ -56,7 +58,7 @@ Every consumer (grid layout `ui/src/features/timeline/layout.ts`, `crates/core/s
 
 - `series.rs`:
   - `cached_series` / `series_with_removed` build and cache a `Grouping { series, arrangement, labels }`, using the existing per-revision cache in `scan/state.rs`.
-  - `SeriesDto` becomes `{ positions: number[], label }`. `positions` are timeline positions, which equal the UI's entry indices, newest first. The list is in display order. `label` is serialized as `{ kind: "plain" } | { kind: "camera", name } | { kind: "unknownCamera" }`.
+  - `get_series` returns `GroupingDto { order: number[], series: SeriesDto[] }`. `order` holds timeline positions (which equal the UI's entry indices) in display order. `SeriesDto` keeps `{ start, len }`, now as a range of display positions, and gains a `label` serialized as `{ kind: "plain" } | { kind: "camera", name } | { kind: "unknownCamera" }`.
 - `viewer/page.rs`:
   - Map the photo's position to its display position, run `navigation` on `arrangement.ranges`, and map the results back to ids.
   - The strip uses the series members.
@@ -65,20 +67,18 @@ Every consumer (grid layout `ui/src/features/timeline/layout.ts`, `crates/core/s
 
 ### UI (`ui`)
 
-- `features/timeline/api.ts`: new `Series` type with `positions` and a discriminated `label` union. Validate the response there.
-- `layout.ts` `buildRows`:
-  - Index the series by their first position, and keep a set of member positions.
-  - Walking the entries: at a series' first position, add the series; skip its other members; everything else is a single photo.
-  - Pass the label through to the `series` and `blocks` rows, i.e. to `RowGroup`.
+- `features/timeline/api.ts`: `getSeries` returns `{ order, series }`; `Series` gains a discriminated `label` union. Validate the response there; for example, `order` must be a permutation of the entry indices.
+- `useTimelineEntries.ts`: arrange the entries by `order` (one `map`, memoized per grouping) before they reach `buildRows`. The UI has no grouping rule of its own.
+- `layout.ts` `buildRows`: unchanged logic, since series stay ranges over the arranged entries. Only the label is passed through to the `series` and `blocks` rows, i.e. to `RowGroup`.
 - `TimelineRowView.tsx` `SeriesHeader`:
   - Append the camera, e.g. „3 zdjęcia · 17:00:11–17:00:22 · Canon EOS R6”, through new keys `series.headerCamera` / `series.unknownCamera` („nieznany aparat”) in `i18n/pl.json`.
   - The header is already truncated with a title tooltip, so long camera names fit small blocks.
-- `TimelineView.tsx` summary: count `positions.length`.
+- `TimelineView.tsx` summary: unchanged (it sums `len`).
 - Gap slider hint in `pl.json`: „Zdjęcia z jednego aparatu zrobione w tym odstępie czasu tworzą serię.”
 - Tests:
-  - Vitest `layout.test.ts`: a series pulled forward over interleaved singles; members skipped.
+  - Vitest: arranging entries by `order` (`useTimelineEntries.test.ts`), and rejecting an invalid `order` in the api validation.
   - Header test: camera shown only for a camera or unknownCamera label.
-  - Update the Playwright mocks in `ui/e2e/` to the new `get_series` shape, and add one e2e case with two overlapping series showing camera names.
+  - Update the Playwright mocks in `ui/e2e/` to the new `get_series` shape (`{ order, series }`), and add one e2e case with two overlapping series showing camera names.
 
 ### Docs
 
