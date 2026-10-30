@@ -144,6 +144,21 @@ def takeout() -> None:
     )
 
 
+def cameras() -> None:
+    """Two cameras shooting one moment, their photos interleaved in time."""
+    folder = FIXTURES / "cameras"
+    folder.mkdir(parents=True, exist_ok=True)
+    shots = [
+        ("pixel_12-00-00.jpg", "Google", "Pixel 8", "2024:06:01 12:00:00"),
+        ("canon_12-00-02.jpg", "Canon", "Canon EOS R6", "2024:06:01 12:00:02"),
+        ("pixel_12-00-04.jpg", "Google", "Pixel 8", "2024:06:01 12:00:04"),
+        ("canon_12-00-06.jpg", "Canon", "Canon EOS R6", "2024:06:01 12:00:06"),
+    ]
+    for name, make, model, time in shots:
+        exif = {"0th": camera(make, model), **taken(time)}
+        write(name, (60, 60, 200) if make == "Canon" else (200, 60, 60), exif, folder)
+
+
 def raw() -> None:
     """Synthetic RAW files, one per layout (see scripts/raw_fixtures.py)."""
     for path in raw_fixtures.write_all(FIXTURES / "raw"):
@@ -185,6 +200,7 @@ def tiff() -> None:
 
 if __name__ == "__main__":
     main()
+    cameras()
     takeout()
     raw()
     tiff()

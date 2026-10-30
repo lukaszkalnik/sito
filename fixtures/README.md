@@ -20,6 +20,17 @@ uv run --with pillow --with piexif scripts/make-fixtures.py
 | `broken-date.jpg` | `DateTimeOriginal` `0000:00:00 00:00:00` (invalid) | – |
 | `no-exif.jpg` | none | – |
 
+## `cameras/`
+
+Two cameras shooting one moment: 16×12 px JPEGs whose capture times interleave (2 s apart), so grouping by time alone would chain them into one series.
+
+| File | `DateTimeOriginal` | Camera |
+|---|---|---|
+| `pixel_12-00-00.jpg` | 2024-06-01 12:00:00 | Google Pixel 8 |
+| `canon_12-00-02.jpg` | 2024-06-01 12:00:02 | Canon EOS R6 |
+| `pixel_12-00-04.jpg` | 2024-06-01 12:00:04 | Google Pixel 8 |
+| `canon_12-00-06.jpg` | 2024-06-01 12:00:06 | Canon EOS R6 |
+
 ## `takeout/Album/`
 
 An album of an unpacked Google Takeout: 16×12 px JPEGs with Takeout date files (`photoTakenTime` in UTC; each also has a `geoData` field that must be ignored) and an album `metadane.json`.
