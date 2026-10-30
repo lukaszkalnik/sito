@@ -27,7 +27,7 @@ vi.mock('../timeline/api', () => ({
 vi.mock('../reject/api', async (importActual) => ({
   ...(await importActual<typeof import('../reject/api')>()),
   canUndo: vi.fn(() => Promise.resolve(false)),
-  undoReject: vi.fn(),
+  undoLast: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
 vi.mock('../viewer/api', () => ({

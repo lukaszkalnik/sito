@@ -144,7 +144,7 @@ fn reject_in(
 /// it on the timeline again; `None` if there is nothing to undo. Runs off the
 /// main thread: the trash can take a moment.
 #[tauri::command]
-pub async fn undo_reject(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
+pub async fn undo_last(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
     off_main_thread(move || {
         let actions = app.state::<Actions>().inner().lock();
         let state = app.state::<AppState>();
@@ -161,7 +161,7 @@ pub async fn undo_reject(app: AppHandle) -> Result<Option<UndoneDto>, CommandErr
     .await?
 }
 
-/// [`undo_reject`] on the given scan and action state.
+/// [`undo_last`] on the given scan and action state.
 fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>, CommandError> {
     let Some(log) = actions.log.as_ref() else {
         return Ok(None);

@@ -54,7 +54,7 @@ pub fn run() -> tauri::Result<()> {
             viewer::current_viewer_request,
             viewer::page::get_viewer_photo,
             reject::reject_photo,
-            reject::undo_reject,
+            reject::undo_last,
             reject::get_undo_state
         ])
         .run(tauri::generate_context!())

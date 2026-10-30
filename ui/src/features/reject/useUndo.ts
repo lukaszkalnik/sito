@@ -6,7 +6,7 @@ import {
   canUndo,
   onTimelineChanged,
   rejectErrorCode,
-  undoReject,
+  undoLast,
   type RejectErrorCode,
   type Undone,
 } from './api';
@@ -85,7 +85,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     if (busy.current) return;
     busy.current = true;
     try {
-      const undone = await undoReject();
+      const undone = await undoLast();
       if (undone) {
         setToast({ text: t('undo.done', { name: undone.name }), kind: 'info' });
         onUndone?.(undone);

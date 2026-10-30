@@ -267,7 +267,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             emit('timeline-changed');
             return { name: nameOf(id) };
           }
-          case 'undo_reject': {
+          case 'undo_last': {
             const id = rejected.pop();
             if (id === undefined) return null;
             emit('timeline-changed');
