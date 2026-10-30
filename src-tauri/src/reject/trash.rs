@@ -42,7 +42,7 @@ impl Bin for SystemBin {
 impl From<TrashError> for CommandError {
     fn from(err: TrashError) -> Self {
         match err {
-            TrashError::Missing(_) => Self::Missing,
+            TrashError::Missing(_) => Self::MissingFromTrash,
             TrashError::Occupied(_) => Self::Occupied,
             TrashError::RestoreUnsupported => Self::TrashUndoUnsupported,
             TrashError::Trash { .. } | TrashError::Restore(_) => Self::Io,

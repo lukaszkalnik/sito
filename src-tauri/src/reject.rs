@@ -186,7 +186,9 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
     if let Err(err) = undone {
         if matches!(
             err,
-            CommandError::Missing | CommandError::TrashUndoUnsupported
+            CommandError::Missing
+                | CommandError::MissingFromTrash
+                | CommandError::TrashUndoUnsupported
         ) {
             // It can never be undone here; skip it so the next "Cofnij" goes on.
             log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
@@ -555,7 +557,10 @@ mod tests {
         // The trash was emptied.
         fs::remove_file(bin.path().join(NEWER)).unwrap();
 
-        assert_eq!(undo_in(&mut scan, &actions), Err(CommandError::Missing));
+        assert_eq!(
+            undo_in(&mut scan, &actions),
+            Err(CommandError::MissingFromTrash)
+        );
         let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
 
         assert_eq!(undone.name, OLDER);
@@ -597,7 +602,7 @@ mod tests {
         let path = PathBuf::from("IMG_1.jpg");
         let cases = [
             (TrashError::Occupied(path.clone()), "occupied"),
-            (TrashError::Missing(path), "missing"),
+            (TrashError::Missing(path), "missingFromTrash"),
             (TrashError::RestoreUnsupported, "trashUndoUnsupported"),
         ];
         for (err, code) in cases {

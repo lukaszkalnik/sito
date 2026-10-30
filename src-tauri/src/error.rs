@@ -14,8 +14,10 @@ pub enum CommandError {
     Io,
     /// Undo would overwrite a file that now has the photo's original name.
     Occupied,
-    /// The rejected photo is no longer in the rejected folder or the trash.
+    /// The rejected photo is no longer in the rejected folder.
     Missing,
+    /// The rejected photo is no longer in the trash.
+    MissingFromTrash,
     /// The photo's drive has no trash (removable and network drives), so
     /// moving it there would delete it.
     NoTrash,
