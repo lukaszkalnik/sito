@@ -1,6 +1,6 @@
 # Slice 34 – Reject into the system trash
 
-**Status:** 📝 planned (plan approved 2026-10-30; implementation next)
+**Status:** 🚧 in progress (plan approved 2026-10-30)
 
 ## Context
 
