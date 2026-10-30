@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { mockTauri, type TauriMock } from './tauri-mock';
+import { invokedCommands, mockTauri, type TauriMock } from './tauri-mock';
 
 // 1×1 grey PNG, served for photos and thumbnails.
 const PIXEL = Buffer.from(
@@ -143,4 +143,44 @@ test('shows a series reduced to one photo in the series view', async ({ page }) 
 
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText('1 zdjęcie · 12:00:00');
   await expect(page.getByRole('status')).toContainText('15 serii (29 zdjęć).');
+});
+
+test('switches rejecting to the trash after a confirmation, and remembers it', async ({ page }) => {
+  await servePixels(page);
+  await mockTauri(page, BASE);
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  const picker = page.getByRole('combobox', { name: 'Odrzucone zdjęcia do:' });
+  await expect(picker).toHaveValue('folder');
+
+  await picker.selectOption({ label: 'kosza' });
+  const dialog = page.getByRole('dialog', { name: 'Przenosić odrzucone zdjęcia do kosza?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Anuluj' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(picker).toHaveValue('folder');
+
+  await picker.selectOption({ label: 'kosza' });
+  await dialog.getByRole('button', { name: 'Tak, do kosza' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(picker).toHaveValue('trash');
+  await expect(picker).toHaveCSS('font-weight', '700');
+
+  // The last folder reopens by itself.
+  await page.reload();
+  await expect(page.getByRole('combobox', { name: 'Odrzucone zdjęcia do:' })).toHaveValue('trash');
+});
+
+test('rejects into the trash from the viewer once the trash is chosen', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('sito.rejectDestination', 'trash'));
+  await openViewer(page, 1);
+  await expect(photo(page, 'IMG_00029.jpg')).toBeVisible();
+
+  await page.keyboard.press('Delete');
+
+  await expect(page.getByTestId('toast')).toContainText('IMG_00029.jpg → Kosz');
+  const rejects = (await invokedCommands(page)).filter((c) => c.cmd === 'reject_photo');
+  expect(rejects.map((c) => c.args)).toEqual([{ id: 1, destination: 'trash' }]);
 });
