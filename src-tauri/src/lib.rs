@@ -51,7 +51,7 @@ pub fn run() -> tauri::Result<()> {
             scan::get_timeline,
             series::get_series,
             viewer::open_viewer,
-            viewer::take_viewer_request,
+            viewer::current_viewer_request,
             viewer::page::get_viewer_photo,
             reject::reject_photo,
             reject::undo_reject,

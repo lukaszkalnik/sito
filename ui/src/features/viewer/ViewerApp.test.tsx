@@ -10,7 +10,7 @@ import {
   getViewerPhoto,
   onViewerContext,
   onViewerShow,
-  takeViewerRequest,
+  currentViewerRequest,
   type ViewerPhoto,
 } from './api';
 import { ViewerApp } from './ViewerApp';
@@ -27,7 +27,7 @@ vi.mock('../reject/api', async (importActual) => ({
 }));
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
-  takeViewerRequest: vi.fn(),
+  currentViewerRequest: vi.fn(),
   getViewerPhoto: vi.fn(),
   onViewerShow: vi.fn(),
   onViewerContext: vi.fn(),
@@ -63,11 +63,11 @@ describe('ViewerApp', () => {
     vi.mocked(onViewerContext).mockImplementation(noUnlisten);
     vi.mocked(onTimelineChanged).mockImplementation(noUnlisten);
     vi.mocked(canUndo).mockResolvedValue(false);
-    vi.mocked(takeViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
+    vi.mocked(currentViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
   });
 
   it('shows a spinner while it waits for its photo', () => {
-    vi.mocked(takeViewerRequest).mockReturnValue(new Promise(() => {}));
+    vi.mocked(currentViewerRequest).mockReturnValue(new Promise(() => {}));
 
     render(<ViewerApp />);
 

@@ -41,22 +41,20 @@ pub struct ViewerRequest {
 }
 
 /// The last request, for a viewer window that is still loading and so cannot
-/// receive [`SHOW_EVENT`] yet.
+/// receive [`SHOW_EVENT`] yet. It is kept until a newer one replaces it, so a
+/// viewer page that is reloaded after reading it still finds it.
 #[derive(Debug, Default)]
 pub struct ViewerState {
-    pending: Mutex<Option<ViewerRequest>>,
+    current: Mutex<Option<ViewerRequest>>,
 }
 
 impl ViewerState {
     fn set(&self, request: ViewerRequest) {
-        *self.pending.lock().unwrap_or_else(PoisonError::into_inner) = Some(request);
+        *self.current.lock().unwrap_or_else(PoisonError::into_inner) = Some(request);
     }
 
-    fn take(&self) -> Option<ViewerRequest> {
-        self.pending
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
+    fn get(&self) -> Option<ViewerRequest> {
+        *self.current.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -70,7 +68,7 @@ pub async fn open_viewer(request: ViewerRequest, app: AppHandle) -> Result<(), C
 /// Shows `request` in the viewer window, creating and placing the window if
 /// needed. Must not be called on the main thread, which it waits for.
 pub fn show(app: &AppHandle, request: ViewerRequest) -> Result<(), CommandError> {
-    // Kept until the window takes it, in case it is still loading.
+    // Kept for the window in case it is still loading.
     app.state::<ViewerState>().set(request);
     if let Some(window) = app.get_webview_window(LABEL) {
         app.emit_to(LABEL, SHOW_EVENT, request)
@@ -110,12 +108,13 @@ pub fn show(app: &AppHandle, request: ViewerRequest) -> Result<(), CommandError>
     Ok(())
 }
 
-/// The request the viewer window should show once it has loaded, if any.
+/// The last request for the viewer, which a viewer window shows once it has
+/// loaded; `None` before the first one.
 // Tauri injects `State` by value into commands.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
-pub fn take_viewer_request(viewer: State<'_, ViewerState>) -> Option<ViewerRequest> {
-    viewer.take()
+pub fn current_viewer_request(viewer: State<'_, ViewerState>) -> Option<ViewerRequest> {
+    viewer.get()
 }
 
 fn internal(action: &str, err: &tauri::Error) -> CommandError {
@@ -155,12 +154,17 @@ mod tests {
     }
 
     #[test]
-    fn pending_request_is_taken_once() {
+    fn the_latest_request_stays_until_a_newer_one_replaces_it() {
         let state = ViewerState::default();
+        assert_eq!(state.get(), None);
         state.set(request());
         state.set(ViewerRequest { id: 9, ..request() });
 
-        assert_eq!(state.take(), Some(ViewerRequest { id: 9, ..request() }));
-        assert_eq!(state.take(), None);
+        // A viewer page reloaded after reading it gets it again.
+        assert_eq!(state.get(), Some(ViewerRequest { id: 9, ..request() }));
+        assert_eq!(state.get(), Some(ViewerRequest { id: 9, ..request() }));
+
+        state.set(request());
+        assert_eq!(state.get(), Some(request()));
     }
 }

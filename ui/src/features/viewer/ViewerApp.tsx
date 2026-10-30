@@ -8,7 +8,7 @@ import {
   closeWindow,
   onViewerContext,
   onViewerShow,
-  takeViewerRequest,
+  currentViewerRequest,
   type ViewerPhoto,
   type ViewerRequest,
 } from './api';
@@ -183,9 +183,10 @@ export function ViewerApp() {
       onViewerShow((next) => setRequest(next)),
       onViewerContext((context) => setRequest((current) => current && { ...current, ...context })),
     ];
-    // Requests sent while this window was still loading wait in the backend.
-    void takeViewerRequest().then((pending) => {
-      if (active && pending) setRequest((current) => current ?? pending);
+    // The last request waits in the backend, for a window that was still
+    // loading (or reloaded) when it was sent.
+    void currentViewerRequest().then((latest) => {
+      if (active && latest) setRequest((current) => current ?? latest);
     });
     return () => {
       active = false;

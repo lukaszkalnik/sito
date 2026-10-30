@@ -68,9 +68,9 @@ export async function openViewer(request: ViewerRequest): Promise<void> {
   await invoke('open_viewer', { request });
 }
 
-/** The request a freshly opened viewer window should show, if any. */
-export async function takeViewerRequest(): Promise<ViewerRequest | null> {
-  return invoke<ViewerRequest | null>('take_viewer_request');
+/** The last photo request for the viewer, which a freshly loaded viewer window shows; `null` if none. */
+export async function currentViewerRequest(): Promise<ViewerRequest | null> {
+  return invoke<ViewerRequest | null>('current_viewer_request');
 }
 
 /** Calls `handler` for every photo the main window asks the viewer to show. */

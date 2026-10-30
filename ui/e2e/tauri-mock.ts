@@ -40,7 +40,7 @@ export interface TauriMock {
    * the timeline by the requested gap like the backend does. Default: none.
    */
   series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
-  /** Request returned by `take_viewer_request` in the viewer window. Default: none. */
+  /** Request returned by `current_viewer_request` in the viewer window. Default: none. */
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
   rejected?: number[];
@@ -252,7 +252,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             return viewerPhoto(args.request as { id: number; mode: string; gap: number });
           case 'open_viewer':
             return null;
-          case 'take_viewer_request':
+          case 'current_viewer_request':
             return m.viewerRequest ?? null;
           // Events and window calls have no effect in a plain browser.
           case 'plugin:event|listen': {
