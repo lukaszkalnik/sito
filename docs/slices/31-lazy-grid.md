@@ -30,3 +30,7 @@ Split out of [slice 30](30-lazy-timeline.md) on 2026-10-29; slice 30 makes only 
 ## Verification (outline)
 
 - In `F:\Google Photos`, rejecting, undoing and the EXIF pass's updates no longer move 8.5 MB, and the grid stays smooth while scrolling fast.
+
+## Builds on
+
+- [Slice 33](33-split-by-camera.md): `get_series` returns the display order with the series; a lazy grid must take the order into account when loading entries by range.

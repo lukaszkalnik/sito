@@ -1,6 +1,24 @@
 # Slice 33 – Several cameras at one event
 
-**Status:** 📝 planned (plan approved 2026-10-30; implementation next)
+**Status:** 🧪 ready for testing (implemented 2026-10-30; what it established is in [docs/domain/grouping.md](../domain/grouping.md))
+
+## Implementation notes
+
+- Implemented as planned, with these differences:
+  - Core and UI landed in one commit, because the new `get_series` shape breaks the app until both sides change.
+  - The display order comes from the backend (`GroupingDto { order, series }`), and the UI arranges its entries by it (`ui/src/features/timeline/arrange.ts`).
+  - `useTimelineEntries` loads the timeline and the series together, and reuses the timeline when only the gap changes, so entries and order always match. A mismatched answer (the timeline changed in between) is logged and keeps the previous view until the change event reloads both.
+- `core::series::Grouping` pairs the series with their `Arrangement`, and the Tauri layer caches it per gap and timeline revision.
+- A photo dated only by the file between two photos of a series no longer breaks the series. It never joins a series and stays a single photo at its own time.
+- Fixtures: `fixtures/cameras/` has two cameras with interleaved shots.
+
+## Testing (for the user)
+
+In „złote gody”:
+- no series mixes the R6 and the 5D;
+- the 16:59–17:00 R6 („Rodzinne”) and 5D („Tort”) series are separate blocks whose headers name the camera;
+- stepping in the viewer goes through a series in one piece;
+- rejecting and undoing keep the series and their headers.
 
 ## Context
 

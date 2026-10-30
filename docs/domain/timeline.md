@@ -2,6 +2,10 @@
 
 How the grid of photos and the photo viewer show photos and behave while they load, for galleries of tens of thousands of photos.
 
+## Series in the grid
+
+- Each series has a header with its photo count and time range (e.g. „3 zdjęcia · 17:00:11–17:00:22”); when it overlaps a series of another camera, the header also names its camera ([Grouping](grouping.md#several-cameras-at-one-event)). A series that fits on one row is a tinted block next to other blocks and single photos.
+
 ## Thumbnails in the grid
 
 - Every tile is a landscape box. A landscape thumbnail fills it and is cropped to it; a portrait thumbnail (taller than wide, after the EXIF orientation) is shown whole, with the tile background at its sides. So a portrait file whose scene lies on its side (e.g. a sideways scan without an orientation tag) is recognisable as such; Sito does not turn it, since nothing in the file says how.

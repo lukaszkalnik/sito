@@ -9,3 +9,7 @@ Fix false positives and misses by hand: remove a photo from a series, add a phot
 ## Try
 
 Cut a chained series into its real moments, ungroup a wrong series and remove a stray photo, rescan, and check that the edits are kept.
+
+## Builds on
+
+- [Slice 33](33-split-by-camera.md): a series is a list of its photos (`Series::members`, timeline positions) with a display order (`Arrangement`) built from it, so series need not be contiguous in time. Edits and splits only need to produce member lists; the grid and viewer follow the arrangement.
