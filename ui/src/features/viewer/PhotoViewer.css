@@ -143,6 +143,53 @@
   object-fit: contain;
 }
 
+/* Zoom and drag belong to the photo, not to the webview's own page zoom or scrolling. */
+.viewer-photo-area {
+  overflow: hidden;
+  touch-action: none;
+}
+
+.viewer-photo-area--zoomed {
+  cursor: grab;
+}
+
+.viewer-photo-area--zoomed:active {
+  cursor: grabbing;
+}
+
+/* Width, height and position come from the zoom as inline styles. */
+.viewer-photo--zoomed {
+  inset: auto;
+  top: 0;
+  left: 0;
+  max-width: none;
+  object-fit: fill;
+}
+
+.viewer-zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.65);
+  font-size: 0.85rem;
+  cursor: default;
+}
+
+.viewer-zoom button {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background: #1c1c1c;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* Loads behind the shown photo and replaces it once ready. */
 .viewer-photo--loading {
   visibility: hidden;

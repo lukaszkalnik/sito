@@ -75,7 +75,9 @@
     "loading": "Wczytywanie zdjęcia…",
     "empty": "Brak zdjęć do pokazania.",
     "takeoutDate": "data z Google Takeout",
-    "takeoutCorrected": "data poprawiona w Google Photos"
+    "takeoutCorrected": "data poprawiona w Google Photos",
+    "zoomLevel": "Powiększenie",
+    "zoomFit": "Dopasuj"
   },
   "reject": {
     "button": "Odrzuć",

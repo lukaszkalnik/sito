@@ -9,6 +9,7 @@ import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
 import { FullPhoto } from './FullPhoto';
+import { usePhotoZoom } from './usePhotoZoom';
 import './PhotoViewer.css';
 
 interface PhotoViewerProps {
@@ -188,6 +189,7 @@ export function PhotoViewer(props: PhotoViewerProps) {
   }, [entry.name]);
   useViewerKeys(previous, next, props);
   usePreload(scanId, next, previous);
+  const { viewRef, view: zoom } = usePhotoZoom(photo);
 
   return (
     <main className="viewer">
@@ -203,7 +205,12 @@ export function PhotoViewer(props: PhotoViewerProps) {
           onShow={onShow}
         />
         <div className="viewer-stage">
-          <FullPhoto src={photoUrl(scanId, entry.id)} alt={entry.name} />
+          <FullPhoto
+            src={photoUrl(scanId, entry.id)}
+            alt={entry.name}
+            zoom={zoom}
+            viewRef={viewRef}
+          />
         </div>
         <StepButton target={next} label={t('viewer.next')} symbol="›" side="next" onShow={onShow} />
         {photo.series.length > 0 && (
