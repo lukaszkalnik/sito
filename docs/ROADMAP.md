@@ -34,11 +34,11 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 30 | [Load the viewer lazily](slices/30-lazy-timeline.md) | ✅ |
 | 12 | [User feedback 1](slices/12-user-feedback-1.md) | ✅ |
 | 12a | [Fixes from testing slice 12](slices/12a-viewer-test-fixes.md) | ✅ |
-| 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 🧪 |
+| 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | ✅ |
 | 13a | [Fixes from testing slice 13](slices/13a-viewer-zoom-test-fixes.md) | ✅ |
-| 13b | [Resolution and file size in the viewer](slices/13b-viewer-photo-details.md) | 🧪 |
-| 34 | [Reject into the system trash](slices/34-reject-to-trash.md) | 🧪 |
-| 34a | [Fixes from testing slice 34](slices/34a-reject-to-trash-test-fixes.md) | 🧪 |
+| 13b | [Resolution and file size in the viewer](slices/13b-viewer-photo-details.md) | ✅ |
+| 34 | [Reject into the system trash](slices/34-reject-to-trash.md) | ✅ |
+| 34a | [Fixes from testing slice 34](slices/34a-reject-to-trash-test-fixes.md) | ✅ |
 | 32 | [Accept a photo](slices/32-accept-photo.md) | 📝 |
 | 33 | [Several cameras at one event](slices/33-split-by-camera.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |

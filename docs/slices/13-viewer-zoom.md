@@ -1,6 +1,6 @@
 # Slice 13 – Zoom in the viewer
 
-**Status:** 🧪 ready for testing (implemented on 2026-10-30)
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
 
 ## Context
 
@@ -65,4 +65,4 @@ Implemented as planned, in `ui/src/features/viewer/` (`zoom.ts`, `usePhotoZoom.t
 - The badge shows the level as `Intl` formats it for `pl-PL`, i.e. „100%” without a space.
 - Pan step for Shift+arrows: 120 view pixels.
 
-**Next:** the user tests the debug build (see Verification above).
+Tested by the user in the debug build on 2026-10-30: works; released in v0.13.0.

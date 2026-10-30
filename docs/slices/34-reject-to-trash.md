@@ -1,6 +1,6 @@
 # Slice 34 – Reject into the system trash
 
-**Status:** 🧪 ready for testing (implemented on 2026-10-30)
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/rejecting.md](../domain/rejecting.md))
 
 ## Context
 
@@ -75,4 +75,4 @@ Implemented as planned; behaviour is now described in [docs/domain/rejecting.md]
 - Commits: backend (core log + Tauri command) went in as one commit, so each commit builds; the UI picker and the viewer as one too.
 - The real Recycle Bin round trip is an `#[ignore]` test: `cargo test -p sito-core --lib trash -- --ignored` (passed on the dev machine).
 
-**Next:** the user tests the debug build (see Verification above), together with slice 13.
+Tested by the user in the debug build on 2026-10-30: works; released in v0.13.0.

@@ -1,6 +1,6 @@
 # Slice 13b – Resolution and file size in the viewer
 
-**Status:** 🧪 ready for testing (implemented on 2026-10-30)
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
 
 ## Context
 
@@ -36,4 +36,4 @@ Implemented as planned, except:
 
 Checks green: Rust fmt/clippy/tests, oxlint, Prettier, tsc, Vitest 233, Playwright 47. Not checked in the debug build by computer use: an invisible Huawei window (`hwmdcui.exe`) kept taking the focus.
 
-**Next:** the user tests the debug build, together with slices 13, 34 and 34a.
+Tested by the user in the debug build on 2026-10-30: works; released in v0.13.0.
