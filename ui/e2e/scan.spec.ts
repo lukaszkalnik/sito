@@ -76,3 +76,22 @@ test('shows the EXIF dates being completed in the background, then hides it', as
   await expect(status).not.toContainText('Uzupełnianie dat z EXIF');
   await expect(status).toContainText('Znaleziono 50 zdjęć.');
 });
+
+test('clears the old timeline as soon as another folder is picked', async ({ page }) => {
+  await mockTauri(page, {
+    pickedFolder: 'C:\Zdjęcia',
+    scanProgress: [{ phase: 'searching', found: 120 }],
+    scanResult: { ok: { scanId: 1, photosFound: 1234, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 1234, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
+    series: { every: 10, size: 3 },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await expect(page.getByTestId('timeline')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Wybierz inny folder' }).click();
+
+  // The mocked scan takes 300 ms; the old grid must be gone well before.
+  await expect(page.getByTestId('timeline')).toBeHidden({ timeout: 150 });
+  await expect(page.getByRole('status')).toContainText('Wyszukiwanie zdjęć… znaleziono 120');
+});
