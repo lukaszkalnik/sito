@@ -1,6 +1,6 @@
 # Slice 13 – Zoom in the viewer
 
-**Status:** 📝 planned (plan approved on 2026-10-30)
+**Status:** 🧪 ready for testing (implemented on 2026-10-30)
 
 ## Context
 
@@ -56,3 +56,13 @@ Every commit: `cargo` checks are not affected (UI only). Run `npm run lint`, `np
 - Unit tests and e2e as above.
 - Debug build (`npm run tauri dev`), only when the user is not scanning: zoom into a face with the wheel and with a touchpad pinch, step through the series and check the same spot stays in view; `1` shows sharp real pixels; `0` and „Dopasuj” fit; the next series starts fitted; Shift+arrows pan; the window's own page zoom never kicks in.
 - Then pause for the user's test (milestone 🧪).
+
+## Implementation notes (2026-10-30)
+
+Implemented as planned, in `ui/src/features/viewer/` (`zoom.ts`, `usePhotoZoom.ts`, `ZoomBadge.tsx`, `FullPhoto.tsx`) and `ui/src/shortcuts/keymap.ts`. Behaviour is now described in [docs/domain/timeline.md](../domain/timeline.md#zoom). Where it differs from the plan:
+- **100 % is in screen pixels**, not CSS pixels: the zoom divides by `devicePixelRatio`, so with Windows display scaling at 150 % one photo pixel is still one screen pixel.
+- **Fit enlarges small photos**, as it already did before (CSS `object-fit: contain`); the plan's „not enlarged (as today)” was mistaken about today. For such a photo `1` stays at fit.
+- The badge shows the level as `Intl` formats it for `pl-PL`, i.e. „100%” without a space.
+- Pan step for Shift+arrows: 120 view pixels.
+
+**Next:** the user tests the debug build (see Verification above).

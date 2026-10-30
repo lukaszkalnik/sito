@@ -24,6 +24,16 @@ How the grid of photos and the photo viewer show photos and behave while they lo
 - At the right end of the bar, „Odrzuć” (solid red) is set about one button width apart from „Cofnij” and „Zamknij”, so the two are not hit by mistake.
 - In the series strip, the current photo has a thick accent frame with a glow; the other photos are shown normally. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
 
+### Zoom
+
+- The mouse wheel and a touchpad pinch zoom around the pointer. `+`/`-` zoom by ×1.25 around the middle of the view, `0` fits, `1` shows 100 %, and a double-click switches between fit and 100 % at the clicked spot. The webview's own page zoom never kicks in over the photo.
+- 100 % means one photo pixel per screen pixel, also with Windows display scaling, so sharpness can be judged on real pixels. A RAW photo shows its embedded preview ([Photos](photos.md)), so there 100 % means the preview's pixels.
+- The zoom goes from fit up to 800 %; zooming out past fit snaps back to fit. Fit is the photo as large as it fits, uncropped (a photo smaller than the view is enlarged to fit, as before zoom existed); a photo whose fit is already above 100 % cannot be zoomed further in by `1`.
+- While zoomed, dragging pans the photo (grab cursor) and Shift+arrows pan by 120 pixels; plain arrows still step to the previous or next photo. The photo can't be moved past its edges, and a side smaller than the view stays centred.
+- The position is kept relative to the photo (the spot in the middle of the view, as a fraction of its width and height), so resizing the window or stepping to a photo of another size keeps the same spot in view.
+- Zoom and position carry over to the other photos of the same series, also after a rejection that shows the next shot of the series. Stepping into another series, or onto a photo without a series, resets to fit.
+- While zoomed, a badge in the top-right corner shows the level (e.g. „100%”) and a „Dopasuj” button that goes back to fit. Nothing is shown at fit.
+
 ## Staying responsive
 
 - Building the timeline and its series (seconds for tens of thousands of photos) never blocks the app: clicks, scrolling and thumbnails keep working while it reloads.

@@ -14,3 +14,7 @@ Face and eye-state score (closed eyes penalized).
 ## Try
 
 Series of portraits pick shots with open eyes.
+
+## Can build on
+
+- [Slice 13](13-viewer-zoom.md): the viewer's zoom reducer (`ui/src/features/viewer/zoom.ts`) zooms to 100 % at a given spot (`actual` with `at`), so "zoom to this face" only needs the face's position.
