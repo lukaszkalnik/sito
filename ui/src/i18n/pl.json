@@ -91,13 +91,25 @@
     "doneTrash": "{{name}} → Kosz",
     "noTrash": "Ten dysk nie ma kosza – wybierz folder „Odrzucone”."
   },
+  "accept": {
+    "button": "Zaakceptuj",
+    "undoButton": "Cofnij akceptację",
+    "hint": "Oznacz zdjęcie jako zaakceptowane (A)",
+    "done": "Zaakceptowano {{name}}",
+    "undone": "Cofnięto akceptację {{name}}",
+    "badge": "Zaakceptowane",
+    "stripItem": "{{name}} (zaakceptowane)",
+    "failed": "Nie udało się zmienić akceptacji zdjęcia."
+  },
   "undo": {
     "button": "Cofnij",
-    "hint": "Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)",
+    "hint": "Cofnij ostatnią czynność (Ctrl+Z)",
     "done": "Przywrócono {{name}}",
+    "unaccepted": "Cofnięto akceptację {{name}}",
+    "reaccepted": "Przywrócono akceptację {{name}}",
     "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
-    "failed": "Nie udało się cofnąć odrzucenia.",
+    "failed": "Nie udało się cofnąć ostatniej czynności.",
     "missingFromTrash": "Nie można cofnąć: plik nie jest już w Koszu.",
     "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza."
   },

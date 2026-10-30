@@ -8,11 +8,18 @@ export interface Rejected {
   name: string;
 }
 
-/** A photo moved back from the "Odrzucone" folder or the trash. Mirrors `UndoneDto`. */
+/**
+ * What undoing did: a photo moved back from the "Odrzucone" folder or the
+ * trash, or an accepted mark taken off or put back. Mirrors `UndoneKind`.
+ */
+export type UndoneKind = 'restored' | 'unaccepted' | 'reaccepted';
+
+/** The action "Cofnij" undid. Mirrors `UndoneDto`. */
 export interface Undone {
-  /** Timeline id of the photo, or `null` if it could not be read back. */
+  /** Timeline id of the photo, or `null` if it could not be read back or is not on the timeline. */
   id: number | null;
   name: string;
+  kind: UndoneKind;
 }
 
 const REJECT_ERROR_CODES = [
@@ -35,12 +42,15 @@ export async function rejectPhoto(id: number, destination: RejectDestination): P
   return invoke<Rejected>('reject_photo', { id, destination });
 }
 
-/** Moves the most recently rejected photo of the open folder back; `null` if none. */
+/**
+ * Undoes the newest action in the open folder: moves a rejected photo back,
+ * or reverts an accept or un-accept; `null` if there is none.
+ */
 export async function undoLast(): Promise<Undone | null> {
   return invoke<Undone | null>('undo_last');
 }
 
-/** Whether there is a rejection to undo in the open folder. */
+/** Whether there is an action to undo in the open folder. */
 export async function canUndo(): Promise<boolean> {
   const state = await invoke<{ canUndo: boolean }>('get_undo_state');
   return state.canUndo;

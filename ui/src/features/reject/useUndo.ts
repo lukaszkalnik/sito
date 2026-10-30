@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useShortcuts } from '../../shortcuts/useShortcuts';
+import { onAcceptedChanged } from '../accept/api';
 import {
   canUndo,
   onTimelineChanged,
@@ -9,6 +10,7 @@ import {
   undoLast,
   type RejectErrorCode,
   type Undone,
+  type UndoneKind,
 } from './api';
 
 /** How long a toast stays on screen. */
@@ -23,7 +25,10 @@ export interface ToastMessage {
   kind: 'info' | 'undoable' | 'error';
 }
 
-/** Whether there is anything to undo, refreshed whenever any window rejects or restores. */
+/**
+ * Whether there is anything to undo, refreshed whenever any window rejects,
+ * restores, accepts or takes a mark off.
+ */
 function useUndoAvailable(): boolean {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
@@ -34,14 +39,21 @@ function useUndoAvailable(): boolean {
         () => active && setAvailable(false),
       );
     refresh();
-    const unlisten = onTimelineChanged(refresh);
+    const unlisteners = [onTimelineChanged(refresh), onAcceptedChanged(refresh)];
     return () => {
       active = false;
-      void unlisten.then((stop) => stop());
+      for (const unlisten of unlisteners) void unlisten.then((stop) => stop());
     };
   }, []);
   return available;
 }
+
+/** Translation keys of the toast after undoing, per kind of action undone. */
+const UNDONE_KEYS: Readonly<Record<UndoneKind, string>> = {
+  restored: 'undo.done',
+  unaccepted: 'undo.unaccepted',
+  reaccepted: 'undo.reaccepted',
+};
 
 /** A toast message that disappears after {@link TOAST_MS}. */
 function useToast() {
@@ -71,9 +83,9 @@ function undoErrorKey(error: unknown): string {
 }
 
 /**
- * "Cofnij" for rejected photos in one window: whether there is anything to
- * undo, Ctrl+Z, and the toast reporting the outcome. `onUndone` is told which
- * photo came back.
+ * "Cofnij" in one window: whether there is anything to undo (a rejection, an
+ * accept or un-accept), Ctrl+Z, and the toast reporting the outcome.
+ * `onUndone` is told which photo the undone action was about.
  */
 export function useUndo(onUndone?: (undone: Undone) => void) {
   const { t } = useTranslation();
@@ -87,7 +99,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     try {
       const undone = await undoLast();
       if (undone) {
-        setToast({ text: t('undo.done', { name: undone.name }), kind: 'info' });
+        setToast({ text: t(UNDONE_KEYS[undone.kind], { name: undone.name }), kind: 'info' });
         onUndone?.(undone);
       }
     } catch (error) {

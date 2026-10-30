@@ -5,6 +5,7 @@ import { onFirstClick } from '../../clicks/firstClick';
 import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import type { RejectDestination } from '../reject/destination';
 import { DestinationIcon } from '../reject/DestinationIcon';
+import { AcceptButton } from '../accept/AcceptButton';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { photoUrl, setWindowTitle, type PhotoDetails, type ViewerPhoto } from './api';
 import { fileSize, formatPixels, type FileSize } from './photoDetails';
@@ -27,22 +28,32 @@ interface PhotoViewerProps {
   onReject: () => void;
   /** Where „Odrzuć” moves the photo, shown by its icon and tooltip. */
   rejectTo: RejectDestination;
-  /** Whether "Cofnij" has a rejection to undo. */
+  /** The accepted photos of the scan, marked in the bar and the series strip. */
+  acceptedIds: ReadonlySet<number>;
+  /** Accepts the shown photo, or takes its mark off. */
+  onToggleAccept: () => void;
+  /** Whether "Cofnij" has an action to undo. */
   canUndo: boolean;
   onUndo: () => void;
 }
 
-/** Arrow keys step, Escape closes, Delete rejects (keys in `shortcuts/keymap.ts`). */
+/** Arrow keys step, Escape closes, Delete rejects, A accepts (keys in `shortcuts/keymap.ts`). */
 function useViewerKeys(
   previous: number | null,
   next: number | null,
-  { onShow, onClose, onReject }: Pick<PhotoViewerProps, 'onShow' | 'onClose' | 'onReject'>,
+  {
+    onShow,
+    onClose,
+    onReject,
+    onToggleAccept,
+  }: Pick<PhotoViewerProps, 'onShow' | 'onClose' | 'onReject' | 'onToggleAccept'>,
 ): void {
   useShortcuts({
     previous: previous === null ? null : () => onShow(previous),
     next: next === null ? null : () => onShow(next),
     close: onClose,
     reject: onReject,
+    accept: onToggleAccept,
   });
 }
 
@@ -123,10 +134,29 @@ function RejectButton({ rejectTo, onReject }: Pick<PhotoViewerProps, 'rejectTo' 
   );
 }
 
-/** Name, date and folder of the photo, with the reject, undo and close buttons. */
+/** Name, date, details and folder of the photo. */
+function PhotoInfo({ entry, details }: { entry: TimelineEntry; details: PhotoDetails }) {
+  const { t } = useTranslation();
+  return (
+    <p className="viewer-info">
+      <span className="viewer-name">{entry.name}</span>
+      <span>
+        {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
+      </span>
+      <PhotoFacts details={details} />
+      <DateSource source={entry.timeSource} />
+      <FormatNote format={entry.format} />
+      <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
+    </p>
+  );
+}
+
+/** The photo's info, with the accept, reject, undo and close buttons. */
 function ViewerBar({
   entry,
   photo,
+  acceptedIds,
+  onToggleAccept,
   onReject,
   rejectTo,
   canUndo,
@@ -134,21 +164,20 @@ function ViewerBar({
   onClose,
 }: { entry: TimelineEntry } & Pick<
   PhotoViewerProps,
-  'photo' | 'onReject' | 'rejectTo' | 'canUndo' | 'onUndo' | 'onClose'
+  | 'photo'
+  | 'acceptedIds'
+  | 'onToggleAccept'
+  | 'onReject'
+  | 'rejectTo'
+  | 'canUndo'
+  | 'onUndo'
+  | 'onClose'
 >) {
   const { t } = useTranslation();
   return (
     <header className="viewer-bar">
-      <p className="viewer-info">
-        <span className="viewer-name">{entry.name}</span>
-        <span>
-          {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
-        </span>
-        <PhotoFacts details={photo.details} />
-        <DateSource source={entry.timeSource} />
-        <FormatNote format={entry.format} />
-        <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
-      </p>
+      <PhotoInfo entry={entry} details={photo.details} />
+      <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
       <button
         type="button"
@@ -233,6 +262,7 @@ export function PhotoViewer(props: PhotoViewerProps) {
             members={photo.series}
             currentId={entry.id}
             scanId={scanId}
+            acceptedIds={props.acceptedIds}
             onShow={onShow}
           />
         )}

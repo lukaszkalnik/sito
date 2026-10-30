@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
+import { useAcceptedIds } from '../accept/useAcceptedIds';
+import { useToggleAccept } from '../accept/useToggleAccept';
 import { rejectErrorCode, rejectPhoto, type Undone } from '../reject/api';
 import type { RejectDestination } from '../reject/destination';
 import { useRejectDestination } from '../reject/useRejectDestination';
@@ -53,6 +55,8 @@ interface ReadyViewerProps {
   photo: ViewerPhoto;
   onShowId: (id: number) => void;
   undo: UndoControls;
+  /** The accepted photos of the scan. */
+  acceptedIds: ReadonlySet<number>;
 }
 
 /**
@@ -95,9 +99,10 @@ function useCloseOnce() {
 
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
-  const { request, photo, onShowId, undo } = props;
+  const { request, photo, onShowId, undo, acceptedIds } = props;
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
+  const toggleAccept = useToggleAccept(acceptedIds, undo.showToast);
   const close = useCloseOnce();
   return (
     <PhotoViewer
@@ -107,6 +112,8 @@ function ReadyViewer(props: ReadyViewerProps) {
       onClose={close}
       onReject={() => void reject()}
       rejectTo={destination}
+      acceptedIds={acceptedIds}
+      onToggleAccept={() => void toggleAccept(photo.entry.id)}
       canUndo={undo.canUndo}
       onUndo={() => void undo.undo()}
     />
@@ -123,15 +130,7 @@ function ViewerLoading() {
 }
 
 /** Loads the photo of `request` and shows it. */
-function ViewerPage({
-  request,
-  onShowId,
-  undo,
-}: {
-  request: ViewerRequest;
-  onShowId: (id: number) => void;
-  undo: UndoControls;
-}) {
+function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerProps, 'photo'>) {
   const { t } = useTranslation();
   const state = useViewerPhoto(request);
   switch (state.kind) {
@@ -148,7 +147,15 @@ function ViewerPage({
         </main>
       );
     case 'ready':
-      return <ReadyViewer request={request} photo={state.photo} onShowId={onShowId} undo={undo} />;
+      return (
+        <ReadyViewer
+          request={request}
+          photo={state.photo}
+          onShowId={onShowId}
+          undo={undo}
+          acceptedIds={acceptedIds}
+        />
+      );
   }
 }
 
@@ -168,13 +175,14 @@ function LoadedViewer({
     [onShowId],
   );
   const undo = useUndo(showUndone);
+  const acceptedIds = useAcceptedIds(request.scanId);
 
   return (
     <>
       {request.id === NO_PHOTO ? (
         <EmptyViewer canUndo={undo.canUndo} undo={undo.undo} />
       ) : (
-        <ViewerPage request={request} onShowId={onShowId} undo={undo} />
+        <ViewerPage request={request} onShowId={onShowId} undo={undo} acceptedIds={acceptedIds} />
       )}
       <Toast message={undo.toast} onUndo={() => void undo.undo()} />
     </>

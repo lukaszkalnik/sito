@@ -2,6 +2,7 @@ import { type SyntheticEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
+import { AcceptedBadge } from '../accept/AcceptedBadge';
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
 import { thumbnailUrl } from './thumbnails';
@@ -24,6 +25,8 @@ interface TimelineTileProps {
   onOpen: (entry: TimelineEntry) => void;
   /** Briefly marked, e.g. right after it was restored. */
   highlighted?: boolean;
+  /** Marked with a check: the user accepted it. */
+  accepted?: boolean;
 }
 
 /**
@@ -136,6 +139,7 @@ export function TimelineTile({
   showFolder,
   onOpen,
   highlighted = false,
+  accepted = false,
 }: TimelineTileProps) {
   const { t } = useTranslation();
   const tileRef = useRef<HTMLLIElement>(null);
@@ -164,6 +168,7 @@ export function TimelineTile({
       {status === 'error' && <BrokenThumbnail />}
       <TileCaption entry={entry} showFolder={showFolder} />
       <TileBadges entry={entry} />
+      {accepted && <AcceptedBadge />}
       {/* Covers the whole tile, so a click or Enter anywhere opens the photo. */}
       <button
         type="button"

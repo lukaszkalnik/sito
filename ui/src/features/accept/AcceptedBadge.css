@@ -1,0 +1,17 @@
+.accepted-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1e8e3e;
+  color: #fff;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.85);
+  /* Clicks go to the thumbnail below. */
+  pointer-events: none;
+}

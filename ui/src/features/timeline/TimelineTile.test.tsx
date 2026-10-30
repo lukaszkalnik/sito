@@ -50,6 +50,20 @@ describe('TimelineTile', () => {
     expect(screen.getByTestId('timeline-tile')).toHaveAttribute('title', 'Camera\\IMG_7.jpg');
   });
 
+  it('marks an accepted photo with a check, and only that one', () => {
+    renderTile();
+    expect(screen.queryByRole('img', { name: 'Zaakceptowane' })).not.toBeInTheDocument();
+    cleanup();
+
+    render(
+      <ul>
+        <TimelineTile entry={entry} scanId={3} showFolder onOpen={vi.fn()} accepted />
+      </ul>,
+    );
+
+    expect(screen.getByRole('img', { name: 'Zaakceptowane' })).toBeInTheDocument();
+  });
+
   it.each([
     ['Pulpit\\2024', 'Pulpit\\2024'],
     ['', 'folder główny'],

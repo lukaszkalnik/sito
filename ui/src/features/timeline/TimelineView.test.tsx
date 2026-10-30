@@ -20,6 +20,12 @@ vi.mock('../reject/api', async (importActual) => ({
   undoLast: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
+vi.mock('../accept/api', () => ({
+  getAcceptedIds: vi.fn(() => Promise.resolve([])),
+  onAcceptedChanged: vi.fn(() => Promise.resolve(() => {})),
+  acceptPhoto: vi.fn(),
+  unacceptPhoto: vi.fn(),
+}));
 vi.mock('../viewer/api', () => ({
   openViewer: vi.fn(() => Promise.resolve()),
   sendViewerContext: vi.fn(() => Promise.resolve()),

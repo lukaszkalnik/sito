@@ -240,6 +240,7 @@
 }
 
 .viewer-strip-item {
+  position: relative;
   flex: none;
   width: 96px;
   height: 72px;

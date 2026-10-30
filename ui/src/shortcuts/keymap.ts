@@ -4,6 +4,7 @@ export type ShortcutAction =
   | 'next'
   | 'close'
   | 'reject'
+  | 'accept'
   | 'undo'
   | 'zoomIn'
   | 'zoomOut'
@@ -30,6 +31,7 @@ export const KEYMAP: Readonly<Record<ShortcutAction, Shortcut>> = {
   next: { key: 'ArrowRight', modifier: 'none' },
   close: { key: 'Escape', modifier: 'none' },
   reject: { key: 'Delete', modifier: 'none' },
+  accept: { key: 'a', modifier: 'none' },
   undo: { key: 'z', modifier: 'primary' },
   zoomIn: { key: '+', modifier: 'none' },
   zoomOut: { key: '-', modifier: 'none' },
@@ -71,9 +73,10 @@ export function actionOf(
 /**
  * Actions that a held key (auto-repeat) does not repeat: each press does one.
  * Rejecting and undoing move files, so holding Delete must not reject photo
- * after photo; closing twice would fail.
+ * after photo; holding A would toggle the mark on and off; closing twice
+ * would fail.
  */
-const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set(['reject', 'undo', 'close']);
+const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set(['reject', 'accept', 'undo', 'close']);
 
 /** Whether a key held down repeats `action`. */
 export function repeatsWhenHeld(action: ShortcutAction): boolean {

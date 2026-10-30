@@ -1,0 +1,41 @@
+.accept-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #1e8e3e;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.accept-button svg {
+  color: #1e8e3e;
+}
+
+.accept-button:hover {
+  background: rgb(30 142 62 / 0.15);
+}
+
+.accept-button[aria-pressed='true'] {
+  background: #1e8e3e;
+  color: #fff;
+}
+
+.accept-button[aria-pressed='true'] svg {
+  color: #fff;
+}
+
+.accept-button[aria-pressed='true']:hover {
+  border-color: #17702f;
+  background: #17702f;
+}
+
+/* Offset, so the ring stands apart from the green fill. */
+.accept-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

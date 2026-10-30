@@ -12,6 +12,8 @@ export interface TileContext {
   showFolder: boolean;
   /** Opens a photo full size. */
   onOpen: (entry: TimelineEntry) => void;
+  /** The accepted photos, marked with a check. */
+  acceptedIds: ReadonlySet<number>;
   /** The photo to highlight, if any. */
   highlighted: number | null;
 }
@@ -53,6 +55,7 @@ function TileList({
           showFolder={context.showFolder}
           onOpen={context.onOpen}
           highlighted={entry.id === context.highlighted}
+          accepted={context.acceptedIds.has(entry.id)}
         />
       ))}
     </ul>

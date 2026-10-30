@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,7 +45,11 @@ function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPhoto {
   };
 }
 
-function viewerProps(photo: ViewerPhoto, canUndo = false) {
+function viewerProps(
+  photo: ViewerPhoto,
+  canUndo = false,
+  acceptedIds: ReadonlySet<number> = new Set(),
+) {
   return {
     photo,
     scanId: 3,
@@ -53,6 +57,8 @@ function viewerProps(photo: ViewerPhoto, canUndo = false) {
     onClose: vi.fn(),
     onReject: vi.fn(),
     rejectTo: 'folder' as const,
+    acceptedIds,
+    onToggleAccept: vi.fn(),
     canUndo,
     onUndo: vi.fn(),
   };
@@ -60,6 +66,13 @@ function viewerProps(photo: ViewerPhoto, canUndo = false) {
 
 function renderViewer(photo: ViewerPhoto, canUndo = false) {
   const props = viewerProps(photo, canUndo);
+  render(<PhotoViewer {...props} />);
+  return props;
+}
+
+/** The viewer on photo 3 of the series 1–3, with photo 3 accepted. */
+function render3Accepted() {
+  const props = viewerProps(pageOf(3), false, new Set([3]));
   render(<PhotoViewer {...props} />);
   return props;
 }
@@ -256,6 +269,36 @@ describe('PhotoViewer', () => {
     await userEvent.keyboard('{Delete}');
 
     expect(onReject).toHaveBeenCalledTimes(2);
+  });
+
+  it('accepts the photo with the button and the A key', async () => {
+    const { onToggleAccept } = renderViewer(pageOf(2));
+    const button = screen.getByRole('button', { name: 'Zaakceptuj' });
+    expect(button).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(button);
+    await userEvent.keyboard('a');
+
+    expect(onToggleAccept).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers to take the mark off an accepted photo', async () => {
+    const { onToggleAccept } = render3Accepted();
+    const button = screen.getByRole('button', { name: 'Cofnij akceptację' });
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(button);
+
+    expect(onToggleAccept).toHaveBeenCalledOnce();
+  });
+
+  it('marks the accepted photos of the series strip', () => {
+    render3Accepted();
+
+    const strip = screen.getByRole('navigation', { name: 'Zdjęcia w serii' });
+    expect(within(strip).getByRole('button', { name: 'IMG_3.jpg (zaakceptowane)' })).toBeVisible();
+    expect(within(strip).getByRole('button', { name: 'IMG_1.jpg' })).toBeVisible();
+    expect(within(strip).getAllByRole('img', { name: 'Zaakceptowane' })).toHaveLength(1);
   });
 
   it('offers Cofnij only when there is something to undo', async () => {

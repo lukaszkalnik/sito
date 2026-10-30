@@ -42,6 +42,8 @@ export interface TauriMock {
   series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
   /** Request returned by `current_viewer_request` in the viewer window. Default: none. */
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
+  /** Ids of photos already accepted (and undoable, after the rejections), oldest first. Default: none. */
+  accepted?: number[];
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
   rejected?: number[];
   /**
@@ -86,8 +88,28 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
       `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-    // Ids of rejected photos, newest last; undo pops them.
+    // Ids of rejected photos, newest last.
     const rejected: number[] = [...(m.rejected ?? [])];
+    // Ids of accepted photos.
+    const accepted = new Set<number>(m.accepted ?? []);
+    // Actions "Cofnij" can undo, newest last.
+    type Action = { kind: 'reject' | 'accept' | 'unaccept'; id: number };
+    const undoable: Action[] = [
+      ...rejected.map((id): Action => ({ kind: 'reject', id })),
+      ...[...accepted].map((id): Action => ({ kind: 'accept', id })),
+    ];
+    /** Undoes `action` like the backend; returns the `UndoneDto`. */
+    function undoAction({ kind, id }: Action): unknown {
+      if (kind === 'reject') {
+        rejected.splice(rejected.indexOf(id), 1);
+        emit('timeline-changed');
+        return { id, name: nameOf(id), kind: 'restored' };
+      }
+      if (kind === 'accept') accepted.delete(id);
+      else accepted.add(id);
+      emit('accepted-changed');
+      return { id, name: nameOf(id), kind: kind === 'accept' ? 'unaccepted' : 'reaccepted' };
+    }
     // Event name → callback ids registered with `listen`.
     const listeners = new Map<string, number[]>();
     const emit = (event: string, payload: unknown = null) =>
@@ -264,19 +286,32 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'reject_photo': {
             const id = args.id as number;
             rejected.push(id);
+            undoable.push({ kind: 'reject', id });
             emit('timeline-changed');
             return { name: nameOf(id) };
           }
           case 'undo_last': {
-            const id = rejected.pop();
-            if (id === undefined) return null;
-            emit('timeline-changed');
-            return { id, name: nameOf(id) };
+            const action = undoable.pop();
+            return action === undefined ? null : undoAction(action);
           }
+          case 'accept_photo':
+          case 'unaccept_photo': {
+            const id = args.id as number;
+            const accept = cmd === 'accept_photo';
+            if (accept !== accepted.has(id)) {
+              if (accept) accepted.add(id);
+              else accepted.delete(id);
+              undoable.push({ kind: accept ? 'accept' : 'unaccept', id });
+            }
+            emit('accepted-changed');
+            return { name: nameOf(id) };
+          }
+          case 'get_accepted_ids':
+            return [...accepted].filter((id) => !rejected.includes(id));
           case 'plugin:app|version':
             return '0.9.0';
           case 'get_undo_state':
-            return { canUndo: rejected.length > 0 };
+            return { canUndo: undoable.length > 0 };
           case 'plugin:event|unlisten':
           case 'plugin:event|emit_to':
           case 'plugin:window|set_title':

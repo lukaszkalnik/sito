@@ -11,6 +11,9 @@ vi.mock('./api', async (importActual) => ({
   undoLast: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
+vi.mock('../accept/api', () => ({
+  onAcceptedChanged: vi.fn(() => Promise.resolve(() => {})),
+}));
 
 describe('useUndo', () => {
   beforeEach(() => {
@@ -19,7 +22,7 @@ describe('useUndo', () => {
   });
 
   it('restores with Ctrl+Z and reports the photo', async () => {
-    vi.mocked(undoLast).mockResolvedValue({ id: 4, name: 'IMG_4.jpg' });
+    vi.mocked(undoLast).mockResolvedValue({ id: 4, name: 'IMG_4.jpg', kind: 'restored' });
     const onUndone = vi.fn();
     const { result } = renderHook(() => useUndo(onUndone));
     await waitFor(() => expect(result.current.canUndo).toBe(true));
@@ -28,8 +31,22 @@ describe('useUndo', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
     });
 
-    await waitFor(() => expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg' }));
+    await waitFor(() =>
+      expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg', kind: 'restored' }),
+    );
     expect(result.current.toast).toEqual({ text: 'Przywrócono IMG_4.jpg', kind: 'info' });
+  });
+
+  it.each([
+    ['unaccepted', 'Cofnięto akceptację IMG_4.jpg'],
+    ['reaccepted', 'Przywrócono akceptację IMG_4.jpg'],
+  ] as const)('reports an undone accept action (%s)', async (kind, text) => {
+    vi.mocked(undoLast).mockResolvedValue({ id: 4, name: 'IMG_4.jpg', kind });
+    const { result } = renderHook(() => useUndo());
+
+    await act(() => result.current.undo());
+
+    expect(result.current.toast).toEqual({ text, kind: 'info' });
   });
 
   it.each([
@@ -40,8 +57,8 @@ describe('useUndo', () => {
       'trashUndoUnsupported',
       'Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza.',
     ],
-    ['internal', 'Nie udało się cofnąć odrzucenia.'],
-    ['somethingNew', 'Nie udało się cofnąć odrzucenia.'],
+    ['internal', 'Nie udało się cofnąć ostatniej czynności.'],
+    ['somethingNew', 'Nie udało się cofnąć ostatniej czynności.'],
   ])('explains a failed undo (%s)', async (code, text) => {
     vi.mocked(undoLast).mockRejectedValue({ code });
     const { result } = renderHook(() => useUndo());

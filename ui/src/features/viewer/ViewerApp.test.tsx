@@ -26,6 +26,12 @@ vi.mock('../reject/api', async (importActual) => ({
   onTimelineChanged: vi.fn(),
   rejectPhoto: vi.fn(),
 }));
+vi.mock('../accept/api', () => ({
+  getAcceptedIds: vi.fn(() => Promise.resolve([])),
+  onAcceptedChanged: vi.fn(() => Promise.resolve(() => {})),
+  acceptPhoto: vi.fn(),
+  unacceptPhoto: vi.fn(),
+}));
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
   closeWindow: vi.fn(),

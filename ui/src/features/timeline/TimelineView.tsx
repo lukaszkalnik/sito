@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
+import { useAcceptedIds } from '../accept/useAcceptedIds';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
 import type { Completing } from '../scan/scanReducer';
@@ -171,12 +172,14 @@ interface TimelineBodyProps {
   mode: TimelineMode;
   gap: number;
   scanId: number;
+  acceptedIds: ReadonlySet<number>;
   reveal: number | null;
   onRevealed: () => void;
 }
 
 /** Below the bar: the grid, or a message while loading, on error or without series. */
-function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: TimelineBodyProps) {
+function TimelineBody(props: TimelineBodyProps) {
+  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed } = props;
   const { t } = useTranslation();
   switch (timeline.status) {
     case 'loading':
@@ -203,6 +206,7 @@ function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: Timel
           series={timeline.series}
           mode={mode}
           scanId={scanId}
+          acceptedIds={acceptedIds}
           reveal={reveal}
           onRevealed={onRevealed}
           onOpen={(entry) =>
@@ -215,7 +219,7 @@ function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: Timel
   }
 }
 
-/** „Cofnij” in the bar: restores the last rejected photo. */
+/** „Cofnij” in the bar: undoes the last rejection, accept or un-accept. */
 function UndoButton({ canUndo, onUndo }: { canUndo: boolean; onUndo: () => void }) {
   const { t } = useTranslation();
   return (
@@ -241,6 +245,7 @@ export function TimelineView({
   const [mode, setMode] = useState<TimelineMode>('series');
   const { reveal, showRestored, revealed } = useRevealRestored();
   const { canUndo, undo, toast } = useUndo(showRestored);
+  const acceptedIds = useAcceptedIds(summary.scanId);
   useViewerContext(mode, gap);
 
   return (
@@ -266,6 +271,7 @@ export function TimelineView({
         mode={mode}
         gap={gap}
         scanId={summary.scanId}
+        acceptedIds={acceptedIds}
         reveal={reveal}
         onRevealed={revealed}
       />

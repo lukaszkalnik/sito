@@ -21,6 +21,8 @@ interface TimelineGridProps {
   series: readonly Series[];
   mode: TimelineMode;
   scanId: number;
+  /** The accepted photos, marked with a check. */
+  acceptedIds: ReadonlySet<number>;
   /** Opens a photo full size. */
   onOpen: (entry: TimelineEntry) => void;
   /** A photo to scroll into view and highlight once the rows show it, e.g. one just restored. */
@@ -77,6 +79,7 @@ export function TimelineGrid({
   series,
   mode,
   scanId,
+  acceptedIds,
   onOpen,
   reveal = null,
   onRevealed,
@@ -87,7 +90,7 @@ export function TimelineGrid({
   const showFolder = useMemo(() => spansSeveralFolders(entries), [entries]);
   const virtualizer = useRowVirtualizer(rows, scrollRef);
   const { highlighted, onScroll } = useGridScroll(scrollRef, rows, virtualizer, reveal, onRevealed);
-  const context = { scanId, showFolder, onOpen, highlighted };
+  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted };
 
   return (
     <div ref={scrollRef} className="timeline" data-testid="timeline" onScroll={onScroll}>
