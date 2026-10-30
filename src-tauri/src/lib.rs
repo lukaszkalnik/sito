@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod about;
+mod accept;
 mod error;
 mod protocol;
 mod reject;
@@ -55,7 +56,10 @@ pub fn run() -> tauri::Result<()> {
             viewer::page::get_viewer_photo,
             reject::reject_photo,
             reject::undo_last,
-            reject::get_undo_state
+            reject::get_undo_state,
+            accept::accept_photo,
+            accept::unaccept_photo,
+            accept::get_accepted_ids
         ])
         .run(tauri::generate_context!())
 }

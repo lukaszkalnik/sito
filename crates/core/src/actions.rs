@@ -1,5 +1,5 @@
-//! Log of the file operations Sito performs, in `SQLite`, so every one of them
-//! can be undone (also after a restart).
+//! Log of the actions Sito performs (file moves, accepting photos), in
+//! `SQLite`, so every one of them can be undone (also after a restart).
 
 use std::path::{Path, PathBuf};
 
@@ -7,6 +7,7 @@ use chrono::{DateTime, Local};
 use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
+use crate::accept::{AcceptAction, AcceptChange};
 use crate::reject::{FileMove, PhotoFiles};
 
 /// Error while reading or writing the action log.
@@ -22,6 +23,15 @@ pub enum LogError {
     /// A time in the log could not be read.
     #[error("action log: {0} is not a valid time")]
     BadTime(String),
+}
+
+/// An action in the log that has not been undone yet.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoggedAction {
+    /// A photo moved into the rejected folder or the trash.
+    Reject(RejectAction),
+    /// A photo marked as accepted, or its mark taken off.
+    Accept(AcceptAction),
 }
 
 /// A rejected photo that has not been undone yet.
@@ -57,7 +67,7 @@ pub enum Placement {
 /// The action log, stored in one `SQLite` file.
 #[derive(Debug)]
 pub struct ActionLog {
-    conn: Connection,
+    pub(crate) conn: Connection,
 }
 
 /// One entry of the `actions` table.
@@ -73,6 +83,8 @@ struct Row {
 
 const KIND_REJECT: &str = "reject";
 const KIND_TRASH: &str = "trash";
+pub(crate) const KIND_ACCEPT: &str = "accept";
+pub(crate) const KIND_UNACCEPT: &str = "unaccept";
 
 impl ActionLog {
     /// Opens (or creates) the log in the file at `path`.
@@ -176,16 +188,32 @@ impl ActionLog {
         Ok(())
     }
 
-    /// The newest rejection not yet undone whose photo came from inside
-    /// `under` (a folder and its subfolders), if any.
+    /// The newest action not yet undone whose photo came from inside `under`
+    /// (a folder and its subfolders), if any.
     ///
     /// # Errors
     ///
     /// Returns an error if the log cannot be read.
-    pub fn last_undoable(&self, under: &Path) -> Result<Option<RejectAction>, LogError> {
+    pub fn last_undoable(&self, under: &Path) -> Result<Option<LoggedAction>, LogError> {
         let Some(row) = self.last_row_under(under)? else {
             return Ok(None);
         };
+        let accept = |change| {
+            LoggedAction::Accept(AcceptAction {
+                id: row.id,
+                path: row.from.clone(),
+                change,
+            })
+        };
+        Ok(Some(match row.kind.as_str() {
+            KIND_ACCEPT => accept(AcceptChange::Accepted),
+            KIND_UNACCEPT => accept(AcceptChange::Unaccepted),
+            _ => LoggedAction::Reject(self.reject_action(row)?),
+        }))
+    }
+
+    /// The rejection logged in `row`, with the other files moved along.
+    fn reject_action(&self, row: Row) -> Result<RejectAction, LogError> {
         let moves = self.moves_of(row.id)?;
         let place = if row.kind == KIND_TRASH {
             Placement::Trash {
@@ -200,21 +228,22 @@ impl ActionLog {
                 extra: row.old_sidecar.into_iter().chain(moves).collect(),
             }
         };
-        Ok(Some(RejectAction {
+        Ok(RejectAction {
             id: row.id,
             from: row.from,
             place,
-        }))
+        })
     }
 
     /// The newest entry not yet undone whose photo came from inside `under`.
     fn last_row_under(&self, under: &Path) -> Result<Option<Row>, LogError> {
         let mut statement = self.conn.prepare(
             "SELECT id, kind, at, from_path, to_path, sidecar_from, sidecar_to FROM actions
-             WHERE kind IN (?1, ?2) AND undone_at IS NULL
+             WHERE kind IN (?1, ?2, ?3, ?4) AND undone_at IS NULL
              ORDER BY id DESC",
         )?;
-        let rows = statement.query_map(params![KIND_REJECT, KIND_TRASH], |row| {
+        let kinds = params![KIND_REJECT, KIND_TRASH, KIND_ACCEPT, KIND_UNACCEPT];
+        let rows = statement.query_map(kinds, |row| {
             let sidecar_from: Option<String> = row.get(5)?;
             let sidecar_to: Option<String> = row.get(6)?;
             Ok(Row {
@@ -284,7 +313,7 @@ impl ActionLog {
     }
 }
 
-fn now() -> String {
+pub(crate) fn now() -> String {
     Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string()
 }
 
@@ -316,6 +345,8 @@ const MIGRATIONS: &[&str] = &[
          from_path TEXT NOT NULL,
          to_path   TEXT NOT NULL
      );",
+    // 4: photos marked as accepted, by path.
+    "CREATE TABLE IF NOT EXISTS accepted (path TEXT PRIMARY KEY);",
 ];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one
@@ -335,7 +366,7 @@ fn migrate(conn: &mut Connection) -> Result<(), LogError> {
 
 /// The path as text. Paths that are not valid Unicode (practically never seen
 /// on Windows or macOS) are refused instead of being stored changed.
-fn path_text(path: &Path) -> Result<&str, LogError> {
+pub(crate) fn path_text(path: &Path) -> Result<&str, LogError> {
     path.to_str()
         .ok_or_else(|| LogError::NonUnicodePath(path.to_path_buf()))
 }

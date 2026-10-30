@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use sito_core::actions::{ActionLog, Placement, RejectAction};
+use sito_core::actions::{ActionLog, LogError, LoggedAction, Placement, RejectAction};
 use sito_core::reject::{Companion, FileMove, PhotoFiles};
 use tempfile::TempDir;
 
@@ -32,6 +32,14 @@ fn record(log: &ActionLog, relative: &str) -> i64 {
         .unwrap()
 }
 
+/// The newest undoable action under `under`, which must be a rejection.
+fn last_reject(log: &ActionLog, under: &Path) -> Result<Option<RejectAction>, LogError> {
+    Ok(log.last_undoable(under)?.map(|action| match action {
+        LoggedAction::Reject(reject) => reject,
+        LoggedAction::Accept(accept) => panic!("not a rejection: {accept:?}"),
+    }))
+}
+
 /// The other files of a photo moved into the rejected folder.
 fn extra(action: RejectAction) -> Vec<FileMove> {
     match action.place {
@@ -47,7 +55,7 @@ fn offers_the_newest_rejection_first() {
     let newest = record(&log, "Camera/IMG_2.jpg");
 
     assert_eq!(
-        log.last_undoable(&root()).unwrap(),
+        last_reject(&log, &root()).unwrap(),
         Some(RejectAction {
             id: newest,
             from: photo("Camera/IMG_2.jpg"),
@@ -66,12 +74,12 @@ fn skips_undone_rejections() {
     let second = record(&log, "IMG_2.jpg");
 
     log.mark_undone(second).unwrap();
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, first);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, first);
     assert!(log.undone_at(second).unwrap().is_some());
     assert!(log.undone_at(first).unwrap().is_none());
 
     log.mark_undone(first).unwrap();
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(last_reject(&log, &root()).unwrap(), None);
 }
 
 #[test]
@@ -83,15 +91,15 @@ fn offers_only_rejections_inside_the_given_folder() {
     log.record_reject(&sibling, &sibling.with_file_name("Odrzucone"), &[])
         .unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, inside);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, inside);
     assert_eq!(
-        log.last_undoable(&root().join("Złote gody"))
+        last_reject(&log, &root().join("Złote gody"))
             .unwrap()
             .unwrap()
             .id,
         inside
     );
-    assert_eq!(log.last_undoable(&root().join("Inne")).unwrap(), None);
+    assert_eq!(last_reject(&log, &root().join("Inne")).unwrap(), None);
 }
 
 #[test]
@@ -105,9 +113,9 @@ fn keeps_the_log_across_reopening() {
 
     let log = ActionLog::open(&file).unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, id);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, id);
     assert_eq!(
-        log.last_undoable(&root()).unwrap().unwrap().from,
+        last_reject(&log, &root()).unwrap().unwrap().from,
         Path::new(&photo("IMG_1.jpg"))
     );
 }
@@ -119,7 +127,7 @@ fn forgets_an_action_that_did_not_happen() {
 
     log.forget(id).unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(last_reject(&log, &root()).unwrap(), None);
 }
 
 #[test]
@@ -141,12 +149,12 @@ fn upgrades_a_log_written_before_migrations() {
 
     let log = ActionLog::open(&db).unwrap();
 
-    assert!(log.last_undoable(Path::new("a")).unwrap().is_some());
+    assert!(last_reject(&log, Path::new("a")).unwrap().is_some());
     let conn = rusqlite::Connection::open(&db).unwrap();
     let version: u32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 3);
+    assert_eq!(version, 4);
 }
 
 #[cfg(unix)]
@@ -178,7 +186,7 @@ fn keeps_the_date_file_moved_with_a_photo() {
     )
     .unwrap();
 
-    let action = log.last_undoable(&root()).unwrap().unwrap();
+    let action = last_reject(&log, &root()).unwrap().unwrap();
 
     assert_eq!(extra(action), [sidecar]);
 }
@@ -200,10 +208,10 @@ fn keeps_every_file_moved_with_a_photo_in_order() {
         .record_reject(&photo("P1.JPG"), &rejected("P1.JPG"), &moves)
         .unwrap();
 
-    assert_eq!(extra(log.last_undoable(&root()).unwrap().unwrap()), moves);
+    assert_eq!(extra(last_reject(&log, &root()).unwrap().unwrap()), moves);
 
     log.forget(id).unwrap();
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(last_reject(&log, &root()).unwrap(), None);
 }
 
 #[test]
@@ -220,11 +228,8 @@ fn undoes_entries_logged_with_the_older_date_file_columns() {
     .unwrap();
     drop(conn);
 
-    let action = ActionLog::open(&db)
-        .unwrap()
-        .last_undoable(Path::new("a"))
-        .unwrap()
-        .unwrap();
+    let log = ActionLog::open(&db).unwrap();
+    let action = last_reject(&log, Path::new("a")).unwrap().unwrap();
 
     assert_eq!(
         extra(action),
@@ -250,7 +255,7 @@ fn keeps_every_file_moved_to_the_trash_with_the_time() {
 
     let id = log.record_trash(&files).unwrap();
 
-    let action = log.last_undoable(&root()).unwrap().unwrap();
+    let action = last_reject(&log, &root()).unwrap().unwrap();
     assert_eq!(action.id, id);
     assert_eq!(action.from, photo("P1.JPG"));
     let Placement::Trash { files: logged, at } = action.place else {
@@ -272,9 +277,9 @@ fn offers_folder_and_trash_moves_newest_first() {
         })
         .unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, trash);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, trash);
     log.mark_undone(trash).unwrap();
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, folder);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, folder);
 }
 
 #[test]
@@ -289,9 +294,9 @@ fn offers_trash_and_folder_moves_newest_first() {
         .unwrap();
     let folder = record(&log, "IMG_2.jpg");
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, folder);
+    assert_eq!(last_reject(&log, &root()).unwrap().unwrap().id, folder);
     log.mark_undone(folder).unwrap();
-    let action = log.last_undoable(&root()).unwrap().unwrap();
+    let action = last_reject(&log, &root()).unwrap().unwrap();
     assert_eq!(action.id, trash);
     assert!(matches!(action.place, Placement::Trash { .. }));
 }

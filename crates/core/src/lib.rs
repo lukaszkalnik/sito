@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+pub mod accept;
 pub mod actions;
 pub mod decode;
 pub mod dimensions;
