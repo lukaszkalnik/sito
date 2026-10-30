@@ -21,6 +21,21 @@ describe('matches', () => {
     expect(matches(press('Delete', { ctrlKey: true }), KEYMAP.reject)).toBe(false);
   });
 
+  it('needs Shift exactly when the shortcut has it, for named keys', () => {
+    expect(matches(press('ArrowLeft', { shiftKey: true }), KEYMAP.panLeft)).toBe(true);
+    expect(matches(press('ArrowLeft'), KEYMAP.panLeft)).toBe(false);
+    expect(matches(press('ArrowLeft', { shiftKey: true }), KEYMAP.previous)).toBe(false);
+    expect(actionOf(press('ArrowLeft', { shiftKey: true }), ['previous', 'panLeft'])).toBe(
+      'panLeft',
+    );
+  });
+
+  it('ignores Shift for printable characters, which may need it', () => {
+    expect(matches(press('+', { shiftKey: true }), KEYMAP.zoomIn)).toBe(true);
+    expect(matches(press('+'), KEYMAP.zoomIn)).toBe(true);
+    expect(matches(press('+', { ctrlKey: true }), KEYMAP.zoomIn)).toBe(false);
+  });
+
   it('ignores the case of letters, e.g. with Caps Lock', () => {
     expect(matches(press('Z', { ctrlKey: true }), KEYMAP.undo)).toBe(true);
   });
