@@ -119,7 +119,7 @@ fn restorable(file: &Path, item: Option<TrashItem>) -> Result<TrashItem, TrashEr
 /// after `trashed_at` (Unix seconds), if any. Older items from the same path
 /// were deleted by something else and are left alone.
 #[cfg_attr(
-    target_os = "macos",
+    all(target_os = "macos", not(test)),
     expect(dead_code, reason = "macOS has no restore from the trash yet")
 )]
 fn pick_items(items: Vec<TrashItem>, files: &[PathBuf], trashed_at: i64) -> Vec<Option<TrashItem>> {
