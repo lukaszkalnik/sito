@@ -1,19 +1,25 @@
-//! Reject commands: move photos into the "Odrzucone" folder and undo it.
+//! Reject commands: move photos into the "Odrzucone" folder or the system
+//! trash, and undo it.
 
+mod drive;
+#[cfg(test)]
+mod fake_bin;
 mod folder;
+mod trash;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use serde::Serialize;
-use sito_core::actions::{ActionLog, LogError};
+use serde::{Deserialize, Serialize};
+use sito_core::actions::{ActionLog, LogError, Placement};
 use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::error::CommandError;
+use crate::error::{CommandError, off_main_thread};
 use crate::scan::state::{AppState, Scan};
+use trash::{Bin, SystemBin};
 
 /// Event sent to all windows when photos leave or return to the timeline.
 pub const TIMELINE_CHANGED: &str = "timeline-changed";
@@ -31,6 +37,8 @@ struct ActionsState {
     /// removed again once undo leaves them empty; folders that were there
     /// before stay.
     created_dirs: HashSet<PathBuf>,
+    /// The system trash.
+    bin: Box<dyn Bin>,
 }
 
 impl Actions {
@@ -38,6 +46,7 @@ impl Actions {
         Self(Mutex::new(ActionsState {
             log,
             created_dirs: HashSet::new(),
+            bin: Box::new(SystemBin),
         }))
     }
 
@@ -46,7 +55,17 @@ impl Actions {
     }
 }
 
-/// A photo moved into the rejected folder.
+/// Where a rejected photo goes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Destination {
+    /// The "Odrzucone" subfolder of the photo's folder.
+    Folder,
+    /// The system trash.
+    Trash,
+}
+
+/// A rejected photo.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RejectedDto {
@@ -54,7 +73,7 @@ pub struct RejectedDto {
     name: String,
 }
 
-/// A photo moved back from the rejected folder.
+/// A photo moved back from the rejected folder or the trash.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UndoneDto {
@@ -81,23 +100,24 @@ impl From<RejectError> for CommandError {
     }
 }
 
-/// Moves photo `id` of the current scan into the "Odrzucone" subfolder of its
-/// folder, logs it, and takes it off the timeline.
-// Tauri injects `State` by value into commands.
-#[allow(clippy::needless_pass_by_value)]
+/// Moves photo `id` of the current scan to `destination`, logs it, and takes
+/// it off the timeline. Runs off the main thread: the trash can take a moment.
 #[tauri::command]
-pub fn reject_photo(
+pub async fn reject_photo(
     id: usize,
+    destination: Destination,
     app: AppHandle,
-    state: State<'_, AppState>,
-    actions: State<'_, Actions>,
 ) -> Result<RejectedDto, CommandError> {
-    let mut actions = actions.lock();
-    let mut scan = state.scan();
-    let scan = scan.as_mut().ok_or(CommandError::Internal)?;
-    let rejected = reject_in(scan, &mut actions, id)?;
-    notify(&app);
-    Ok(rejected)
+    off_main_thread(move || {
+        let mut actions = app.state::<Actions>().inner().lock();
+        let state = app.state::<AppState>();
+        let mut scan = state.scan();
+        let scan = scan.as_mut().ok_or(CommandError::Internal)?;
+        let rejected = reject_in(scan, &mut actions, id, destination)?;
+        notify(&app);
+        Ok(rejected)
+    })
+    .await?
 }
 
 /// [`reject_photo`] on the given scan and action state.
@@ -105,11 +125,15 @@ fn reject_in(
     scan: &mut Scan,
     actions: &mut ActionsState,
     id: usize,
+    destination: Destination,
 ) -> Result<RejectedDto, CommandError> {
     let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
 
-    folder::reject(log, &path, &mut actions.created_dirs)?;
+    match destination {
+        Destination::Folder => folder::reject(log, &path, &mut actions.created_dirs)?,
+        Destination::Trash => trash::reject(log, actions.bin.as_ref(), &path)?,
+    }
     scan.remove(id);
     Ok(RejectedDto {
         name: file_name(&path),
@@ -117,25 +141,24 @@ fn reject_in(
 }
 
 /// Moves the most recently rejected photo of the current folder back and puts
-/// it on the timeline again; `None` if there is nothing to undo.
-// Tauri injects `State` by value into commands.
-#[allow(clippy::needless_pass_by_value)]
+/// it on the timeline again; `None` if there is nothing to undo. Runs off the
+/// main thread: the trash can take a moment.
 #[tauri::command]
-pub fn undo_reject(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    actions: State<'_, Actions>,
-) -> Result<Option<UndoneDto>, CommandError> {
-    let actions = actions.lock();
-    let mut scan = state.scan();
-    let Some(scan) = scan.as_mut() else {
-        return Ok(None);
-    };
-    let undone = undo_in(scan, &actions)?;
-    if undone.is_some() {
-        notify(&app);
-    }
-    Ok(undone)
+pub async fn undo_reject(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
+    off_main_thread(move || {
+        let actions = app.state::<Actions>().inner().lock();
+        let state = app.state::<AppState>();
+        let mut scan = state.scan();
+        let Some(scan) = scan.as_mut() else {
+            return Ok(None);
+        };
+        let undone = undo_in(scan, &actions)?;
+        if undone.is_some() {
+            notify(&app);
+        }
+        Ok(undone)
+    })
+    .await?
 }
 
 /// [`undo_reject`] on the given scan and action state.
@@ -150,15 +173,28 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
         return Ok(None);
     };
 
-    if let Err(err) = folder::undo(&action, &actions.created_dirs) {
-        if err == CommandError::Missing {
-            // It can never be undone; skip it so the next "Cofnij" goes on.
+    let (undone, rejected_path) = match &action.place {
+        Placement::Folder { to, extra } => (
+            folder::undo(&action.from, to, extra, &actions.created_dirs),
+            to.as_path(),
+        ),
+        Placement::Trash { files, at } => (
+            trash::undo(actions.bin.as_ref(), files, *at),
+            action.from.as_path(),
+        ),
+    };
+    if let Err(err) = undone {
+        if matches!(
+            err,
+            CommandError::Missing | CommandError::TrashUndoUnsupported
+        ) {
+            // It can never be undone here; skip it so the next "Cofnij" goes on.
             log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
         }
         return Err(err);
     }
     log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
-    let id = scan.restore(&action.from, &action.to, |path| read_photo(path).ok());
+    let id = scan.restore(&action.from, rejected_path, |path| read_photo(path).ok());
     Ok(Some(UndoneDto {
         id,
         name: file_name(&action.from),
@@ -211,9 +247,11 @@ mod tests {
     use serde_json::json;
     use sito_core::series::DEFAULT_MAX_GAP;
     use sito_core::timeline::build_timeline;
+    use sito_core::trash::TrashError;
     use tempfile::TempDir;
 
     use super::*;
+    use crate::reject::fake_bin::FakeBin;
     use crate::series::series_with_removed;
 
     /// The two fixture photos 5 s apart, which form the only series.
@@ -241,6 +279,7 @@ mod tests {
         ActionsState {
             log: Some(ActionLog::open(db).unwrap()),
             created_dirs: HashSet::new(),
+            bin: Box::new(FakeBin::new(Path::new("no-bin"))),
         }
     }
 
@@ -273,7 +312,7 @@ mod tests {
         let mut actions = started(&db);
         let id = id_of(&scan, NEWER);
 
-        let rejected = reject_in(&mut scan, &mut actions, id).unwrap();
+        let rejected = reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
 
         assert_eq!(rejected.name, NEWER);
         assert!(!dir.path().join(NEWER).exists());
@@ -301,7 +340,7 @@ mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let id = id_of(&scan, NEWER);
 
-        reject_in(&mut scan, &mut actions, id).unwrap();
+        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
         undo_in(&mut scan, &actions).unwrap().unwrap();
 
         assert!(dir.path().join(NEWER).exists());
@@ -316,7 +355,7 @@ mod tests {
             let mut scan = scan(dir.path());
             let mut actions = started(&db);
             let id = id_of(&scan, NEWER);
-            reject_in(&mut scan, &mut actions, id).unwrap();
+            reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
         }
 
         // Restart: a new scan finds the rejected photo in "Odrzucone".
@@ -344,8 +383,8 @@ mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let older = id_of(&scan, OLDER);
         let newer = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, older).unwrap();
-        reject_in(&mut scan, &mut actions, newer).unwrap();
+        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, newer, Destination::Folder).unwrap();
         // Someone moved the newest rejected photo away.
         fs::remove_file(dir.path().join("Odrzucone").join(NEWER)).unwrap();
 
@@ -379,11 +418,12 @@ mod tests {
         let mut actions = ActionsState {
             log: None,
             created_dirs: HashSet::new(),
+            bin: Box::new(FakeBin::new(Path::new("no-bin"))),
         };
         let id = id_of(&scan, NEWER);
 
         assert_eq!(
-            reject_in(&mut scan, &mut actions, id),
+            reject_in(&mut scan, &mut actions, id, Destination::Folder),
             Err(CommandError::Internal)
         );
         assert!(dir.path().join(NEWER).exists());
@@ -427,5 +467,148 @@ mod tests {
                 json!({ "code": code })
             );
         }
+    }
+
+    /// Action state using the log at `db` and a fake trash in `bin`.
+    fn started_with_bin(db: &Path, bin: FakeBin) -> ActionsState {
+        ActionsState {
+            bin: Box::new(bin),
+            ..started(db)
+        }
+    }
+
+    #[test]
+    fn rejecting_into_the_trash_and_undoing_brings_the_photo_back() {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let mut scan = scan(dir.path());
+        let db = bin.path().join("sito.db");
+        let mut actions = started_with_bin(&db, FakeBin::new(bin.path()));
+        let id = id_of(&scan, NEWER);
+
+        let rejected = reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+
+        assert_eq!(rejected.name, NEWER);
+        assert!(!dir.path().join(NEWER).exists());
+        assert!(bin.path().join(NEWER).exists());
+        assert!(!dir.path().join("Odrzucone").exists());
+        assert!(scan.photo(id).is_none());
+
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+
+        assert_eq!(undone.id, Some(id));
+        assert!(dir.path().join(NEWER).exists());
+        assert_eq!(series_names(&scan), [[NEWER, OLDER]]);
+        assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
+    }
+
+    #[test]
+    fn undo_from_the_trash_works_after_a_restart() {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let db = bin.path().join("sito.db");
+        {
+            let mut scan = scan(dir.path());
+            let mut actions = started_with_bin(&db, FakeBin::new(bin.path()));
+            let id = id_of(&scan, NEWER);
+            reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+        }
+
+        let mut scan = scan(dir.path());
+        let actions = started_with_bin(&db, FakeBin::new(bin.path()));
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+
+        assert_eq!(undone.name, NEWER);
+        assert!(undone.id.is_some());
+        assert!(dir.path().join(NEWER).exists());
+    }
+
+    #[test]
+    fn refuses_the_trash_on_a_drive_without_one() {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let mut scan = scan(dir.path());
+        let mut fake = FakeBin::new(bin.path());
+        fake.has_trash = false;
+        let mut actions = started_with_bin(&bin.path().join("sito.db"), fake);
+        let id = id_of(&scan, NEWER);
+
+        assert_eq!(
+            reject_in(&mut scan, &mut actions, id, Destination::Trash),
+            Err(CommandError::NoTrash)
+        );
+        assert!(dir.path().join(NEWER).exists());
+        assert!(scan.photo(id).is_some());
+        assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
+    }
+
+    #[test]
+    fn a_photo_gone_from_the_trash_is_reported_and_skipped() {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let mut scan = scan(dir.path());
+        let mut actions = started_with_bin(&bin.path().join("sito.db"), FakeBin::new(bin.path()));
+        let older = id_of(&scan, OLDER);
+        let newer = id_of(&scan, NEWER);
+        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, newer, Destination::Trash).unwrap();
+        // The trash was emptied.
+        fs::remove_file(bin.path().join(NEWER)).unwrap();
+
+        assert_eq!(undo_in(&mut scan, &actions), Err(CommandError::Missing));
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+
+        assert_eq!(undone.name, OLDER);
+        assert!(dir.path().join(OLDER).exists());
+    }
+
+    #[test]
+    fn a_trash_move_that_cannot_be_undone_here_is_reported_and_skipped() {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let mut scan = scan(dir.path());
+        let mut fake = FakeBin::new(bin.path());
+        fake.can_restore = false;
+        let mut actions = started_with_bin(&bin.path().join("sito.db"), fake);
+        let id = id_of(&scan, NEWER);
+        reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+
+        assert_eq!(
+            undo_in(&mut scan, &actions),
+            Err(CommandError::TrashUndoUnsupported)
+        );
+        assert_eq!(undo_in(&mut scan, &actions), Ok(None));
+    }
+
+    #[test]
+    fn destinations_deserialize_from_camel_case() {
+        assert_eq!(
+            serde_json::from_value::<Destination>(json!("folder")).unwrap(),
+            Destination::Folder
+        );
+        assert_eq!(
+            serde_json::from_value::<Destination>(json!("trash")).unwrap(),
+            Destination::Trash
+        );
+    }
+
+    #[test]
+    fn trash_errors_map_to_codes() {
+        let path = PathBuf::from("IMG_1.jpg");
+        let cases = [
+            (TrashError::Occupied(path.clone()), "occupied"),
+            (TrashError::Missing(path), "missing"),
+            (TrashError::RestoreUnsupported, "trashUndoUnsupported"),
+        ];
+        for (err, code) in cases {
+            assert_eq!(
+                serde_json::to_value(CommandError::from(err)).unwrap(),
+                json!({ "code": code })
+            );
+        }
+        assert_eq!(
+            serde_json::to_value(CommandError::NoTrash).unwrap(),
+            json!({ "code": "noTrash" })
+        );
     }
 }

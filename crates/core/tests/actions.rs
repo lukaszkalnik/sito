@@ -3,8 +3,8 @@
 
 use std::path::{Path, PathBuf};
 
-use sito_core::actions::{ActionLog, RejectAction};
-use sito_core::reject::FileMove;
+use sito_core::actions::{ActionLog, Placement, RejectAction};
+use sito_core::reject::{Companion, FileMove, PhotoFiles};
 use tempfile::TempDir;
 
 fn root() -> PathBuf {
@@ -32,6 +32,14 @@ fn record(log: &ActionLog, relative: &str) -> i64 {
         .unwrap()
 }
 
+/// The other files of a photo moved into the rejected folder.
+fn extra(action: RejectAction) -> Vec<FileMove> {
+    match action.place {
+        Placement::Folder { extra, .. } => extra,
+        Placement::Trash { .. } => panic!("not a folder move: {action:?}"),
+    }
+}
+
 #[test]
 fn offers_the_newest_rejection_first() {
     let log = ActionLog::open_in_memory().unwrap();
@@ -43,8 +51,10 @@ fn offers_the_newest_rejection_first() {
         Some(RejectAction {
             id: newest,
             from: photo("Camera/IMG_2.jpg"),
-            to: rejected("Camera/IMG_2.jpg"),
-            extra: Vec::new(),
+            place: Placement::Folder {
+                to: rejected("Camera/IMG_2.jpg"),
+                extra: Vec::new(),
+            },
         })
     );
 }
@@ -170,7 +180,7 @@ fn keeps_the_date_file_moved_with_a_photo() {
 
     let action = log.last_undoable(&root()).unwrap().unwrap();
 
-    assert_eq!(action.extra, [sidecar]);
+    assert_eq!(extra(action), [sidecar]);
 }
 
 #[test]
@@ -190,7 +200,7 @@ fn keeps_every_file_moved_with_a_photo_in_order() {
         .record_reject(&photo("P1.JPG"), &rejected("P1.JPG"), &moves)
         .unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().extra, moves);
+    assert_eq!(extra(log.last_undoable(&root()).unwrap().unwrap()), moves);
 
     log.forget(id).unwrap();
     assert_eq!(log.last_undoable(&root()).unwrap(), None);
@@ -217,10 +227,52 @@ fn undoes_entries_logged_with_the_older_date_file_columns() {
         .unwrap();
 
     assert_eq!(
-        action.extra,
+        extra(action),
         [FileMove {
             from: "a/x.jpg.json".into(),
             to: "a/Odrzucone/x.jpg.json".into(),
         }]
     );
+}
+
+#[test]
+fn keeps_every_file_moved_to_the_trash_with_the_time() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let files = PhotoFiles {
+        photo: photo("P1.JPG"),
+        sidecar: Some(photo("P1.JPG.supplemental-metadata.json")),
+        companion: Some(Companion {
+            path: photo("P1.ORF"),
+            sidecar: None,
+        }),
+    };
+    let before = chrono::Utc::now().timestamp();
+
+    let id = log.record_trash(&files).unwrap();
+
+    let action = log.last_undoable(&root()).unwrap().unwrap();
+    assert_eq!(action.id, id);
+    assert_eq!(action.from, photo("P1.JPG"));
+    let Placement::Trash { files: logged, at } = action.place else {
+        panic!("not a trash move: {action:?}");
+    };
+    assert_eq!(logged, files.all());
+    assert!((before..=before + 1).contains(&at));
+}
+
+#[test]
+fn offers_folder_and_trash_moves_newest_first() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let folder = record(&log, "IMG_1.jpg");
+    let trash = log
+        .record_trash(&PhotoFiles {
+            photo: photo("IMG_2.jpg"),
+            sidecar: None,
+            companion: None,
+        })
+        .unwrap();
+
+    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, trash);
+    log.mark_undone(trash).unwrap();
+    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, folder);
 }

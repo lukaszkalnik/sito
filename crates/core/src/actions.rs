@@ -3,11 +3,11 @@
 
 use std::path::{Path, PathBuf};
 
-use chrono::Local;
+use chrono::{DateTime, Local};
 use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
-use crate::reject::FileMove;
+use crate::reject::{FileMove, PhotoFiles};
 
 /// Error while reading or writing the action log.
 #[derive(Debug, Error)]
@@ -18,19 +18,40 @@ pub enum LogError {
     /// The path is not valid Unicode, so it cannot be stored without changing it.
     #[error("action log: {0} is not a valid Unicode path")]
     NonUnicodePath(PathBuf),
+
+    /// A time in the log could not be read.
+    #[error("action log: {0} is not a valid time")]
+    BadTime(String),
 }
 
-/// A photo moved into the rejected folder that has not been undone yet.
+/// A rejected photo that has not been undone yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RejectAction {
     /// Row id in the action log; identifies the action to undo.
     pub id: i64,
     /// Where the photo was before it was rejected.
     pub from: PathBuf,
-    /// Where the photo is now.
-    pub to: PathBuf,
-    /// The photo's other files, moved along with it.
-    pub extra: Vec<FileMove>,
+    /// Where the photo went.
+    pub place: Placement,
+}
+
+/// Where a rejected photo went.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Placement {
+    /// Into the rejected folder next to it.
+    Folder {
+        /// Where the photo is now.
+        to: PathBuf,
+        /// The photo's other files, moved along with it.
+        extra: Vec<FileMove>,
+    },
+    /// Into the system trash.
+    Trash {
+        /// The paths the files had, the photo first, then its other files.
+        files: Vec<PathBuf>,
+        /// When the move was logged, in Unix seconds (just before the move).
+        at: i64,
+    },
 }
 
 /// The action log, stored in one `SQLite` file.
@@ -39,7 +60,19 @@ pub struct ActionLog {
     conn: Connection,
 }
 
+/// One entry of the `actions` table.
+struct Row {
+    id: i64,
+    kind: String,
+    at: String,
+    from: PathBuf,
+    to: PathBuf,
+    /// A date file of entries written before migration 3.
+    old_sidecar: Option<FileMove>,
+}
+
 const KIND_REJECT: &str = "reject";
+const KIND_TRASH: &str = "trash";
 
 impl ActionLog {
     /// Opens (or creates) the log in the file at `path`.
@@ -80,10 +113,44 @@ impl ActionLog {
         to: &Path,
         extra: &[FileMove],
     ) -> Result<i64, LogError> {
+        self.record(KIND_REJECT, from, to, extra)
+    }
+
+    /// Records that the photo `files` are moved into the system trash;
+    /// returns the action id. Like [`record_reject`](Self::record_reject),
+    /// call it before moving and [`forget`](Self::forget) the entry if the
+    /// move fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a path is not valid Unicode or the entry cannot be
+    /// written.
+    pub fn record_trash(&self, files: &PhotoFiles) -> Result<i64, LogError> {
+        // The trash has no path we choose, so each file is logged with its
+        // own path on both sides.
+        let others: Vec<FileMove> = files
+            .all()
+            .into_iter()
+            .skip(1)
+            .map(|path| FileMove {
+                from: path.clone(),
+                to: path,
+            })
+            .collect();
+        self.record(KIND_TRASH, &files.photo, &files.photo, &others)
+    }
+
+    fn record(
+        &self,
+        kind: &str,
+        from: &Path,
+        to: &Path,
+        extra: &[FileMove],
+    ) -> Result<i64, LogError> {
         let transaction = self.conn.unchecked_transaction()?;
         transaction.execute(
             "INSERT INTO actions (at, kind, from_path, to_path) VALUES (?1, ?2, ?3, ?4)",
-            params![now(), KIND_REJECT, path_text(from)?, path_text(to)?],
+            params![now(), kind, path_text(from)?, path_text(to)?],
         )?;
         let id = transaction.last_insert_rowid();
         for file in extra {
@@ -116,35 +183,57 @@ impl ActionLog {
     ///
     /// Returns an error if the log cannot be read.
     pub fn last_undoable(&self, under: &Path) -> Result<Option<RejectAction>, LogError> {
+        let Some(row) = self.last_row_under(under)? else {
+            return Ok(None);
+        };
+        let moves = self.moves_of(row.id)?;
+        let place = if row.kind == KIND_TRASH {
+            Placement::Trash {
+                files: std::iter::once(row.from.clone())
+                    .chain(moves.into_iter().map(|file| file.from))
+                    .collect(),
+                at: unix_seconds(&row.at)?,
+            }
+        } else {
+            Placement::Folder {
+                to: row.to,
+                extra: row.old_sidecar.into_iter().chain(moves).collect(),
+            }
+        };
+        Ok(Some(RejectAction {
+            id: row.id,
+            from: row.from,
+            place,
+        }))
+    }
+
+    /// The newest entry not yet undone whose photo came from inside `under`.
+    fn last_row_under(&self, under: &Path) -> Result<Option<Row>, LogError> {
         let mut statement = self.conn.prepare(
-            "SELECT id, from_path, to_path, sidecar_from, sidecar_to FROM actions
-             WHERE kind = ?1 AND undone_at IS NULL
+            "SELECT id, kind, at, from_path, to_path, sidecar_from, sidecar_to FROM actions
+             WHERE kind IN (?1, ?2) AND undone_at IS NULL
              ORDER BY id DESC",
         )?;
-        let rows = statement.query_map(params![KIND_REJECT], |row| {
-            let sidecar_from: Option<String> = row.get(3)?;
-            let sidecar_to: Option<String> = row.get(4)?;
-            Ok(RejectAction {
+        let rows = statement.query_map(params![KIND_REJECT, KIND_TRASH], |row| {
+            let sidecar_from: Option<String> = row.get(5)?;
+            let sidecar_to: Option<String> = row.get(6)?;
+            Ok(Row {
                 id: row.get(0)?,
-                from: PathBuf::from(row.get::<_, String>(1)?),
-                to: PathBuf::from(row.get::<_, String>(2)?),
-                // Entries written before migration 3 keep a date file here.
-                extra: sidecar_from
-                    .zip(sidecar_to)
-                    .map(|(from, to)| FileMove {
-                        from: from.into(),
-                        to: to.into(),
-                    })
-                    .into_iter()
-                    .collect(),
+                kind: row.get(1)?,
+                at: row.get(2)?,
+                from: PathBuf::from(row.get::<_, String>(3)?),
+                to: PathBuf::from(row.get::<_, String>(4)?),
+                old_sidecar: sidecar_from.zip(sidecar_to).map(|(from, to)| FileMove {
+                    from: from.into(),
+                    to: to.into(),
+                }),
             })
         })?;
         for row in rows {
-            let mut action = row?;
+            let row = row?;
             // Compares whole path components, so `Zdjęcia2` is not inside `Zdjęcia`.
-            if action.from.starts_with(under) {
-                action.extra.extend(self.moves_of(action.id)?);
-                return Ok(Some(action));
+            if row.from.starts_with(under) {
+                return Ok(Some(row));
             }
         }
         Ok(None)
@@ -197,6 +286,13 @@ impl ActionLog {
 
 fn now() -> String {
     Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string()
+}
+
+/// A time written by [`now`] (RFC 3339 with offset) as Unix seconds.
+fn unix_seconds(at: &str) -> Result<i64, LogError> {
+    DateTime::parse_from_rfc3339(at)
+        .map(|time| time.timestamp())
+        .map_err(|_| LogError::BadTime(at.to_owned()))
 }
 
 /// Schema changes of the log, applied in order. `PRAGMA user_version` holds

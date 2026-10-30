@@ -31,3 +31,4 @@ workspace = true
 [dev-dependencies]
 chrono = "0.4.45"
 tempfile = "3"
+trash = "5.2.9"

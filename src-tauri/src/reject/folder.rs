@@ -4,8 +4,8 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use sito_core::actions::{ActionLog, RejectAction};
-use sito_core::reject;
+use sito_core::actions::ActionLog;
+use sito_core::reject::{self, FileMove};
 
 use super::{log_failed, move_failed};
 use crate::error::CommandError;
@@ -40,18 +40,17 @@ pub(super) fn reject(
     Ok(())
 }
 
-/// Moves the photo of `action` and its other files back from "Odrzucone".
-/// The folder is removed once empty only if it is in `created_dirs`.
+/// Moves the photo at `to` in "Odrzucone" back to `from`, and its other
+/// files `extra` back too. The folder is removed once empty only if it is in
+/// `created_dirs`.
 pub(super) fn undo(
-    action: &RejectAction,
+    from: &Path,
+    to: &Path,
+    extra: &[FileMove],
     created_dirs: &HashSet<PathBuf>,
 ) -> Result<(), CommandError> {
-    let created_here = action
-        .to
-        .parent()
-        .is_some_and(|dir| created_dirs.contains(dir));
-    let restored = reject::restore(&action.to, &action.from, &action.extra, created_here)
-        .map_err(move_failed)?;
+    let created_here = to.parent().is_some_and(|dir| created_dirs.contains(dir));
+    let restored = reject::restore(to, from, extra, created_here).map_err(move_failed)?;
     for err in restored.errors {
         log::warn!("photo restored, but not this file of it: {err}");
     }

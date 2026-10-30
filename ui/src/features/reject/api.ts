@@ -20,7 +20,7 @@ const TIMELINE_CHANGED = 'timeline-changed';
 
 /** Moves photo `id` into the "Odrzucone" subfolder of its folder. */
 export async function rejectPhoto(id: number): Promise<Rejected> {
-  return invoke<Rejected>('reject_photo', { id });
+  return invoke<Rejected>('reject_photo', { id, destination: 'folder' });
 }
 
 /** Moves the most recently rejected photo of the open folder back; `null` if none. */

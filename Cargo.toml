@@ -11,7 +11,8 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+# `deny`, not `forbid`, so a vetted FFI call can carry an `expect` with its reason.
+unsafe_code = "deny"
 missing_debug_implementations = "warn"
 
 [workspace.lints.clippy]

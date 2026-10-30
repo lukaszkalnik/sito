@@ -14,8 +14,13 @@ pub enum CommandError {
     Io,
     /// Undo would overwrite a file that now has the photo's original name.
     Occupied,
-    /// The rejected photo is no longer in the rejected folder.
+    /// The rejected photo is no longer in the rejected folder or the trash.
     Missing,
+    /// The photo's drive has no trash (removable and network drives), so
+    /// moving it there would delete it.
+    NoTrash,
+    /// This system cannot restore files from the trash.
+    TrashUndoUnsupported,
     /// Unexpected failure inside the app.
     Internal,
 }
