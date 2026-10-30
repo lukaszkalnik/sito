@@ -43,6 +43,12 @@ jobs:
             exit 1
           fi
 
+      # Fails before the long build if the tag has no changelog section.
+      - name: Check that CHANGELOG.md has a section for the tag
+        if: env.IS_TAG == 'true'
+        shell: bash
+        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > /dev/null
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -60,11 +66,8 @@ jobs:
         with:
           tagName: ${{ env.IS_TAG == 'true' && github.ref_name || '' }}
           releaseName: 'Sito ${{ github.ref_name }}'
-          releaseBody: |
-            Instalacja w Windows: pobierz `Sito_*_x64-setup.exe` i uruchom.
-            Instalator nie jest podpisany, więc Windows może pokazać ostrzeżenie
-            „System Windows ochronił ten komputer” – kliknij „Więcej informacji”,
-            a potem „Uruchom mimo to”.
+          # Replaced by the CHANGELOG.md section when the release is published.
+          releaseBody: 'Release notes follow once the build has passed.'
           releaseDraft: true
           args: ${{ matrix.args }}
 
@@ -135,6 +138,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - run: gh release edit "$GITHUB_REF_NAME" --draft=false --repo "$GITHUB_REPOSITORY"
+      - uses: actions/checkout@v4
+      - name: Publish with the CHANGELOG.md section as release notes
+        run: |
+          node scripts/release-notes.mjs "$GITHUB_REF_NAME" > notes.md
+          gh release edit "$GITHUB_REF_NAME" --notes-file notes.md --draft=false --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

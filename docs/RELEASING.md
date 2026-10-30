@@ -14,16 +14,17 @@ gh run download <run-id> --name sito-windows-latest --dir D:\Lukasz\tools\instal
 
 ## Release
 
-1. Bump `version` in `[workspace.package]` of the root `Cargo.toml` (it is the only place the version lives; `tauri.conf.json` takes it from there). Use [semantic versioning](https://semver.org).
-2. Run `cargo check` so `Cargo.lock` picks up the new version, then commit: `chore: release vX.Y.Z`.
-3. Tag and push:
+1. Add a `## vX.Y.Z – YYYY-MM-DD` section at the top of `CHANGELOG.md`: what changed since the last release tag (`git log vPREV..HEAD`), in English, from the user's point of view and grouped as New / Improved / Fixed (see CLAUDE.md for how to word it). Check it with `node scripts/release-notes.mjs vX.Y.Z`. The release workflow publishes this section, followed by the installation notes, as the GitHub release notes, and fails early for a tag without one.
+2. Bump `version` in `[workspace.package]` of the root `Cargo.toml` (it is the only place the version lives; `tauri.conf.json` takes it from there). Use [semantic versioning](https://semver.org).
+3. Run `cargo check` so `Cargo.lock` picks up the new version, then commit both: `chore: release vX.Y.Z`.
+4. Tag and push:
 
    ```bash
    git tag vX.Y.Z
    git push origin main vX.Y.Z
    ```
 
-4. The Release workflow checks that the tag matches `Cargo.toml`, builds Windows and macOS, installs, launches and uninstalls the Windows app, then publishes the GitHub release **Sito vX.Y.Z**. If any step fails, the release stays a draft.
+5. The Release workflow checks that the tag matches `Cargo.toml` and has a changelog section, builds Windows and macOS, installs, launches and uninstalls the Windows app, then publishes the GitHub release **Sito vX.Y.Z** with the changelog as its notes. If any step fails, the release stays a draft.
 
 ## Third-party notices
 

@@ -38,6 +38,7 @@ Platforms: developed on Windows, macOS later.
   - a release is published and installed. Releases are made only when the user asks for one, not after every slice; between them the user tests debug builds.
 
   Before pausing, make sure the slice files and the roadmap record where things stand (status, what is done, what comes next), so a fresh session can continue from them alone.
+- **Every GitHub release has a changelog in English**, written into `CHANGELOG.md` (one `## vX.Y.Z – YYYY-MM-DD` section per version) and committed with the version bump; the release workflow publishes that section as the release notes and refuses a tag without one. Write it from the user's perspective and at a high level (grouped as New / Improved / Fixed), not as a list of commits. Name what got better, not just that something did: not "performance improvements" but e.g. "UI responsiveness while loading a large photo collection" or "opening a photo in the viewer is near-instant in folders with tens of thousands of photos". Cover everything since the previous release tag (`git log vPREV..HEAD`), including slices that were never released.
 - **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
 - **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands. Run them before pushing changes that touch the affected flow.
 - **Local tool locations (Windows dev machine):** all toolchains live under `D:\Lukasz\tools` (C: is nearly full): Rust (`RUSTUP_HOME`, `CARGO_HOME`), Node, GitHub CLI, uv, npm cache/global prefix (`npm_config_cache`, `npm_config_prefix`), Playwright browsers (`PLAYWRIGHT_BROWSERS_PATH`), VS Build Tools. Never install large tools or caches on C:.
@@ -168,6 +169,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 ```
 sito/
 ├─ CLAUDE.md
+├─ CHANGELOG.md       # release notes, one section per version (English)
 ├─ Cargo.toml         # Rust workspace (crates/core, src-tauri)
 ├─ package.json       # npm workspace (ui) + Tauri CLI
 ├─ crates/core/       # pure logic, no UI code
@@ -198,7 +200,7 @@ sito/
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
-- **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, open the viewer, uninstall; see `src-tauri/src/smoke.rs`) before the release is published. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
+- **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, open the viewer, uninstall; see `src-tauri/src/smoke.rs`) before the release is published with the tag's `CHANGELOG.md` section as its notes. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Where knowledge lives
 
