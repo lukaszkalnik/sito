@@ -27,6 +27,7 @@ const context = {
   onOpen: vi.fn(),
   acceptedIds: new Set<number>(),
   highlighted: null,
+  followed: null,
 };
 
 function renderHeader(label: SeriesLabel) {
@@ -66,5 +67,22 @@ describe('series header', () => {
     );
 
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/· Pixel 8$/);
+  });
+});
+
+describe('tiles', () => {
+  it('marks the photo the viewer shows as current, and only that one', () => {
+    const entries = [entry(0, '2024-06-01T17:00:22'), entry(1, '2024-06-01T17:00:11')];
+    render(
+      <TimelineRowView
+        row={{ kind: 'tiles', key: 'tiles-0', entries, inSeries: false, seriesEnd: false }}
+        context={{ ...context, followed: 1 }}
+      />,
+    );
+
+    const tiles = screen.getAllByRole('listitem');
+    expect(tiles[0]).not.toHaveAttribute('aria-current');
+    expect(tiles[1]).toHaveAttribute('aria-current', 'true');
+    expect(tiles[1]).toHaveAttribute('title', 'IMG_1.jpg');
   });
 });

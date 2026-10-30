@@ -15,7 +15,9 @@ import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
 import type { TimelineMode } from './layout';
+import type { Reveal } from './reveal';
 import { TimelineGrid } from './TimelineGrid';
+import { useFollowViewer } from './useFollowViewer';
 import { useTimelineEntries, type TimelineEntriesState } from './useTimelineEntries';
 import './TimelineView.css';
 
@@ -120,12 +122,27 @@ function useGap(path: string) {
   return [gap, changeGap] as const;
 }
 
-/** A photo to scroll into view and highlight: the one last restored by "Cofnij". */
-function useRevealRestored() {
-  const [reveal, setReveal] = useState<number | null>(null);
-  const showRestored = useCallback((undone: Undone) => setReveal(undone.id), []);
-  const revealed = useCallback(() => setReveal(null), []);
-  return { reveal, showRestored, revealed };
+/**
+ * The photo the viewer of scan `scanId` shows, and a photo to scroll into view
+ * and highlight: the one last restored by "Cofnij", else the one the viewer
+ * showed when it closed.
+ */
+function useReveal(scanId: number) {
+  const [restored, setRestored] = useState<number | null>(null);
+  const { followed, lastShown, revealed: lastShownRevealed } = useFollowViewer(scanId);
+  const showRestored = useCallback((undone: Undone) => setRestored(undone.id), []);
+  const revealed = useCallback(() => {
+    setRestored(null);
+    lastShownRevealed();
+  }, [lastShownRevealed]);
+  return { reveal: revealOf(restored, lastShown), followed, showRestored, revealed };
+}
+
+/** The photo to reveal: a restored one first, else the one the closed viewer showed. */
+function revealOf(restored: number | null, lastShown: number | null): Reveal | null {
+  if (restored !== null) return { id: restored, reason: 'restored' };
+  if (lastShown !== null) return { id: lastShown, reason: 'viewerClosed' };
+  return null;
 }
 
 /** Keeps an open viewer stepping through the same photos as this view. */
@@ -171,13 +188,15 @@ interface TimelineBodyProps {
   gap: number;
   scanId: number;
   acceptedIds: ReadonlySet<number>;
-  reveal: number | null;
+  reveal: Reveal | null;
   onRevealed: () => void;
+  /** The photo the viewer shows, if any. */
+  followed: number | null;
 }
 
 /** Below the bar: the grid, or a message while loading, on error or without series. */
 function TimelineBody(props: TimelineBodyProps) {
-  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed } = props;
+  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed } = props;
   const { t } = useTranslation();
   switch (timeline.status) {
     case 'loading':
@@ -207,6 +226,7 @@ function TimelineBody(props: TimelineBodyProps) {
           acceptedIds={acceptedIds}
           reveal={reveal}
           onRevealed={onRevealed}
+          followed={followed}
           onOpen={(entry) =>
             void openViewer({ id: entry.id, scanId, mode, gap }).catch((err: unknown) =>
               console.error('Cannot open the viewer', err),
@@ -241,7 +261,7 @@ export function TimelineView({
   // refreshed summary keeps the id and the view.
   const timeline = useTimelineEntries(summary.scanId, gap);
   const [mode, setMode] = useState<TimelineMode>('series');
-  const { reveal, showRestored, revealed } = useRevealRestored();
+  const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
   const { canUndo, undo, toast } = useUndo(showRestored);
   const acceptedIds = useAcceptedIds(summary.scanId);
   useViewerContext(mode, gap);
@@ -270,6 +290,7 @@ export function TimelineView({
         acceptedIds={acceptedIds}
         reveal={reveal}
         onRevealed={revealed}
+        followed={followed}
       />
       <Toast message={toast} onUndo={() => void undo()} />
       <ScanNotes refreshing={summary.refreshing} completing={completing} />

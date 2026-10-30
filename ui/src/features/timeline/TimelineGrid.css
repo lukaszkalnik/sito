@@ -244,6 +244,25 @@
   }
 }
 
+/* The photo last shown in the viewer: pulses longer, as the viewer often
+   covered the grid. */
+.timeline-tile--highlighted-long::after {
+  animation-iteration-count: 4;
+}
+
+/* The photo the viewer shows: a steady frame above the thumbnail, drawn by
+   `::before` so it never cancels a highlight pulse. The accepted check sits
+   above it (z-index 1, later in the tile). */
+.timeline-tile--followed::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 4px var(--accent);
+}
+
 /* Leaves room for the check of an accepted photo in the bottom-right corner. */
 .timeline-tile--accepted .timeline-tile-caption {
   padding-right: 28px;

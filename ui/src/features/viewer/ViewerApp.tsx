@@ -12,6 +12,7 @@ import {
   onViewerContext,
   onViewerShow,
   currentViewerRequest,
+  sendViewerShown,
   type ViewerPhoto,
   type ViewerRequest,
 } from './api';
@@ -97,9 +98,19 @@ function useCloseOnce() {
   }, []);
 }
 
+/** Tells the main window which photo is shown, so its grid follows. */
+function useAnnounceShown(scanId: number, id: number) {
+  useEffect(() => {
+    sendViewerShown({ scanId, id }).catch((err: unknown) =>
+      console.error('Cannot tell the main window which photo is shown', err),
+    );
+  }, [scanId, id]);
+}
+
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
   const { request, photo, onShowId, undo, acceptedIds } = props;
+  useAnnounceShown(request.scanId, photo.entry.id);
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
   const toggleAccept = useToggleAccept(acceptedIds, undo.showToast);

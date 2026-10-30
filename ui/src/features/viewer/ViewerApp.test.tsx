@@ -12,6 +12,7 @@ import {
   getViewerPhoto,
   onViewerContext,
   onViewerShow,
+  sendViewerShown,
   type ViewerPhoto,
 } from './api';
 import { ViewerApp } from './ViewerApp';
@@ -39,6 +40,7 @@ vi.mock('./api', async (importActual) => ({
   getViewerPhoto: vi.fn(),
   onViewerShow: vi.fn(),
   onViewerContext: vi.fn(),
+  sendViewerShown: vi.fn(),
   photoUrl: (scanId: number, id: number) => `photo://localhost/${id}?scan=${scanId}`,
   setWindowTitle: vi.fn(() => Promise.resolve()),
 }));
@@ -79,6 +81,22 @@ describe('ViewerApp', () => {
     vi.mocked(onTimelineChanged).mockImplementation(noUnlisten);
     vi.mocked(canUndo).mockResolvedValue(false);
     vi.mocked(currentViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
+    vi.mocked(sendViewerShown).mockResolvedValue();
+  });
+
+  it('tells the main window which photo it shows, also after a rejection', async () => {
+    vi.mocked(getViewerPhoto).mockImplementation((request) =>
+      Promise.resolve(page(request.id, request.id === 3 ? 4 : null)),
+    );
+    vi.mocked(rejectPhoto).mockResolvedValue({ name: 'IMG_3.jpg' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 3 });
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+    await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' });
+
+    expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 4 });
   });
 
   it('shows a spinner while it waits for its photo', () => {

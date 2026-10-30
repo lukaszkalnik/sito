@@ -3,7 +3,10 @@
 use std::sync::{Mutex, PoisonError};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, State, WebviewUrl, WebviewWindowBuilder};
+use tauri::{
+    AppHandle, Emitter, Manager, Runtime, State, WebviewUrl, WebviewWindowBuilder, Window,
+    WindowEvent,
+};
 
 use crate::error::CommandError;
 use crate::window_fit;
@@ -15,6 +18,10 @@ pub mod photo_protocol;
 pub const LABEL: &str = "viewer";
 /// Event that tells an open viewer window which photo to show.
 pub const SHOW_EVENT: &str = "viewer-show";
+/// Event that tells the main window the viewer window has closed.
+pub const CLOSED_EVENT: &str = "viewer-closed";
+/// Label of the main window.
+const MAIN_LABEL: &str = "main";
 
 /// Which photos the viewer steps through; mirrors the timeline view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -111,6 +118,17 @@ pub fn show(app: &AppHandle, request: ViewerRequest) -> Result<(), CommandError>
             .map_err(|err| internal("place", &err))?;
     }
     Ok(())
+}
+
+/// Tells the main window when the viewer window is gone, however it was closed
+/// (its own close button, the OS close button, Alt+F4).
+pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
+    if window.label() == LABEL
+        && let WindowEvent::Destroyed = event
+        && let Err(err) = window.emit_to(MAIN_LABEL, CLOSED_EVENT, ())
+    {
+        log::warn!("cannot tell the main window that the viewer closed: {err}");
+    }
 }
 
 /// The last request for the viewer, which a viewer window shows once it has

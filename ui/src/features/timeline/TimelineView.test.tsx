@@ -29,6 +29,8 @@ vi.mock('../accept/api', () => ({
 vi.mock('../viewer/api', () => ({
   openViewer: vi.fn(() => Promise.resolve()),
   sendViewerContext: vi.fn(() => Promise.resolve()),
+  onViewerShown: vi.fn(() => Promise.resolve(() => {})),
+  onViewerClosed: vi.fn(() => Promise.resolve(() => {})),
 }));
 
 const mockedTimeline = vi.mocked(getTimeline);

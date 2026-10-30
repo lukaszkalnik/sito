@@ -5,6 +5,7 @@ import { onFirstClick } from '../../clicks/firstClick';
 import { AcceptedBadge } from '../accept/AcceptedBadge';
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
+import type { RevealReason } from './reveal';
 import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
 import { rememberLoaded, shapeFrom, shapeOf, type ThumbnailShape } from './loadedThumbnails';
@@ -23,8 +24,10 @@ interface TimelineTileProps {
   showFolder: boolean;
   /** Opens the photo full size. */
   onOpen: (entry: TimelineEntry) => void;
-  /** Briefly marked, e.g. right after it was restored. */
-  highlighted?: boolean;
+  /** Briefly marked for this reason, e.g. right after it was restored; `null` when not. */
+  highlight?: RevealReason | null;
+  /** Framed while the viewer shows it. */
+  followed?: boolean;
   /** Marked with a check: the user accepted it. */
   accepted?: boolean;
 }
@@ -97,20 +100,26 @@ function TileCaption({ entry, showFolder }: { entry: TimelineEntry; showFolder: 
   );
 }
 
+/** How a tile looks besides its thumbnail. */
+interface TileLook {
+  status: ThumbnailStatus;
+  shape: ThumbnailShape;
+  instant: boolean;
+  highlight: RevealReason | null;
+  followed: boolean;
+  accepted: boolean;
+}
+
 /** The CSS classes of a tile. */
-function tileClass(
-  status: ThumbnailStatus,
-  shape: ThumbnailShape,
-  instant: boolean,
-  highlighted: boolean,
-  accepted: boolean,
-): string {
+function tileClass({ status, shape, instant, highlight, followed, accepted }: TileLook): string {
   return [
     'timeline-tile',
     `timeline-tile--${status}`,
     shape === 'portrait' && 'timeline-tile--portrait',
     instant && 'timeline-tile--instant',
-    highlighted && 'timeline-tile--highlighted',
+    highlight !== null && 'timeline-tile--highlighted',
+    highlight === 'viewerClosed' && 'timeline-tile--highlighted-long',
+    followed && 'timeline-tile--followed',
     accepted && 'timeline-tile--accepted',
   ]
     .filter(Boolean)
@@ -140,7 +149,8 @@ export function TimelineTile({
   scanId,
   showFolder,
   onOpen,
-  highlighted = false,
+  highlight = null,
+  followed = false,
   accepted = false,
 }: TimelineTileProps) {
   const { t } = useTranslation();
@@ -152,7 +162,8 @@ export function TimelineTile({
   return (
     <li
       ref={tileRef}
-      className={tileClass(status, shape, instant, highlighted, accepted)}
+      className={tileClass({ status, shape, instant, highlight, followed, accepted })}
+      aria-current={followed ? 'true' : undefined}
       data-shape={shape}
       title={entry.relativePath}
       data-testid="timeline-tile"

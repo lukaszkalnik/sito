@@ -1,6 +1,6 @@
 # Slice 36 – Main window follows the viewer
 
-**Status:** 📝 planned (plan approved 2026-10-31)
+**Status:** 🧪 implemented, ready for testing (2026-10-31)
 
 ## Context
 
@@ -56,6 +56,12 @@ From the user on 2026-10-30: while browsing photos in the viewer window, the mai
 - Vitest: `followReducer` transitions (shown, another scan ignored, closed → reveal id); `useGridScroll` following: no scroll when visible, scroll after the debounce with fake timers, only the last of fast steps scrolls; the followed tile is marked (`aria-current`).
 - `ViewerApp.test.tsx`: sends `viewer-shown` for the shown photo and after stepping.
 - e2e: `emitTauriEvent` takes a payload; emitting `viewer-shown` for a photo far down scrolls the grid to it and marks it; `viewer-closed` removes the frame and pulses the tile.
+
+## Implementation notes
+
+- `followReducer` (`ui/src/features/timeline/followViewer.ts`) keeps the photo to reveal when a close is reported twice (the e2e mock delivers events to both listeners React's StrictMode registers).
+- The followed frame is drawn by `::before`, so it never cancels the highlight pulse on `::after`.
+- The pulse lengths per reason live in `HIGHLIGHT_MS` (`ui/src/features/timeline/reveal.ts`).
 
 ## Verification
 

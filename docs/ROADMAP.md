@@ -43,7 +43,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 32a | [Fixes from testing slice 32](slices/32a-accept-test-fixes.md) | ✅ |
 | 33 | [Several cameras at one event](slices/33-split-by-camera.md) | ✅ |
 | 37 | [Steady top bar during background work](slices/37-steady-top-bar.md) | ✅ |
-| 36 | [Main window follows the viewer](slices/36-grid-follows-viewer.md) | 📝 |
+| 36 | [Main window follows the viewer](slices/36-grid-follows-viewer.md) | 🧪 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |

@@ -33,7 +33,10 @@ pub fn run() -> tauri::Result<()> {
                 .skip_initial_state(viewer::LABEL)
                 .build(),
         )
-        .on_window_event(window_fit::save_on_close)
+        .on_window_event(|window, event| {
+            window_fit::save_on_close(window, event);
+            viewer::on_window_event(window, event);
+        })
         .on_menu_event(|app, event| about::on_menu_event(app, &event))
         .manage(scan::state::AppState::default())
         .manage(viewer::ViewerState::default())

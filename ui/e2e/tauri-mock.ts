@@ -71,12 +71,18 @@ export async function invokedCommands(page: Page): Promise<{ cmd: string; args: 
   );
 }
 
-/** Sends a backend event to the page, like a click on a native menu item. */
-export async function emitTauriEvent(page: Page, event: string): Promise<void> {
+/** Sends an event to the page, like a click on a native menu item or a message from the viewer. */
+export async function emitTauriEvent(
+  page: Page,
+  event: string,
+  payload: unknown = null,
+): Promise<void> {
   await page.evaluate(
-    (name) =>
-      (window as unknown as { __emitTauriEvent: (event: string) => void }).__emitTauriEvent(name),
-    event,
+    ([name, data]) =>
+      (
+        window as unknown as { __emitTauriEvent: (event: string, payload: unknown) => void }
+      ).__emitTauriEvent(name as string, data),
+    [event, payload] as const,
   );
 }
 

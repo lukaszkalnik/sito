@@ -12,6 +12,7 @@ import {
   type TimelineMode,
   type TimelineRow,
 } from './layout';
+import type { Reveal } from './reveal';
 import { TimelineRowView } from './TimelineRowView';
 import { useElementWidth, useGridScroll } from './useGridScroll';
 import './TimelineGrid.css';
@@ -26,9 +27,11 @@ interface TimelineGridProps {
   /** Opens a photo full size. */
   onOpen: (entry: TimelineEntry) => void;
   /** A photo to scroll into view and highlight once the rows show it, e.g. one just restored. */
-  reveal?: number | null;
+  reveal?: Reveal | null;
   /** Called when `reveal` was shown (or could not be). */
   onRevealed?: () => void;
+  /** The photo the viewer shows: framed, and scrolled to when hidden. */
+  followed?: number | null;
 }
 
 /** The rows of the grid for the measured `width`. */
@@ -83,14 +86,19 @@ export function TimelineGrid({
   onOpen,
   reveal = null,
   onRevealed,
+  followed = null,
 }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const rows = useRows(entries, series, mode, useElementWidth(scrollRef));
   // Folders only tell photos apart when the scan spans more than one.
   const showFolder = useMemo(() => spansSeveralFolders(entries), [entries]);
   const virtualizer = useRowVirtualizer(rows, scrollRef);
-  const { highlighted, onScroll } = useGridScroll(scrollRef, rows, virtualizer, reveal, onRevealed);
-  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted };
+  const { highlighted, onScroll } = useGridScroll(scrollRef, rows, virtualizer, {
+    reveal,
+    onRevealed,
+    follow: followed,
+  });
+  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed };
 
   return (
     <div ref={scrollRef} className="timeline" data-testid="timeline" onScroll={onScroll}>

@@ -57,6 +57,10 @@ export interface ViewerContext {
 const VIEWER_LABEL = 'viewer';
 const SHOW_EVENT = 'viewer-show';
 const CONTEXT_EVENT = 'viewer-context';
+const MAIN_LABEL = 'main';
+const SHOWN_EVENT = 'viewer-shown';
+/** Emitted by the backend; see `CLOSED_EVENT` in `src-tauri/src/viewer.rs`. */
+const CLOSED_EVENT = 'viewer-closed';
 
 /**
  * Whether this page runs in the viewer window: by its window label, or by the
@@ -97,6 +101,28 @@ export async function onViewerContext(
   handler: (context: ViewerContext) => void,
 ): Promise<UnlistenFn> {
   return listen<ViewerContext>(CONTEXT_EVENT, (event) => handler(event.payload));
+}
+
+/** The photo the viewer shows, sent to the main window. */
+export interface ViewerShown {
+  scanId: number;
+  /** Timeline id of the photo. */
+  id: number;
+}
+
+/** Tells the main window which photo the viewer shows now. */
+export async function sendViewerShown(shown: ViewerShown): Promise<void> {
+  await emitTo(MAIN_LABEL, SHOWN_EVENT, shown);
+}
+
+/** Calls `handler` whenever the viewer shows another photo. */
+export async function onViewerShown(handler: (shown: ViewerShown) => void): Promise<UnlistenFn> {
+  return listen<ViewerShown>(SHOWN_EVENT, (event) => handler(event.payload));
+}
+
+/** Calls `handler` when the viewer window has closed, however it was closed. */
+export async function onViewerClosed(handler: () => void): Promise<UnlistenFn> {
+  return listen(CLOSED_EVENT, () => handler());
 }
 
 /** URL of the original file of timeline photo `id`, served by the `photo://` protocol. */

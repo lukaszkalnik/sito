@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SeriesLabel, TimelineEntry } from './api';
 import { formatDay, timeOf } from './format';
 import type { RowGroup, TimelineRow } from './layout';
+import type { Reveal } from './reveal';
 import { TimelineTile } from './TimelineTile';
 
 /** What every tile of the grid needs besides its own photo. */
@@ -16,7 +17,9 @@ export interface TileContext {
   /** The accepted photos, marked with a check. */
   acceptedIds: ReadonlySet<number>;
   /** The photo to highlight, if any. */
-  highlighted: number | null;
+  highlighted: Reveal | null;
+  /** The photo the viewer shows, if any. */
+  followed: number | null;
 }
 
 /** The camera a series header names, if any. */
@@ -75,7 +78,8 @@ function TileList({
           scanId={context.scanId}
           showFolder={context.showFolder}
           onOpen={context.onOpen}
-          highlighted={entry.id === context.highlighted}
+          highlight={entry.id === context.highlighted?.id ? context.highlighted.reason : null}
+          followed={entry.id === context.followed}
           accepted={context.acceptedIds.has(entry.id)}
         />
       ))}

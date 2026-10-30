@@ -12,6 +12,7 @@ Split out of [slice 30](30-lazy-timeline.md) on 2026-10-29; slice 30 makes only 
 - The entries of the visible rows are fetched by position range (for example in chunks of a few hundred) and cached in the UI.
 - **Refresh:** `timeline-changed` only invalidates the cache, and the visible rows are fetched again.
 - Anchoring and revealing (`anchoredScrollTop`, `revealScrollTop`) work on positions: these stay the same across gap and mode changes. A restored photo's position comes from the backend.
+- Following the viewer ([slice 36](36-grid-follows-viewer.md)) also reveals a photo by id, often one whose row is not loaded yet: `viewer-shown` could carry the photo's position, or the grid asks the backend for it, as for a restored photo.
 
 ## Builds on
 
