@@ -23,6 +23,8 @@ How the grid of photos and the photo viewer show photos and behave while they lo
 - The photo fills the space between the bar and the strip (or the bottom edge, when it has no series) as large as it fits, uncropped, so a portrait photo fills the height. The webview applies the EXIF orientation, so a rotated photo is measured upright.
 - At the right end of the bar, „Odrzuć” (solid red) is set about one button width apart from „Cofnij” and „Zamknij”, so the two are not hit by mistake.
 - In the series strip, the current photo has a thick accent frame with a glow; the other photos are shown normally. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
+- One click on a tile opens the viewer; there is only ever one viewer window, also when a tile is double-clicked. A viewer window that is still loading (or reloads) gets the last photo asked for from the backend.
+- **Double-clicks and held keys act once** where acting twice would harm: a double-click on „Odrzuć”, „Cofnij”, „Zamknij” or a tile counts as one click (keyboard activation always counts), and holding Delete, Ctrl+Z or Escape does not repeat them. Held arrow keys (stepping, panning) and the zoom keys do repeat.
 
 ### Zoom
 
