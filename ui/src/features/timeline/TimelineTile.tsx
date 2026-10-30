@@ -103,6 +103,7 @@ function tileClass(
   shape: ThumbnailShape,
   instant: boolean,
   highlighted: boolean,
+  accepted: boolean,
 ): string {
   return [
     'timeline-tile',
@@ -110,6 +111,7 @@ function tileClass(
     shape === 'portrait' && 'timeline-tile--portrait',
     instant && 'timeline-tile--instant',
     highlighted && 'timeline-tile--highlighted',
+    accepted && 'timeline-tile--accepted',
   ]
     .filter(Boolean)
     .join(' ');
@@ -150,7 +152,7 @@ export function TimelineTile({
   return (
     <li
       ref={tileRef}
-      className={tileClass(status, shape, instant, highlighted)}
+      className={tileClass(status, shape, instant, highlighted, accepted)}
       data-shape={shape}
       title={entry.relativePath}
       data-testid="timeline-tile"

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckIcon } from './CheckIcon';
 import './AcceptedBadge.css';
 
-/** Green check in the corner of a thumbnail of an accepted photo. */
+/** Green check in the bottom-right corner of a thumbnail of an accepted photo. */
 export function AcceptedBadge() {
   const { t } = useTranslation();
   return (

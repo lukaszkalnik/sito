@@ -242,3 +242,12 @@
     background: rgb(37 99 235 / 50%);
   }
 }
+
+/* Leaves room for the check of an accepted photo in the bottom-right corner. */
+.timeline-tile--accepted .timeline-tile-caption {
+  padding-right: 28px;
+}
+
+.timeline-tile--loaded.timeline-tile--accepted .timeline-tile-caption {
+  padding-right: 36px;
+}
