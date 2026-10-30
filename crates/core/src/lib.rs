@@ -7,6 +7,7 @@
 
 pub mod actions;
 pub mod decode;
+pub mod dimensions;
 pub mod display;
 pub mod metadata;
 pub mod navigation;
