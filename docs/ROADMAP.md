@@ -36,6 +36,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 12a | [Fixes from testing slice 12](slices/12a-viewer-test-fixes.md) | ✅ |
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 🧪 |
 | 13a | [Fixes from testing slice 13](slices/13a-viewer-zoom-test-fixes.md) | ✅ |
+| 13b | [Resolution and file size in the viewer](slices/13b-viewer-photo-details.md) | 🚧 |
 | 34 | [Reject into the system trash](slices/34-reject-to-trash.md) | 🧪 |
 | 34a | [Fixes from testing slice 34](slices/34a-reject-to-trash-test-fixes.md) | 🧪 |
 | 32 | [Accept a photo](slices/32-accept-photo.md) | 📝 |
