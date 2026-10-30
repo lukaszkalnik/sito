@@ -1,6 +1,6 @@
 # Slice 34a – Fixes from testing slice 34 (reject into the trash)
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (implemented on 2026-10-30)
 
 ## Context
 
@@ -20,3 +20,9 @@ Asked for by the user on 2026-10-30 while testing [slice 34](34-reject-to-trash.
 - `docs/domain/rejecting.md`, slice and roadmap → 🧪.
 
 Checks: `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e`; then a look in the debug build.
+
+## Verification (2026-10-30)
+
+Implemented as planned. In the debug build (computer use): „Odrzuć” shows the folder icon in white before its text with the folder chosen. The trash icon and the live switch are covered by `ViewerApp.test.tsx`. Checks green (oxlint, Prettier, tsc, Vitest 229, Playwright viewer and reject specs).
+
+**Next:** the user tests the debug build, together with slices 13 and 34.
