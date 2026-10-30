@@ -28,12 +28,6 @@ const DONE_KEYS: Readonly<Record<RejectDestination, string>> = {
   trash: 'reject.doneTrash',
 };
 
-/** Translation keys of the "Odrzuć" button hint, per destination. */
-const HINT_KEYS: Readonly<Record<RejectDestination, string>> = {
-  folder: 'reject.hint',
-  trash: 'reject.hintTrash',
-};
-
 type UndoControls = ReturnType<typeof useUndo>;
 
 /** Shown when every photo of the view was rejected: a message and "Cofnij". */
@@ -102,7 +96,6 @@ function useCloseOnce() {
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
   const { request, photo, onShowId, undo } = props;
-  const { t } = useTranslation();
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
   const close = useCloseOnce();
@@ -113,7 +106,7 @@ function ReadyViewer(props: ReadyViewerProps) {
       onShow={onShowId}
       onClose={close}
       onReject={() => void reject()}
-      rejectHint={t(HINT_KEYS[destination])}
+      rejectTo={destination}
       canUndo={undo.canUndo}
       onUndo={() => void undo.undo()}
     />

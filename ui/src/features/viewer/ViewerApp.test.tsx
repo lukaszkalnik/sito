@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -176,5 +176,28 @@ describe('ViewerApp', () => {
     await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' });
 
     expect(rejectPhoto).toHaveBeenCalledOnce();
+  });
+
+  it('shows on „Odrzuć” where the photo goes, following the main window', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+    const button = screen.getByRole('button', { name: 'Odrzuć' });
+    // The icon is decoration: the button's name stays „Odrzuć”.
+    const icon = () => button.querySelector('svg[aria-hidden="true"]');
+
+    expect(icon()).toHaveAttribute('data-icon', 'folder');
+    expect(button).toHaveAttribute('title', 'Przenieś zdjęcie do podfolderu „Odrzucone” (Delete)');
+
+    // The main window switches to the trash.
+    act(() => {
+      localStorage.setItem('sito.rejectDestination', 'trash');
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: 'sito.rejectDestination', newValue: 'trash' }),
+      );
+    });
+
+    expect(icon()).toHaveAttribute('data-icon', 'trash');
+    expect(button).toHaveAttribute('title', 'Przenieś zdjęcie do kosza (Delete)');
   });
 });

@@ -51,7 +51,7 @@ function viewerProps(photo: ViewerPhoto, canUndo = false) {
     onShow: vi.fn(),
     onClose: vi.fn(),
     onReject: vi.fn(),
-    rejectHint: 'Przenieś zdjęcie do podfolderu „Odrzucone” (Delete)',
+    rejectTo: 'folder' as const,
     canUndo,
     onUndo: vi.fn(),
   };

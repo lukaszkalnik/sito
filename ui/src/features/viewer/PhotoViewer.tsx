@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
 import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
+import type { RejectDestination } from '../reject/destination';
+import { DestinationIcon } from '../reject/DestinationIcon';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { thumbnailUrl } from '../timeline/thumbnails';
 import { photoUrl, setWindowTitle, type ViewerPhoto } from './api';
@@ -22,8 +24,8 @@ interface PhotoViewerProps {
   onClose: () => void;
   /** Rejects the shown photo. */
   onReject: () => void;
-  /** Tooltip of the "Odrzuć" button: where the photo goes. */
-  rejectHint: string;
+  /** Where „Odrzuć” moves the photo, shown by its icon and tooltip. */
+  rejectTo: RejectDestination;
   /** Whether "Cofnij" has a rejection to undo. */
   canUndo: boolean;
   onUndo: () => void;
@@ -72,17 +74,39 @@ function FormatNote({ format }: { format: PhotoFormat }) {
   return badge === null ? null : <span className="viewer-format">{t(badge)}</span>;
 }
 
+/** Translation keys of the „Odrzuć” tooltip, per destination. */
+const REJECT_HINT_KEYS: Readonly<Record<RejectDestination, string>> = {
+  folder: 'reject.hint',
+  trash: 'reject.hintTrash',
+};
+
+/** „Odrzuć”, with the icon of where it moves the photo: the folder or the trash. */
+function RejectButton({ rejectTo, onReject }: Pick<PhotoViewerProps, 'rejectTo' | 'onReject'>) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      className="viewer-reject"
+      title={t(REJECT_HINT_KEYS[rejectTo])}
+      onClick={onFirstClick(onReject)}
+    >
+      <DestinationIcon destination={rejectTo} />
+      {t('reject.button')}
+    </button>
+  );
+}
+
 /** Name, date and folder of the photo, with the reject, undo and close buttons. */
 function ViewerBar({
   entry,
   onReject,
-  rejectHint,
+  rejectTo,
   canUndo,
   onUndo,
   onClose,
 }: { entry: TimelineEntry } & Pick<
   PhotoViewerProps,
-  'onReject' | 'rejectHint' | 'canUndo' | 'onUndo' | 'onClose'
+  'onReject' | 'rejectTo' | 'canUndo' | 'onUndo' | 'onClose'
 >) {
   const { t } = useTranslation();
   return (
@@ -96,14 +120,7 @@ function ViewerBar({
         <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
-      <button
-        type="button"
-        className="viewer-reject"
-        title={rejectHint}
-        onClick={onFirstClick(onReject)}
-      >
-        {t('reject.button')}
-      </button>
+      <RejectButton rejectTo={rejectTo} onReject={onReject} />
       <button
         type="button"
         className="viewer-close"
