@@ -21,11 +21,11 @@ How the grid of photos and the photo viewer show photos and behave while they lo
 - Stepping to another photo keeps the previous one for a moment, then shows a spinner if the new one is still loading.
 - When the timeline changes (a rejection or undo in either window, a refresh, the EXIF pass), the viewer fetches the shown photo's details again.
 - The photo fills the space between the bar and the strip (or the bottom edge, when it has no series) as large as it fits, uncropped, so a portrait photo fills the height. The webview applies the EXIF orientation, so a rotated photo is measured upright.
-- At the right end of the bar, „Odrzuć” (solid red) is set about one button width apart from „Cofnij” and „Zamknij”, so the two are not hit by mistake.
+- At the right end of the bar, „Zaakceptuj” (green outline, solid green when the photo is accepted; see [Accepting](accepting.md)) comes before „Odrzuć” (solid red), which is set about one button width apart from „Cofnij” and „Zamknij”, so the two are not hit by mistake.
 - After the date, the bar shows the photo's **resolution** as it is shown (after the EXIF orientation, e.g. „5472 × 3648”) and its **file size** („7,5 MB”, binary megabytes with one decimal as Windows Explorer counts them; below 1 MB in whole kB). The resolution comes from the JPEG or TIFF header (nothing is decoded); RAW photos show only the file size, since most RAW files record no reliable size outside their per-camera headers.
-- In the series strip, the current photo has a thick accent frame with a glow; the other photos are shown normally. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
+- In the series strip, the current photo has a thick accent frame with a glow; the other photos are shown normally. Accepted photos carry a green check, in the strip as on their grid tiles. Stepping through a long series scrolls the strip just enough to keep the current photo visible.
 - One click on a tile opens the viewer; there is only ever one viewer window, also when a tile is double-clicked. A viewer window that is still loading (or reloads) gets the last photo asked for from the backend.
-- **Double-clicks and held keys act once** where acting twice would harm: a double-click on „Odrzuć”, „Cofnij”, „Zamknij” or a tile counts as one click (keyboard activation always counts), and holding Delete, Ctrl+Z or Escape does not repeat them. Held arrow keys (stepping, panning) and the zoom keys do repeat.
+- **Double-clicks and held keys act once** where acting twice would harm: a double-click on „Zaakceptuj”, „Odrzuć”, „Cofnij”, „Zamknij” or a tile counts as one click (keyboard activation always counts), and holding A, Delete, Ctrl+Z or Escape does not repeat them. Held arrow keys (stepping, panning) and the zoom keys do repeat.
 
 ### Zoom
 

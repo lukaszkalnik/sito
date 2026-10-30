@@ -1,6 +1,6 @@
 # Slice 32 – Accept a photo
 
-**Status:** 📝 planned (plan approved 2026-10-30, not implemented yet)
+**Status:** 🧪 implemented 2026-10-30, ready for testing
 
 ## Context
 
@@ -74,3 +74,18 @@ Decisions (2026-10-30, user):
 ## Related slices
 
 - [Slice 16](16-show-rejected.md) (rejected photos as a view) could show accepted photos the same way, from `accepted_paths`.
+
+## Implementation notes (2026-10-30)
+
+Done as planned, with these differences:
+
+- The core change and the Tauri commands went into one commit: `last_undoable` returning `LoggedAction` does not compile without the Tauri undo adapting to it.
+- `useAcceptedIds` lives in the viewer's `LoadedViewer` (not per photo), so stepping between photos does not reload the ids or flicker the button. Strip items of accepted photos are labelled „<name> (zaakceptowane)”, since a badge inside a button is not part of its name.
+- `undo.failed` now reads „Nie udało się cofnąć ostatniej czynności.”, as undo is no longer only about rejections.
+- Two small refactors on the way: `SeriesStrip` moved to its own file; the e2e gallery mock (`ui/e2e/gallery.ts`) is shared by `reject.spec.ts` and the new `accept.spec.ts`.
+
+Behaviour is described in [docs/domain/accepting.md](../domain/accepting.md).
+
+### To test (debug build)
+
+Accept the best shot of a big series → check in grid and strip; A toggles; Ctrl+Z undoes accept, un-accept and rejects in order; restart keeps the check; reject an accepted photo and undo → still accepted.
