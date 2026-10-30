@@ -12,7 +12,8 @@ import {
 } from './api';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
-import { LoadingSpinner, PhotoViewer } from './PhotoViewer';
+import { LoadingSpinner } from './FullPhoto';
+import { PhotoViewer } from './PhotoViewer';
 import { useViewerPhoto } from './useViewerPhoto';
 
 /** Photo id meaning "no photo left to show". */
