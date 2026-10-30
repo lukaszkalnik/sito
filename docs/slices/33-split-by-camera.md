@@ -1,6 +1,6 @@
 # Slice 33 – Several cameras at one event
 
-**Status:** 🧪 ready for testing (implemented 2026-10-30; what it established is in [docs/domain/grouping.md](../domain/grouping.md))
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/grouping.md](../domain/grouping.md))
 
 ## Implementation notes
 
