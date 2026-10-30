@@ -1,6 +1,6 @@
 # Slice 34 – Reject into the system trash
 
-**Status:** 🚧 in progress (plan approved 2026-10-30)
+**Status:** 🧪 ready for testing (implemented on 2026-10-30)
 
 ## Context
 
@@ -64,3 +64,15 @@ Dependency: **`trash` 5.2.9** (MIT, Arturs Kovacs; uses `windows` 0.62, already 
 ## Commits (each pushed to `main`)
 
 `docs:` slice 34 + roadmap → `refactor:` split src-tauri reject module → `feat(core):` photo_files + trash module → `feat(core):` trash actions in the log → `feat:` reject to trash command + drive check → `feat(ui):` destination setting, picker and confirm dialog → `feat(ui):` viewer uses the destination → `test(e2e):` → `docs:` domain + slice 34 ready for testing (🧪). Then pause for testing.
+
+## Implementation notes (2026-10-30)
+
+Implemented as planned; behaviour is now described in [docs/domain/rejecting.md](../domain/rejecting.md). Code: `crates/core/src/trash.rs`, `crates/core/src/reject/files.rs` (`PhotoFiles`), the `trash` kind in `crates/core/src/actions.rs`, `src-tauri/src/reject/` (`folder.rs`, `trash.rs`, `drive.rs`), `ui/src/features/reject/` (`destination.ts`, `DestinationPicker.tsx`, `TrashConfirmDialog.tsx`). Where it differs from the plan:
+- **One more error code, `missingFromTrash`**, so undo can say „plik nie jest już w Koszu” (the UI cannot tell which kind of move it undid). Like `missing`, it skips the entry so the next „Cofnij” goes on; so does `trashUndoUnsupported` (macOS), since the entry could otherwise block every older undo.
+- The bin's paths are compared ignoring ASCII case and the `\?\` prefix (the trash crate canonicalizes the folder, Explorer reports it plainly). A bin item counts if it was deleted at most 2 s before the logged time (the clocks round differently).
+- The drive check calls `GetDriveTypeW` through a 3-line `extern` declaration instead of a new `windows` dependency.
+- `reject_photo` and `undo_reject` are now `async` and run off the main thread, for both destinations. They still hold the scan lock during the move, as before; a trash move takes a fraction of a second.
+- Commits: backend (core log + Tauri command) went in as one commit, so each commit builds; the UI picker and the viewer as one too.
+- The real Recycle Bin round trip is an `#[ignore]` test: `cargo test -p sito-core --lib trash -- --ignored` (passed on the dev machine).
+
+**Next:** the user tests the debug build (see Verification above), together with slice 13.
