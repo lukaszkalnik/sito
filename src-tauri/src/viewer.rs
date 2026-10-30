@@ -46,6 +46,9 @@ pub struct ViewerRequest {
 #[derive(Debug, Default)]
 pub struct ViewerState {
     current: Mutex<Option<ViewerRequest>>,
+    /// Held while the viewer window is looked up or created, so two requests
+    /// at once (a double-click on a tile) never create two windows.
+    opening: Mutex<()>,
 }
 
 impl ViewerState {
@@ -68,8 +71,10 @@ pub async fn open_viewer(request: ViewerRequest, app: AppHandle) -> Result<(), C
 /// Shows `request` in the viewer window, creating and placing the window if
 /// needed. Must not be called on the main thread, which it waits for.
 pub fn show(app: &AppHandle, request: ViewerRequest) -> Result<(), CommandError> {
+    let state = app.state::<ViewerState>();
+    let _opening = state.opening.lock().unwrap_or_else(PoisonError::into_inner);
     // Kept for the window in case it is still loading.
-    app.state::<ViewerState>().set(request);
+    state.set(request);
     if let Some(window) = app.get_webview_window(LABEL) {
         app.emit_to(LABEL, SHOW_EVENT, request)
             .map_err(|err| internal("emit", &err))?;
