@@ -113,7 +113,7 @@ test('shows interleaved series of two cameras in one piece each, naming the came
 }) => {
   // Four photos 2 s apart; photos 0 and 2 come from one camera, 1 and 3 from another.
   await mockTauri(page, {
-    pickedFolder: 'C:\Zdjęcia',
+    pickedFolder: 'C:\\Zdjęcia',
     scanProgress: [],
     scanResult: { ok: { scanId: 1, photosFound: 4, unreadableEntries: 0, withoutDate: 0 } },
     timeline: { count: 4, newest: '2024-06-01T12:00:06', stepSeconds: 2 },
