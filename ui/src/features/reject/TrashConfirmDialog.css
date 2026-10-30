@@ -1,0 +1,32 @@
+.trash-confirm {
+  width: min(28rem, 90vw);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.trash-confirm::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.trash-confirm h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.trash-confirm p {
+  margin: 0 0 1rem;
+}
+
+.trash-confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.trash-confirm-yes {
+  color: var(--danger);
+  font-weight: 600;
+}

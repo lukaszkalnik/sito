@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { rejectPhoto, type Undone } from '../reject/api';
+import { rejectErrorCode, rejectPhoto, type Undone } from '../reject/api';
+import type { RejectDestination } from '../reject/destination';
+import { useRejectDestination } from '../reject/useRejectDestination';
 import {
   closeWindow,
   onViewerContext,
@@ -18,6 +20,18 @@ import { useViewerPhoto } from './useViewerPhoto';
 
 /** Photo id meaning "no photo left to show". */
 const NO_PHOTO = -1;
+
+/** Translation keys of the toast after rejecting, per destination. */
+const DONE_KEYS: Readonly<Record<RejectDestination, string>> = {
+  folder: 'reject.done',
+  trash: 'reject.doneTrash',
+};
+
+/** Translation keys of the "Odrzuć" button hint, per destination. */
+const HINT_KEYS: Readonly<Record<RejectDestination, string>> = {
+  folder: 'reject.hint',
+  trash: 'reject.hintTrash',
+};
 
 type UndoControls = ReturnType<typeof useUndo>;
 
@@ -50,7 +64,7 @@ interface ReadyViewerProps {
  * Rejects the photo shown and shows the one the backend picked for after it,
  * reporting the outcome in a toast. Ignores calls while one is running.
  */
-function useReject({ photo, onShowId, undo }: ReadyViewerProps) {
+function useReject({ photo, onShowId, undo }: ReadyViewerProps, destination: RejectDestination) {
   const { t } = useTranslation();
   const rejecting = useRef(false);
   const { showToast } = undo;
@@ -58,11 +72,12 @@ function useReject({ photo, onShowId, undo }: ReadyViewerProps) {
     if (rejecting.current) return;
     rejecting.current = true;
     try {
-      const rejected = await rejectPhoto(photo.entry.id);
+      const rejected = await rejectPhoto(photo.entry.id, destination);
       onShowId(photo.afterReject ?? NO_PHOTO);
-      showToast({ text: t('reject.done', { name: rejected.name }), kind: 'undoable' });
-    } catch {
-      showToast({ text: t('reject.failed'), kind: 'error' });
+      showToast({ text: t(DONE_KEYS[destination], { name: rejected.name }), kind: 'undoable' });
+    } catch (error) {
+      const key = rejectErrorCode(error) === 'noTrash' ? 'reject.noTrash' : 'reject.failed';
+      showToast({ text: t(key), kind: 'error' });
     } finally {
       rejecting.current = false;
     }
@@ -72,7 +87,9 @@ function useReject({ photo, onShowId, undo }: ReadyViewerProps) {
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
   const { request, photo, onShowId, undo } = props;
-  const reject = useReject(props);
+  const { t } = useTranslation();
+  const [destination] = useRejectDestination();
+  const reject = useReject(props, destination);
   const close = useCallback(() => void closeWindow(), []);
   return (
     <PhotoViewer
@@ -81,6 +98,7 @@ function ReadyViewer(props: ReadyViewerProps) {
       onShow={onShowId}
       onClose={close}
       onReject={() => void reject()}
+      rejectHint={t(HINT_KEYS[destination])}
       canUndo={undo.canUndo}
       onUndo={() => void undo.undo()}
     />

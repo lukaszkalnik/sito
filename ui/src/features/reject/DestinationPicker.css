@@ -1,0 +1,25 @@
+.reject-destination {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.reject-destination select {
+  font: inherit;
+}
+
+.reject-destination-icon {
+  flex: none;
+}
+
+.reject-destination--trash,
+.reject-destination--trash select {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.reject-destination--trash select {
+  border-color: var(--danger);
+}

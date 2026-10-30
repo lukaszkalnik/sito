@@ -19,8 +19,10 @@ interface PhotoViewerProps {
   /** Shows the photo with the given id. */
   onShow: (id: number) => void;
   onClose: () => void;
-  /** Moves the shown photo into the "Odrzucone" folder. */
+  /** Rejects the shown photo. */
   onReject: () => void;
+  /** Tooltip of the "Odrzuć" button: where the photo goes. */
+  rejectHint: string;
   /** Whether "Cofnij" has a rejection to undo. */
   canUndo: boolean;
   onUndo: () => void;
@@ -73,12 +75,13 @@ function FormatNote({ format }: { format: PhotoFormat }) {
 function ViewerBar({
   entry,
   onReject,
+  rejectHint,
   canUndo,
   onUndo,
   onClose,
 }: { entry: TimelineEntry } & Pick<
   PhotoViewerProps,
-  'onReject' | 'canUndo' | 'onUndo' | 'onClose'
+  'onReject' | 'rejectHint' | 'canUndo' | 'onUndo' | 'onClose'
 >) {
   const { t } = useTranslation();
   return (
@@ -92,7 +95,7 @@ function ViewerBar({
         <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
-      <button type="button" className="viewer-reject" title={t('reject.hint')} onClick={onReject}>
+      <button type="button" className="viewer-reject" title={rejectHint} onClick={onReject}>
         {t('reject.button')}
       </button>
       <button

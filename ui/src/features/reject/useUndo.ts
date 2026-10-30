@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useShortcuts } from '../../shortcuts/useShortcuts';
-import { canUndo, onTimelineChanged, rejectErrorCode, undoReject, type Undone } from './api';
+import {
+  canUndo,
+  onTimelineChanged,
+  rejectErrorCode,
+  undoReject,
+  type RejectErrorCode,
+  type Undone,
+} from './api';
 
 /** How long a toast stays on screen. */
 export const TOAST_MS = 5000;
@@ -47,10 +54,20 @@ function useToast() {
   return [toast, setToast] as const;
 }
 
+/** Translation keys of the messages for a failed undo. */
+const UNDO_ERROR_KEYS: Readonly<Record<RejectErrorCode, string>> = {
+  occupied: 'undo.occupied',
+  missing: 'undo.missing',
+  missingFromTrash: 'undo.missingFromTrash',
+  trashUndoUnsupported: 'undo.trashUndoUnsupported',
+  noTrash: 'undo.failed',
+  io: 'undo.failed',
+  internal: 'undo.failed',
+};
+
 /** The translation key of the message for a failed undo. */
 function undoErrorKey(error: unknown): string {
-  const code = rejectErrorCode(error);
-  return code === 'occupied' || code === 'missing' ? `undo.${code}` : 'undo.failed';
+  return UNDO_ERROR_KEYS[rejectErrorCode(error)];
 }
 
 /**

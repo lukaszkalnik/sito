@@ -10,6 +10,7 @@
   --series-border: #9ab8f0;
   --series-text: #1e3a8a;
   --accent: #2563eb;
+  --danger: #b91c1c;
 
   /* System UI fonts (Segoe UI, San Francisco) render Polish diacritics. */
   font:
@@ -35,6 +36,7 @@
     --series-border: #3f5f9c;
     --series-text: #bfdbfe;
     --accent: #60a5fa;
+    --danger: #f87171;
   }
 }
 

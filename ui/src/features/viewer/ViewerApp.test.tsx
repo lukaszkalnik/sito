@@ -56,6 +56,7 @@ const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia
 
 describe('ViewerApp', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.resetAllMocks();
     const noUnlisten = () => Promise.resolve(() => {});
     vi.mocked(onViewerShow).mockImplementation(noUnlisten);
@@ -102,7 +103,7 @@ describe('ViewerApp', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
 
-    expect(rejectPhoto).toHaveBeenCalledWith(3);
+    expect(rejectPhoto).toHaveBeenCalledWith(3, 'folder');
     expect(await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' })).toBeInTheDocument();
   });
 
@@ -116,5 +117,36 @@ describe('ViewerApp', () => {
 
     expect(await screen.findByText('Brak zdjęć do pokazania.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Odrzuć' })).toBeNull();
+  });
+
+  it('rejects into the trash once it is chosen, and says so', async () => {
+    localStorage.setItem('sito.rejectDestination', 'trash');
+    vi.mocked(getViewerPhoto).mockImplementation((request) =>
+      Promise.resolve(page(request.id, request.id === 3 ? 4 : null)),
+    );
+    vi.mocked(rejectPhoto).mockResolvedValue({ name: 'IMG_3.jpg' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    const button = screen.getByRole('button', { name: 'Odrzuć' });
+    expect(button).toHaveAttribute('title', 'Przenieś zdjęcie do kosza (Delete)');
+    await userEvent.click(button);
+
+    expect(rejectPhoto).toHaveBeenCalledWith(3, 'trash');
+    expect(await screen.findByText('IMG_3.jpg → Kosz')).toBeInTheDocument();
+  });
+
+  it('explains a drive without a trash', async () => {
+    localStorage.setItem('sito.rejectDestination', 'trash');
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    vi.mocked(rejectPhoto).mockRejectedValue({ code: 'noTrash' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ten dysk nie ma kosza – wybierz folder „Odrzucone”.',
+    );
   });
 });

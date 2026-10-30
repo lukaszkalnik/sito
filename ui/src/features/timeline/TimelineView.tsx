@@ -6,6 +6,7 @@ import type { ScanSummary } from '../scan/api';
 import type { Completing } from '../scan/scanReducer';
 import type { Series } from './api';
 import { openViewer, sendViewerContext } from '../viewer/api';
+import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
 import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
@@ -213,6 +214,16 @@ function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: Timel
   }
 }
 
+/** „Cofnij” in the bar: restores the last rejected photo. */
+function UndoButton({ canUndo, onUndo }: { canUndo: boolean; onUndo: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button type="button" title={t('undo.hint')} disabled={!canUndo} onClick={onUndo}>
+      {t('undo.button')}
+    </button>
+  );
+}
+
 /** Full-window view of a finished scan: summary bar and the timeline grid. */
 export function TimelineView({
   path,
@@ -243,14 +254,8 @@ export function TimelineView({
         </div>
         <GapSlider gap={gap} onChange={changeGap} />
         <ModeToggle mode={mode} onChange={setMode} />
-        <button
-          type="button"
-          title={t('undo.hint')}
-          disabled={!canUndo}
-          onClick={() => void undo()}
-        >
-          {t('undo.button')}
-        </button>
+        <DestinationSetting />
+        <UndoButton canUndo={canUndo} onUndo={() => void undo()} />
         <button type="button" disabled={busy} onClick={onChooseAnother}>
           {t('scan.chooseAnother')}
         </button>

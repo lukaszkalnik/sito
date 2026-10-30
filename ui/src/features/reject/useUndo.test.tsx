@@ -35,7 +35,13 @@ describe('useUndo', () => {
   it.each([
     ['occupied', 'Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.'],
     ['missing', 'Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.'],
+    ['missingFromTrash', 'Nie można cofnąć: plik nie jest już w Koszu.'],
+    [
+      'trashUndoUnsupported',
+      'Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza.',
+    ],
     ['internal', 'Nie udało się cofnąć odrzucenia.'],
+    ['somethingNew', 'Nie udało się cofnąć odrzucenia.'],
   ])('explains a failed undo (%s)', async (code, text) => {
     vi.mocked(undoReject).mockRejectedValue({ code });
     const { result } = renderHook(() => useUndo());

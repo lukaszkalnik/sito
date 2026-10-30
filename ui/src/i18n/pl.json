@@ -83,7 +83,10 @@
     "button": "Odrzuć",
     "hint": "Przenieś zdjęcie do podfolderu „Odrzucone” (Delete)",
     "done": "{{name}} → Odrzucone",
-    "failed": "Nie udało się odrzucić zdjęcia."
+    "failed": "Nie udało się odrzucić zdjęcia.",
+    "hintTrash": "Przenieś zdjęcie do kosza (Delete)",
+    "doneTrash": "{{name}} → Kosz",
+    "noTrash": "Ten dysk nie ma kosza – wybierz folder „Odrzucone”."
   },
   "undo": {
     "button": "Cofnij",
@@ -91,7 +94,18 @@
     "done": "Przywrócono {{name}}",
     "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
-    "failed": "Nie udało się cofnąć odrzucenia."
+    "failed": "Nie udało się cofnąć odrzucenia.",
+    "missingFromTrash": "Nie można cofnąć: plik nie jest już w Koszu.",
+    "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza."
+  },
+  "destination": {
+    "label": "Odrzucone zdjęcia do:",
+    "folder": "folderu „Odrzucone”",
+    "trash": "kosza",
+    "confirmTitle": "Przenosić odrzucone zdjęcia do kosza?",
+    "confirmText": "Zdjęcia trafią do Kosza systemu Windows. Można je przywrócić przyciskiem „Cofnij” albo z Kosza, dopóki nie zostanie opróżniony.",
+    "cancel": "Anuluj",
+    "confirm": "Tak, do kosza"
   },
   "about": {
     "licenses": "Licencje",
