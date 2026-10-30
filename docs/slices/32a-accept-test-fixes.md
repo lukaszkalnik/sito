@@ -1,6 +1,6 @@
 # Slice 32a – Fixes from testing slice 32 (accept a photo)
 
-**Status:** 🧪 implemented 2026-10-30, ready for testing
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/accepting.md](../domain/accepting.md))
 
 ## Context
 

@@ -39,8 +39,8 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 13b | [Resolution and file size in the viewer](slices/13b-viewer-photo-details.md) | ✅ |
 | 34 | [Reject into the system trash](slices/34-reject-to-trash.md) | ✅ |
 | 34a | [Fixes from testing slice 34](slices/34a-reject-to-trash-test-fixes.md) | ✅ |
-| 32 | [Accept a photo](slices/32-accept-photo.md) | 🧪 |
-| 32a | [Fixes from testing slice 32](slices/32a-accept-test-fixes.md) | 🧪 |
+| 32 | [Accept a photo](slices/32-accept-photo.md) | ✅ |
+| 32a | [Fixes from testing slice 32](slices/32a-accept-test-fixes.md) | ✅ |
 | 33 | [Several cameras at one event](slices/33-split-by-camera.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
