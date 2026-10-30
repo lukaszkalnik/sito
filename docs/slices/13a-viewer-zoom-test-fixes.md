@@ -1,6 +1,6 @@
 # Slice 13a – Fixes from testing slice 13 (viewer)
 
-**Status:** 🧪 ready for testing (implemented on 2026-10-30)
+**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
 
 ## Context
 
@@ -35,4 +35,4 @@ Checks: `cargo fmt --check`, `cargo clippy`, `cargo test`, `npm run lint`, `npm 
 
 In the debug build, with computer use: a double-click on „Tance (126)” opened one viewer window with the photo shown at once, and „Zamknij” closed it. All checks green (Rust fmt/clippy/tests, oxlint, Prettier, tsc, Vitest 228, Playwright 47).
 
-**Next:** the user tests the debug build: double-click tiles and „Odrzuć”, hold Delete, together with slices 13 and 34.
+Tested by the user in the debug build on 2026-10-30: works.
