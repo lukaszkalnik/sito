@@ -1,6 +1,6 @@
 # Slice 37 – Steady top bar during background work
 
-**Status:** 📝 planned (2026-10-30; implementation next)
+**Status:** 🧪 ready for testing (2026-10-31)
 
 ## Context
 
@@ -55,3 +55,10 @@ From the user on 2026-10-30, while testing [slice 33](33-split-by-camera.md): wh
 
 - `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e` (scan and persistence specs).
 - Debug build (`npm run tauri dev`), when the user is not scanning: reopen a folder (refresh note) and a Takeout folder (EXIF pass). The bar and grid stay in place while the pill appears, counts up and disappears; the last row can be scrolled above the pill; in a narrow window the summary is cut with an ellipsis and its tooltip shows the full text.
+
+## Implementation (2026-10-31)
+
+- Done as planned: `ScanNotes` pill, one-line summary with tooltip, `padding-bottom: 3rem` on `.timeline`, tests and domain docs ([Timeline](../domain/timeline.md#main-window-bar), [Photos](../domain/photos.md#first-scan-of-a-takeout)). Unit tests and all e2e specs pass.
+- The ellipsis rule now covers every line of `.timeline-bar-info`, so the `timeline-bar-path` class was dropped.
+- Known limit: „Cofnij” reveals a photo when it lies within the grid's viewport, which includes the pill's area, so a restored photo in the bottom row may sit under the pill while a background note shows.
+- **Next:** the user tests a debug build (see Verification).

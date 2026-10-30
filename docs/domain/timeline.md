@@ -2,6 +2,11 @@
 
 How the grid of photos and the photo viewer show photos and behave while they load, for galleries of tens of thousands of photos.
 
+## Main window bar
+
+- The bar above the grid keeps its height: the folder path and the summary (photos, series, photos without a date, unreadable entries) are one line each, cut with an ellipsis in a narrow window, with the full text as a tooltip.
+- Notes about background work float in a small pill at the bottom centre of the window, over the grid: „Sprawdzanie zmian…” while a reopened folder is checked for changes, and the progress of the EXIF pass of a first scan ([Photos](photos.md#first-scan-of-a-takeout)); both can show together. Clicks go through the pill to the tiles, and the grid ends with some empty space, so the last row can be scrolled above it. The undo toast shows at the top centre, just below the bar.
+
 ## Series in the grid
 
 - Each series has a header with its photo count and time range (e.g. „3 zdjęcia · 17:00:11–17:00:22”); when it overlaps a series of another camera, the header also names its camera ([Grouping](grouping.md#several-cameras-at-one-event)). A series that fits on one row is a tinted block next to other blocks and single photos.

@@ -90,9 +90,19 @@ describe('TimelineView', () => {
     renderView(2, { done: 1234, total: 34600 });
 
     // pl-PL groups digits with a space from five digits on.
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      /Uzupełnianie dat z EXIF: 1234 z 34\s600\./,
-    );
+    expect(await screen.findByText(/Uzupełnianie dat z EXIF: 1234 z 34\s600\./)).toBeVisible();
+    // The note floats over the grid, so the bar's summary line keeps its length.
+    expect(screen.getByRole('status')).not.toHaveTextContent('Uzupełnianie dat');
+  });
+
+  it('gives the summary line its full text as a tooltip', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    renderView(2);
+
+    const status = await screen.findByRole('status');
+    await vi.waitFor(() => expect(status).toHaveTextContent('1 seria (2 zdjęcia).'));
+    expect(status).toHaveAttribute('title', status.textContent);
   });
 
   it('regroups with the gap from the slider and remembers it for the folder', async () => {

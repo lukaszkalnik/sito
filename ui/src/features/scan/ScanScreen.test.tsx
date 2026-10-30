@@ -113,10 +113,10 @@ describe('ScanScreen', () => {
     render(<ScanScreen />);
 
     await waitFor(() =>
-      expect(screen.getByRole('status')).toHaveTextContent(
-        /Znaleziono 3 zdjęcia\..*Sprawdzanie zmian…/,
-      ),
+      expect(screen.getByRole('status')).toHaveTextContent('Znaleziono 3 zdjęcia.'),
     );
+    expect(screen.getByText('Sprawdzanie zmian…')).toBeVisible();
+    expect(screen.getByRole('status')).not.toHaveTextContent('Sprawdzanie zmian');
     expect(mockedScan).toHaveBeenCalledWith('D:\\Złote gody', expect.any(Function));
     expect(mockedPick).not.toHaveBeenCalled();
 
@@ -125,7 +125,7 @@ describe('ScanScreen', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Nie udało się odczytać 2 elementów.',
     );
-    expect(screen.getByRole('status')).not.toHaveTextContent('Sprawdzanie zmian');
+    expect(screen.queryByText('Sprawdzanie zmian…')).not.toBeInTheDocument();
   });
 
   it('remembers the folder opened last', async () => {

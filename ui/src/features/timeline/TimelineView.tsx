@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useId, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
 import { useAcceptedIds } from '../accept/useAcceptedIds';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
+import { ScanNotes } from '../scan/ScanNotes';
 import type { Completing } from '../scan/scanReducer';
 import type { Series } from './api';
 import { openViewer, sendViewerContext } from '../viewer/api';
@@ -27,18 +29,12 @@ interface TimelineViewProps {
 }
 
 /** "128 serii (512 zdjęć)." for the summary line. */
-function SeriesSummary({ series }: { series: readonly Series[] }) {
-  const { t } = useTranslation();
+function seriesSummary(series: readonly Series[], t: TFunction): string {
   const photos = series.reduce((sum, s) => sum + s.len, 0);
-  return (
-    <>
-      {' '}
-      {t('series.summary', {
-        series: t('series.count', { count: series.length }),
-        photos: t('scan.photoCount', { count: photos }),
-      })}
-    </>
-  );
+  return t('series.summary', {
+    series: t('series.count', { count: series.length }),
+    photos: t('scan.photoCount', { count: photos }),
+  });
 }
 
 /** Switch between the series view and the full timeline. */
@@ -141,28 +137,30 @@ function useViewerContext(mode: TimelineMode, gap: number) {
   }, [mode, gap]);
 }
 
-/** The summary line: photo and series counts and scan notes. */
+/** The summary line with photo and series counts; its full text is also its tooltip. */
 function ScanStatus({
   summary,
-  completing,
   timeline,
 }: {
   summary: ScanSummary;
-  completing: Completing | null;
   timeline: TimelineEntriesState;
 }) {
   const { t } = useTranslation();
   // Rejected photos leave the timeline, so the count follows it once loaded.
   const photos = timeline.status === 'ready' ? timeline.entries.length : summary.photosFound;
+  const text = [
+    t('scan.result', { photos: t('scan.photoCount', { count: photos }) }),
+    timeline.status === 'ready' ? seriesSummary(timeline.series, t) : null,
+    summary.withoutDate > 0 ? t('scan.withoutDate', { count: summary.withoutDate }) : null,
+    summary.unreadableEntries > 0
+      ? t('scan.unreadable', { count: summary.unreadableEntries })
+      : null,
+  ]
+    .filter((part) => part !== null)
+    .join(' ');
   return (
-    <p role="status">
-      {t('scan.result', { photos: t('scan.photoCount', { count: photos }) })}
-      {timeline.status === 'ready' && <SeriesSummary series={timeline.series} />}
-      {summary.withoutDate > 0 && ` ${t('scan.withoutDate', { count: summary.withoutDate })}`}
-      {summary.unreadableEntries > 0 &&
-        ` ${t('scan.unreadable', { count: summary.unreadableEntries })}`}
-      {summary.refreshing && ` ${t('scan.refreshing')}`}
-      {completing && ` ${t('scan.completing', { ...completing })}`}
+    <p role="status" title={text}>
+      {text}
     </p>
   );
 }
@@ -253,10 +251,8 @@ export function TimelineView({
       <header className="timeline-bar">
         <h1>{t('app.title')}</h1>
         <div className="timeline-bar-info">
-          <p className="timeline-bar-path" title={path}>
-            {path}
-          </p>
-          <ScanStatus summary={summary} completing={completing} timeline={timeline} />
+          <p title={path}>{path}</p>
+          <ScanStatus summary={summary} timeline={timeline} />
         </div>
         <GapSlider gap={gap} onChange={changeGap} />
         <ModeToggle mode={mode} onChange={setMode} />
@@ -276,6 +272,7 @@ export function TimelineView({
         onRevealed={revealed}
       />
       <Toast message={toast} onUndo={() => void undo()} />
+      <ScanNotes refreshing={summary.refreshing} completing={completing} />
     </main>
   );
 }

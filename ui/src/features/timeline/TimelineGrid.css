@@ -1,7 +1,8 @@
 .timeline {
   flex: 1;
   overflow-y: auto;
-  padding: 0 1rem;
+  /* Room to scroll the last row above the background notes at the bottom of the window. */
+  padding: 0 1rem 3rem;
 }
 
 .timeline-canvas {

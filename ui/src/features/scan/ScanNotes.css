@@ -1,0 +1,20 @@
+/* At the bottom, away from the undo toast below the bar; clicks go through to the tiles. */
+.scan-notes-area {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.scan-notes {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  background: rgb(34 34 34 / 80%);
+  color: #fff;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  /* Keeps the pill from wobbling while the number counts up. */
+  font-variant-numeric: tabular-nums;
+}

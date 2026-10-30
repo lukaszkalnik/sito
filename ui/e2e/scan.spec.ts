@@ -72,8 +72,9 @@ test('shows the EXIF dates being completed in the background, then hides it', as
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
 
   const status = page.getByRole('status');
-  await expect(status).toContainText(/Uzupełnianie dat z EXIF: 200 z 34\s600\./);
+  await expect(page.getByText(/Uzupełnianie dat z EXIF: 200 z 34\s600\./)).toBeVisible();
   await expect(status).not.toContainText('Uzupełnianie dat z EXIF');
+  await expect(page.getByText(/Uzupełnianie dat z EXIF/)).toHaveCount(0);
   await expect(status).toContainText('Znaleziono 50 zdjęć.');
 });
 

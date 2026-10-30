@@ -25,12 +25,13 @@ test('reopens the last folder on start and shows the background refresh', async 
   await start(page, 'D:\\Desktop\\Złote gody');
 
   await expect(page.getByTestId('timeline')).toBeVisible();
-  await expect(page.getByRole('status')).toContainText('Sprawdzanie zmian…');
+  await expect(page.getByText('Sprawdzanie zmian…')).toBeVisible();
+  await expect(page.getByRole('status')).not.toContainText('Sprawdzanie zmian');
   const scans = (await invokedCommands(page)).filter((c) => c.cmd === 'start_scan');
   expect(scans.map((c) => (c.args as { path: string }).path)).toEqual(['D:\\Desktop\\Złote gody']);
 
   await expect(page.getByRole('status')).toContainText('Nie udało się odczytać 1 elementu.');
-  await expect(page.getByRole('status')).not.toContainText('Sprawdzanie zmian');
+  await expect(page.getByText('Sprawdzanie zmian…')).toHaveCount(0);
 });
 
 test('starts with the folder picker the first time, then remembers the folder', async ({
