@@ -27,7 +27,14 @@ function entry(id: number): TimelineEntry {
 
 /** Photo `id` between `id - 1` and `id + 1`. */
 function page(id: number): ViewerPhoto {
-  return { entry: entry(id), previous: id - 1, next: id + 1, series: [], afterReject: null };
+  return {
+    entry: entry(id),
+    previous: id - 1,
+    next: id + 1,
+    series: [],
+    afterReject: null,
+    details: { sizeBytes: 1024, resolution: null },
+  };
 }
 
 function request(id: number): ViewerRequest {

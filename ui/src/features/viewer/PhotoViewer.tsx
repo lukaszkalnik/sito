@@ -7,7 +7,8 @@ import type { RejectDestination } from '../reject/destination';
 import { DestinationIcon } from '../reject/DestinationIcon';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { thumbnailUrl } from '../timeline/thumbnails';
-import { photoUrl, setWindowTitle, type ViewerPhoto } from './api';
+import { photoUrl, setWindowTitle, type PhotoDetails, type ViewerPhoto } from './api';
+import { fileSize, formatPixels, type FileSize } from './photoDetails';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
@@ -74,6 +75,32 @@ function FormatNote({ format }: { format: PhotoFormat }) {
   return badge === null ? null : <span className="viewer-format">{t(badge)}</span>;
 }
 
+/** Translation keys of a file size, per unit. */
+const SIZE_KEYS: Readonly<Record<FileSize['unit'], string>> = {
+  mb: 'viewer.sizeMb',
+  kb: 'viewer.sizeKb',
+};
+
+/** The photo's resolution (when known; not for RAW) and file size. */
+function PhotoFacts({ details }: { details: PhotoDetails }) {
+  const { t } = useTranslation();
+  const size = fileSize(details.sizeBytes);
+  const { resolution } = details;
+  return (
+    <>
+      {resolution && (
+        <span>
+          {t('viewer.resolution', {
+            width: formatPixels(resolution.width),
+            height: formatPixels(resolution.height),
+          })}
+        </span>
+      )}
+      <span>{t(SIZE_KEYS[size.unit], { size: size.value })}</span>
+    </>
+  );
+}
+
 /** Translation keys of the „Odrzuć” tooltip, per destination. */
 const REJECT_HINT_KEYS: Readonly<Record<RejectDestination, string>> = {
   folder: 'reject.hint',
@@ -99,6 +126,7 @@ function RejectButton({ rejectTo, onReject }: Pick<PhotoViewerProps, 'rejectTo' 
 /** Name, date and folder of the photo, with the reject, undo and close buttons. */
 function ViewerBar({
   entry,
+  photo,
   onReject,
   rejectTo,
   canUndo,
@@ -106,7 +134,7 @@ function ViewerBar({
   onClose,
 }: { entry: TimelineEntry } & Pick<
   PhotoViewerProps,
-  'onReject' | 'rejectTo' | 'canUndo' | 'onUndo' | 'onClose'
+  'photo' | 'onReject' | 'rejectTo' | 'canUndo' | 'onUndo' | 'onClose'
 >) {
   const { t } = useTranslation();
   return (
@@ -116,6 +144,7 @@ function ViewerBar({
         <span>
           {formatDay(dayOf(entry))}, {timeOf(entry.takenAt)}
         </span>
+        <PhotoFacts details={photo.details} />
         <DateSource source={entry.timeSource} />
         <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>

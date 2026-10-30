@@ -29,6 +29,15 @@ export interface ViewerPhoto {
   readonly series: readonly TimelineEntry[];
   /** Id of the photo to show once this one is rejected, `null` if none is left. */
   readonly afterReject: number | null;
+  /** File size and resolution of the photo. */
+  readonly details: PhotoDetails;
+}
+
+/** File size and resolution of a photo. Mirrors `PhotoDetailsDto`. */
+export interface PhotoDetails {
+  readonly sizeBytes: number;
+  /** Width and height as shown (after the EXIF orientation); `null` for RAW photos. */
+  readonly resolution: { readonly width: number; readonly height: number } | null;
 }
 
 /**

@@ -77,7 +77,10 @@
     "takeoutDate": "data z Google Takeout",
     "takeoutCorrected": "data poprawiona w Google Photos",
     "zoomLevel": "Powiększenie",
-    "zoomFit": "Dopasuj"
+    "zoomFit": "Dopasuj",
+    "resolution": "{{width}} × {{height}}",
+    "sizeMb": "{{size}} MB",
+    "sizeKb": "{{size}} kB"
   },
   "reject": {
     "button": "Odrzuć",

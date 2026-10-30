@@ -40,6 +40,7 @@ function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPhoto {
     next: id < 5 ? id + 1 : null,
     series: inSeries ? [1, 2, 3].map((member) => entry(member)) : [],
     afterReject: null,
+    details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
     ...changes,
   };
 }
@@ -79,6 +80,17 @@ describe('PhotoViewer', () => {
     expect(screen.getByText('data poprawiona w Google Photos')).toBeInTheDocument();
     datedBy('exif');
     expect(screen.queryByText(/Google/)).not.toBeInTheDocument();
+  });
+
+  it('shows the resolution and file size, and only the size without a resolution', () => {
+    renderViewer(pageOf(0));
+    expect(screen.getByText('5472 × 3648')).toBeInTheDocument();
+    expect(screen.getByText('7,5 MB')).toBeInTheDocument();
+
+    cleanup();
+    renderViewer(pageOf(0, { details: { sizeBytes: 812 * 1024, resolution: null } }));
+    expect(screen.queryByText(/×/u)).not.toBeInTheDocument();
+    expect(screen.getByText('812 kB')).toBeInTheDocument();
   });
 
   it('shows the photo with its name, time and folder, and titles the window', () => {

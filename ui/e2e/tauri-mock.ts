@@ -203,6 +203,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         next: idAt(next),
         series: own ? entries.slice(own.start, own.start + own.len) : [],
         afterReject: idAt(after),
+        details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
       };
     }
 

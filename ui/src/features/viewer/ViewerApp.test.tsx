@@ -51,7 +51,14 @@ function entry(id: number): TimelineEntry {
 
 /** Photos 3 and 4, each continuing with the other after a rejection. */
 function page(id: number, afterReject: number | null): ViewerPhoto {
-  return { entry: entry(id), previous: null, next: null, series: [], afterReject };
+  return {
+    entry: entry(id),
+    previous: null,
+    next: null,
+    series: [],
+    afterReject,
+    details: { sizeBytes: 812 * 1024, resolution: null },
+  };
 }
 
 const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' });
