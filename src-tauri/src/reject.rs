@@ -1,12 +1,14 @@
 //! Reject commands: move photos into the "Odrzucone" folder and undo it.
 
+mod folder;
+
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::Serialize;
 use sito_core::actions::{ActionLog, LogError};
-use sito_core::reject::{self, RejectError};
+use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
 use tauri::{AppHandle, Emitter, State};
 
@@ -107,26 +109,7 @@ fn reject_in(
     let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
 
-    let rejected = reject::prepare(&path).map_err(move_failed)?;
-    // Logged before the move, so a crash in between never leaves an untracked
-    // move; undo skips an entry whose photo never arrived.
-    let action = log
-        .record_reject(&path, &rejected.path, &rejected.extra)
-        .map_err(|err| {
-            reject::abandon(&rejected);
-            log_failed(&err)
-        })?;
-    if let Err(err) = reject::complete(&path, &rejected) {
-        if let Err(err) = log.forget(action) {
-            log::warn!("cannot remove the log entry of a failed move: {err}");
-        }
-        return Err(move_failed(err));
-    }
-    if rejected.created_dir
-        && let Some(dir) = rejected.path.parent()
-    {
-        actions.created_dirs.insert(dir.to_path_buf());
-    }
+    folder::reject(log, &path, &mut actions.created_dirs)?;
     scan.remove(id);
     Ok(RejectedDto {
         name: file_name(&path),
@@ -167,24 +150,12 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
         return Ok(None);
     };
 
-    let created_here = action
-        .to
-        .parent()
-        .is_some_and(|dir| actions.created_dirs.contains(dir));
-    let restored = reject::restore(&action.to, &action.from, &action.extra, created_here);
-    match restored {
-        Ok(restored) => {
-            for err in restored.errors {
-                log::warn!("photo restored, but not this file of it: {err}");
-            }
+    if let Err(err) = folder::undo(&action, &actions.created_dirs) {
+        if err == CommandError::Missing {
+            // It can never be undone; skip it so the next "Cofnij" goes on.
+            log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
         }
-        Err(err) => {
-            if matches!(err, RejectError::Missing(_)) {
-                // It can never be undone; skip it so the next "Cofnij" goes on.
-                log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
-            }
-            return Err(move_failed(err));
-        }
+        return Err(err);
     }
     log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
     let id = scan.restore(&action.from, &action.to, |path| read_photo(path).ok());
