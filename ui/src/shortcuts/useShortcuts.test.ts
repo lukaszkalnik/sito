@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { useShortcuts } from './useShortcuts';
 
-function press(key: string): KeyboardEvent {
-  const event = new KeyboardEvent('keydown', { key, cancelable: true });
+function press(key: string, repeat = false): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', { key, repeat, cancelable: true });
   window.dispatchEvent(event);
   return event;
 }
@@ -38,5 +38,29 @@ describe('useShortcuts', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
+  });
+
+  it('rejects once per press, not again while Delete is held', () => {
+    const reject = vi.fn();
+    renderHook(() => useShortcuts({ reject }));
+
+    press('Delete');
+    const repeated = press('Delete', true);
+    press('Delete', true);
+
+    expect(reject).toHaveBeenCalledOnce();
+    // The held key is still claimed, so the browser does nothing with it either.
+    expect(repeated.defaultPrevented).toBe(true);
+  });
+
+  it('keeps stepping while an arrow key is held', () => {
+    const next = vi.fn();
+    renderHook(() => useShortcuts({ next }));
+
+    press('ArrowRight');
+    press('ArrowRight', true);
+    press('ArrowRight', true);
+
+    expect(next).toHaveBeenCalledTimes(3);
   });
 });

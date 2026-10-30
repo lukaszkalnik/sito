@@ -67,3 +67,15 @@ export function actionOf(
 ): ShortcutAction | undefined {
   return actions.find((action) => matches(event, KEYMAP[action]));
 }
+
+/**
+ * Actions that a held key (auto-repeat) does not repeat: each press does one.
+ * Rejecting and undoing move files, so holding Delete must not reject photo
+ * after photo; closing twice would fail.
+ */
+const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set(['reject', 'undo', 'close']);
+
+/** Whether a key held down repeats `action`. */
+export function repeatsWhenHeld(action: ShortcutAction): boolean {
+  return !ONCE_PER_PRESS.has(action);
+}

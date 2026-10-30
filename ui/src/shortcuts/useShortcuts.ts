@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { actionOf, type ShortcutAction } from './keymap';
+import { actionOf, repeatsWhenHeld, type ShortcutAction } from './keymap';
 
 /**
  * What each action does while the component is mounted. `null` means the
@@ -24,6 +24,7 @@ export function useShortcuts(handlers: ShortcutHandlers): void {
       const handler = action && current.current[action];
       if (!handler) return;
       event.preventDefault();
+      if (event.repeat && !repeatsWhenHeld(action)) return;
       handler();
     };
     window.addEventListener('keydown', onKey);
