@@ -276,3 +276,22 @@ fn offers_folder_and_trash_moves_newest_first() {
     log.mark_undone(trash).unwrap();
     assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, folder);
 }
+
+#[test]
+fn offers_trash_and_folder_moves_newest_first() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let trash = log
+        .record_trash(&PhotoFiles {
+            photo: photo("IMG_1.jpg"),
+            sidecar: None,
+            companion: None,
+        })
+        .unwrap();
+    let folder = record(&log, "IMG_2.jpg");
+
+    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, folder);
+    log.mark_undone(folder).unwrap();
+    let action = log.last_undoable(&root()).unwrap().unwrap();
+    assert_eq!(action.id, trash);
+    assert!(matches!(action.place, Placement::Trash { .. }));
+}

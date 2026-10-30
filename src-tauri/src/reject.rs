@@ -616,4 +616,47 @@ mod tests {
             json!({ "code": "noTrash" })
         );
     }
+
+    /// Rejects `OLDER` to `first` and `NEWER` to `second`, then undoes twice.
+    /// Undo takes no destination: each rejection comes back the way it went,
+    /// whatever destination is chosen meanwhile.
+    fn reject_both_ways_and_undo(first: Destination, second: Destination) {
+        let dir = gallery();
+        let bin = TempDir::new().unwrap();
+        let mut scan = scan(dir.path());
+        let mut actions = started_with_bin(&bin.path().join("sito.db"), FakeBin::new(bin.path()));
+        let older = id_of(&scan, OLDER);
+        let newer = id_of(&scan, NEWER);
+        reject_in(&mut scan, &mut actions, older, first).unwrap();
+        reject_in(&mut scan, &mut actions, newer, second).unwrap();
+        let place_of = |destination, name| match destination {
+            Destination::Folder => dir.path().join("Odrzucone").join(name),
+            Destination::Trash => bin.path().join(name),
+        };
+        assert!(place_of(first, OLDER).exists());
+        assert!(place_of(second, NEWER).exists());
+
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+        assert_eq!(undone.name, NEWER);
+        assert!(dir.path().join(NEWER).exists());
+        assert!(!dir.path().join(OLDER).exists());
+
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+        assert_eq!(undone.name, OLDER);
+        assert!(dir.path().join(OLDER).exists());
+        assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
+        // Created by this session and empty again: removed.
+        assert!(!dir.path().join("Odrzucone").exists());
+        assert_eq!(series_names(&scan), [[NEWER, OLDER]]);
+    }
+
+    #[test]
+    fn undoes_a_trash_rejection_and_then_a_folder_one() {
+        reject_both_ways_and_undo(Destination::Folder, Destination::Trash);
+    }
+
+    #[test]
+    fn undoes_a_folder_rejection_and_then_a_trash_one() {
+        reject_both_ways_and_undo(Destination::Trash, Destination::Folder);
+    }
 }
