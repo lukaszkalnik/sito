@@ -1,6 +1,6 @@
 # Slice 37 – Steady top bar during background work
 
-**Status:** 🧪 ready for testing (2026-10-31)
+**Status:** ✅ done (tested by the user 2026-10-31)
 
 ## Context
 
@@ -61,4 +61,4 @@ From the user on 2026-10-30, while testing [slice 33](33-split-by-camera.md): wh
 - Done as planned: `ScanNotes` pill, one-line summary with tooltip, `padding-bottom: 3rem` on `.timeline`, tests and domain docs ([Timeline](../domain/timeline.md#main-window-bar), [Photos](../domain/photos.md#first-scan-of-a-takeout)). Unit tests and all e2e specs pass.
 - The ellipsis rule now covers every line of `.timeline-bar-info`, so the `timeline-bar-path` class was dropped.
 - Known limit: „Cofnij” reveals a photo when it lies within the grid's viewport, which includes the pill's area, so a restored photo in the bottom row may sit under the pill while a background note shows.
-- **Next:** the user tests a debug build (see Verification).
+- Tested by the user in a debug build on 2026-10-31: all OK.
