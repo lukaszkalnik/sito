@@ -37,6 +37,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 13 | [Zoom in the viewer](slices/13-viewer-zoom.md) | 🧪 |
 | 13a | [Fixes from testing slice 13](slices/13a-viewer-zoom-test-fixes.md) | ✅ |
 | 34 | [Reject into the system trash](slices/34-reject-to-trash.md) | 🧪 |
+| 34a | [Fixes from testing slice 34](slices/34a-reject-to-trash-test-fixes.md) | 🚧 |
 | 32 | [Accept a photo](slices/32-accept-photo.md) | 📝 |
 | 33 | [Several cameras at one event](slices/33-split-by-camera.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
