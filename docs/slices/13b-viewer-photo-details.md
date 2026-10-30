@@ -1,6 +1,6 @@
 # Slice 13b – Resolution and file size in the viewer
 
-**Status:** 🚧 in progress
+**Status:** 🧪 ready for testing (implemented on 2026-10-30)
 
 ## Context
 
@@ -27,3 +27,13 @@ Asked for by the user on 2026-10-30 while testing [slice 13](13-viewer-zoom.md):
 - `docs/domain/timeline.md` (viewer), slice and roadmap → 🧪.
 
 Checks: Rust fmt/clippy/tests, oxlint, Prettier, tsc, Vitest, Playwright; then a look in the debug build.
+
+## Implementation notes (2026-10-30)
+
+Implemented as planned, except:
+- The formatting lives in the viewer feature (`ui/src/features/viewer/photoDetails.ts`, `fileSize`, `formatPixels`) instead of `timeline/format.ts`: only the viewer uses it. Units come from `pl.json` (`viewer.sizeMb`, `viewer.sizeKb`, `viewer.resolution`).
+- RAW photos show no resolution (see Decisions); `read_dimensions` returns `None` for them.
+
+Checks green: Rust fmt/clippy/tests, oxlint, Prettier, tsc, Vitest 233, Playwright 47. Not checked in the debug build by computer use: an invisible Huawei window (`hwmdcui.exe`) kept taking the focus.
+
+**Next:** the user tests the debug build, together with slices 13, 34 and 34a.
