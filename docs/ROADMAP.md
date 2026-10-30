@@ -54,3 +54,4 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 23 | [macOS polish](slices/23-macos-polish.md) | ⬜ |
 | 24 | [Google Photos (to be decided)](ideas/google-photos.md) | ⬜ |
 | 31 | [Load the grid lazily](slices/31-lazy-grid.md) | 📝 |
+| 35 | [Install anywhere](slices/35-install-anywhere.md) | 📝 |
