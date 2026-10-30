@@ -293,14 +293,13 @@ mod tests {
 
     use serde_json::json;
     use sito_core::accept::AcceptChange;
-    use sito_core::series::DEFAULT_MAX_GAP;
+    use sito_core::series::{DEFAULT_MAX_GAP, Grouping};
     use sito_core::timeline::build_timeline;
     use sito_core::trash::TrashError;
     use tempfile::TempDir;
 
     use super::*;
     use crate::reject::fake_bin::FakeBin;
-    use crate::series::series_with_removed;
 
     /// The two fixture photos 5 s apart, which form the only series.
     const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";
@@ -341,12 +340,13 @@ mod tests {
     /// File names of each series' photos, newest first.
     fn series_names(scan: &Scan) -> Vec<Vec<String>> {
         let (all, removed) = scan.photos_with_removed();
-        series_with_removed(&all, &removed, DEFAULT_MAX_GAP)
+        Grouping::new(&all, &removed, DEFAULT_MAX_GAP)
+            .series
             .iter()
             .map(|s| {
-                scan.timeline.photos[s.start..s.start + s.len]
+                s.members
                     .iter()
-                    .map(|p| file_name(&p.path))
+                    .map(|&m| file_name(&scan.timeline.photos[m].path))
                     .collect()
             })
             .collect()

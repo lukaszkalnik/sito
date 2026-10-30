@@ -1,11 +1,11 @@
 //! Navigation: stepping through the photos of a view one by one.
 //!
-//! Positions are indices into a timeline of `count` photos (newest first);
-//! `series` are that timeline's series, sorted by start and not overlapping,
-//! as [`find_time_series`](crate::series::find_time_series) and
-//! [`without_removed`](crate::series::without_removed) return them.
+//! Positions are display positions of `count` photos (see
+//! [`Arrangement`](crate::series::Arrangement)); `series` are their series,
+//! sorted by start and not overlapping, as
+//! [`Arrangement::ranges`](crate::series::Arrangement::ranges) returns them.
 
-use crate::series::Series;
+use crate::series::SeriesRange;
 
 /// Which photos are stepped through.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -29,7 +29,7 @@ pub struct Neighbours {
 /// need not be in the view, e.g. a single photo opened in the series view;
 /// then its neighbours are the nearest photos of the view around it.
 #[must_use]
-pub fn neighbours(count: usize, series: &[Series], view: View, position: usize) -> Neighbours {
+pub fn neighbours(count: usize, series: &[SeriesRange], view: View, position: usize) -> Neighbours {
     match view {
         View::All => Neighbours {
             previous: position.checked_sub(1).filter(|&p| p < count),
@@ -44,7 +44,7 @@ pub fn neighbours(count: usize, series: &[Series], view: View, position: usize) 
 
 /// The series containing `position`, if any.
 #[must_use]
-pub fn series_of(series: &[Series], position: usize) -> Option<Series> {
+pub fn series_of(series: &[SeriesRange], position: usize) -> Option<SeriesRange> {
     let after = series.partition_point(|s| s.start <= position);
     let candidate = *series.get(after.checked_sub(1)?)?;
     (position < candidate.start + candidate.len).then_some(candidate)
@@ -56,7 +56,12 @@ pub fn series_of(series: &[Series], position: usize) -> Option<Series> {
 /// series) continues with the next, else the previous, photo of the view.
 /// `None` if no photo is left.
 #[must_use]
-pub fn after_reject(count: usize, series: &[Series], view: View, position: usize) -> Option<usize> {
+pub fn after_reject(
+    count: usize,
+    series: &[SeriesRange],
+    view: View,
+    position: usize,
+) -> Option<usize> {
     if let Some(own) = series_of(series, position).filter(|s| s.len > 1) {
         let next = position + 1;
         return Some(if next < own.start + own.len {
@@ -69,7 +74,7 @@ pub fn after_reject(count: usize, series: &[Series], view: View, position: usize
     around.next.or(around.previous)
 }
 
-fn previous_in_series(series: &[Series], position: usize) -> Option<usize> {
+fn previous_in_series(series: &[SeriesRange], position: usize) -> Option<usize> {
     if let Some(own) = series_of(series, position).filter(|s| position > s.start) {
         return Some(position.min(own.start + own.len) - 1);
     }
@@ -79,7 +84,7 @@ fn previous_in_series(series: &[Series], position: usize) -> Option<usize> {
     Some(last.start + last.len - 1)
 }
 
-fn next_in_series(series: &[Series], position: usize) -> Option<usize> {
+fn next_in_series(series: &[SeriesRange], position: usize) -> Option<usize> {
     if let Some(own) = series_of(series, position).filter(|s| position + 1 < s.start + s.len) {
         return Some(position.max(own.start) + 1);
     }
@@ -93,7 +98,10 @@ mod tests {
     use super::*;
 
     /// Ten photos; series at positions 1–2 and 5–7.
-    const SERIES: [Series; 2] = [Series { start: 1, len: 2 }, Series { start: 5, len: 3 }];
+    const SERIES: [SeriesRange; 2] = [
+        SeriesRange { start: 1, len: 2 },
+        SeriesRange { start: 5, len: 3 },
+    ];
 
     fn around(view: View, position: usize) -> (Option<usize>, Option<usize>) {
         let n = neighbours(10, &SERIES, view, position);
@@ -157,7 +165,10 @@ mod tests {
 
     #[test]
     fn after_reject_continues_with_the_view_when_the_series_has_no_other_photo() {
-        let shrunk = [Series { start: 1, len: 1 }, Series { start: 5, len: 3 }];
+        let shrunk = [
+            SeriesRange { start: 1, len: 1 },
+            SeriesRange { start: 5, len: 3 },
+        ];
         assert_eq!(after_reject(10, &shrunk, View::Series, 1), Some(5));
         assert_eq!(after_reject(10, &shrunk, View::All, 1), Some(2));
     }

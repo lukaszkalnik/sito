@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use sito_core::series::Series;
+use sito_core::series::Grouping;
 use sito_core::timeline::{Photo, Timeline, compare_photos};
 
 /// The result of one finished scan.
@@ -32,7 +32,7 @@ pub struct Scan {
     /// tell whether it is still up to date.
     revision: u64,
     /// The series of the current revision for one gap, found last.
-    series: Option<(Duration, Arc<Vec<Series>>)>,
+    series: Option<(Duration, Arc<Grouping>)>,
 }
 
 impl Scan {
@@ -58,7 +58,7 @@ impl Scan {
 
     /// The series for `max_gap` stored with [`Scan::store_series`], if the
     /// timeline has not changed since.
-    pub fn cached_series(&self, max_gap: Duration) -> Option<Arc<Vec<Series>>> {
+    pub fn cached_series(&self, max_gap: Duration) -> Option<Arc<Grouping>> {
         self.series
             .as_ref()
             .filter(|(gap, _)| *gap == max_gap)
@@ -67,7 +67,7 @@ impl Scan {
 
     /// Keeps `series`, found for `max_gap` on the timeline at `revision`,
     /// unless the timeline has changed since.
-    pub fn store_series(&mut self, revision: u64, max_gap: Duration, series: Arc<Vec<Series>>) {
+    pub fn store_series(&mut self, revision: u64, max_gap: Duration, series: Arc<Grouping>) {
         if revision == self.revision {
             self.series = Some((max_gap, series));
         }
@@ -305,6 +305,7 @@ impl AppState {
 mod tests {
     use chrono::NaiveDate;
     use sito_core::metadata::Orientation;
+    use sito_core::series::{Arrangement, Series, SeriesLabel};
     use sito_core::timeline::{ExifInfo, TimeSource};
 
     use super::*;
@@ -379,14 +380,20 @@ mod tests {
 
     fn cached_lens(scan: &Scan, max_gap: Duration) -> Option<Vec<usize>> {
         scan.cached_series(max_gap)
-            .map(|series| series.iter().map(|s| s.len).collect())
+            .map(|grouping| grouping.series.iter().map(|s| s.members.len()).collect())
     }
 
     fn store_one_series(scan: &mut Scan, max_gap: Duration) {
         scan.store_series(
             scan.revision(),
             max_gap,
-            Arc::new(vec![Series { start: 0, len: 2 }]),
+            Arc::new(Grouping {
+                series: vec![Series {
+                    members: vec![0, 1],
+                    label: SeriesLabel::Plain,
+                }],
+                arrangement: Arrangement::default(),
+            }),
         );
     }
 
@@ -409,7 +416,7 @@ mod tests {
         let before = scan.revision();
         scan.remove(1);
 
-        scan.store_series(before, gap, Arc::new(vec![]));
+        scan.store_series(before, gap, Arc::new(Grouping::default()));
 
         assert_eq!(cached_lens(&scan, gap), None);
     }

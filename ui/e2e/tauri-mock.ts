@@ -39,7 +39,13 @@ export interface TauriMock {
    * of `size` photos starting at every `every`-th photo, or `'byGap'` to group
    * the timeline by the requested gap like the backend does. Default: none.
    */
-  series?: { start: number; len: number }[] | { every: number; size: number } | 'byGap';
+  series?:
+    { start: number; len: number; label?: unknown }[] | { every: number; size: number } | 'byGap';
+  /**
+   * Display order returned by `get_series` (indices of the timeline entries).
+   * Default: the timeline order.
+   */
+  order?: number[];
   /** Request returned by `current_viewer_request` in the viewer window. Default: none. */
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
   /** Ids of photos already accepted (and undoable, after the rejections), oldest first. Default: none. */
@@ -269,8 +275,13 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           }
           case 'get_timeline':
             return timeline();
-          case 'get_series':
-            return series((args.maxGapSeconds as number | undefined) ?? 10);
+          case 'get_series': {
+            const ranges = series((args.maxGapSeconds as number | undefined) ?? 10) as object[];
+            return {
+              order: m.order ?? timeline().map((_, i) => i),
+              series: ranges.map((range) => ({ label: { kind: 'plain' }, ...range })),
+            };
+          }
           case 'get_viewer_photo':
             return viewerPhoto(args.request as { id: number; mode: string; gap: number });
           case 'open_viewer':

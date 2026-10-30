@@ -6,7 +6,7 @@ use std::time::Duration;
 use serde::Serialize;
 use sito_core::dimensions::{Dimensions, read_dimensions};
 use sito_core::navigation::{self, View};
-use sito_core::series::Series;
+use sito_core::series::Grouping;
 use sito_core::timeline::Photo;
 use tauri::{AppHandle, Manager};
 
@@ -104,35 +104,40 @@ pub async fn get_viewer_photo(
 
 /// See [`get_viewer_photo`].
 pub(crate) fn viewer_photo(state: &AppState, request: ViewerRequest) -> Option<ViewerPhotoDto> {
-    let series = cached_series(state, Duration::from_secs(request.gap.into()))?;
+    let grouping = cached_series(state, Duration::from_secs(request.gap.into()))?;
     let (page, photo) = {
         let scan = state.scan();
         let scan = scan.as_ref().filter(|scan| scan.id == request.scan_id)?;
-        page(scan, &series, request)?
+        page(scan, &grouping, request)?
     };
     // Read from the file once the scan is unlocked, so thumbnails never wait.
     let details = PhotoDetailsDto::of(&photo);
     Some(ViewerPhotoDto { page, details })
 }
 
-/// The page of `request.id` in `scan`, whose series are `series`, and the photo.
-fn page(scan: &Scan, series: &[Series], request: ViewerRequest) -> Option<(Page, Photo)> {
+/// The page of `request.id` in `scan`, grouped as `grouping`, and the photo.
+/// Stepping follows the display order, so a series is stepped through in one
+/// piece.
+fn page(scan: &Scan, grouping: &Grouping, request: ViewerRequest) -> Option<(Page, Photo)> {
     let position = scan.position_of(request.id)?;
     let root = scan.timeline.root.as_path();
+    let arrangement = &grouping.arrangement;
+    let shown = arrangement.display_of(position)?;
+    let ranges = arrangement.ranges();
     let count = scan.photo_count();
     let view = View::from(request.mode);
-    let around = navigation::neighbours(count, series, view, position);
-    let id_at = |position: Option<usize>| Some(scan.entry_at(position?)?.0);
-    let members = navigation::series_of(series, position)
+    let around = navigation::neighbours(count, ranges, view, shown);
+    let id_at = |shown: Option<usize>| Some(scan.entry_at(arrangement.timeline_of(shown?)?)?.0);
+    let members = navigation::series_of(ranges, shown)
         .map_or(0..0, |s| s.start..s.start + s.len)
-        .filter_map(|member| entry(scan, root, member))
+        .filter_map(|member| entry(scan, root, arrangement.timeline_of(member)?))
         .collect();
     let page = Page {
         entry: entry(scan, root, position)?,
         previous: id_at(around.previous),
         next: id_at(around.next),
         series: members,
-        after_reject: id_at(navigation::after_reject(count, series, view, position)),
+        after_reject: id_at(navigation::after_reject(count, ranges, view, shown)),
     };
     Some((page, scan.entry_at(position)?.1.clone()))
 }
@@ -169,12 +174,13 @@ mod tests {
 
     /// Ids of the photos of the only series of the fixtures.
     fn series_ids(state: &AppState) -> Vec<usize> {
-        let series = cached_series(state, Duration::from_secs(10)).unwrap();
+        let grouping = cached_series(state, Duration::from_secs(10)).unwrap();
         let scan = state.scan();
         let scan = scan.as_ref().unwrap();
-        let s = series[0];
-        (s.start..s.start + s.len)
-            .map(|p| scan.entry_at(p).unwrap().0)
+        grouping.series[0]
+            .members
+            .iter()
+            .map(|&p| scan.entry_at(p).unwrap().0)
             .collect()
     }
 
@@ -221,6 +227,38 @@ mod tests {
         let id_at = |p: Option<usize>| p.and_then(|p| scan.entry_at(p)).map(|(id, _)| id);
         assert_eq!(shown.page.previous, id_at(position.checked_sub(1)));
         assert_eq!(shown.page.next, id_at(Some(position + 1)));
+    }
+
+    #[test]
+    fn stepping_goes_through_each_cameras_series_in_one_piece() {
+        let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/cameras");
+        let state = AppState::default();
+        let scan_id = state.set_timeline(build_timeline(&fixtures, |_| {}).unwrap());
+        let id_of = |name: &str| {
+            state
+                .scan()
+                .as_ref()
+                .unwrap()
+                .photos()
+                .find(|(_, photo)| photo.path.ends_with(name))
+                .unwrap()
+                .0
+        };
+        let [canon_new, canon_old, pixel_new, pixel_old] = [
+            "canon_12-00-06.jpg",
+            "canon_12-00-02.jpg",
+            "pixel_12-00-04.jpg",
+            "pixel_12-00-00.jpg",
+        ]
+        .map(id_of);
+
+        let shown = viewer_photo(&state, request(scan_id, canon_old, ViewMode::All)).unwrap();
+
+        assert_eq!(ids(&shown.page.series), [canon_new, canon_old]);
+        assert_eq!(shown.page.previous, Some(canon_new));
+        assert_eq!(shown.page.next, Some(pixel_new));
+        let shown = viewer_photo(&state, request(scan_id, pixel_new, ViewMode::All)).unwrap();
+        assert_eq!(shown.page.next, Some(pixel_old));
     }
 
     #[test]

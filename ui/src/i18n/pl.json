@@ -51,6 +51,8 @@
   "series": {
     "header": "{{photos}} · {{from}}–{{to}}",
     "headerAt": "{{photos}} · {{time}}",
+    "withCamera": "{{header}} · {{camera}}",
+    "unknownCamera": "nieznany aparat",
     "summary": "{{series}} ({{photos}}).",
     "count_one": "{{count, number}} seria",
     "count_few": "{{count, number}} serie",
@@ -64,7 +66,7 @@
     "value": "{{seconds}} s",
     "decrease": "Zmniejsz odstęp",
     "increase": "Zwiększ odstęp",
-    "hint": "Zdjęcia zrobione w tym odstępie czasu tworzą serię."
+    "hint": "Zdjęcia z jednego aparatu zrobione w tym odstępie czasu tworzą serię."
   },
   "viewer": {
     "previous": "Poprzednie zdjęcie",

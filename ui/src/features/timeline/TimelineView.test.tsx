@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
+import { getSeries, getTimeline, type Grouping, type Series, type TimelineEntry } from './api';
 import '../../i18n';
 import type { Completing } from '../scan/scanReducer';
 import { sendViewerContext } from '../viewer/api';
@@ -48,7 +48,16 @@ function entries(count: number): TimelineEntry[] {
 
 /** `count` series of two photos each. */
 function pairs(count: number): Series[] {
-  return Array.from({ length: count }, (_, i) => ({ start: 2 * i, len: 2 }));
+  return Array.from({ length: count }, (_, i) => ({
+    start: 2 * i,
+    len: 2,
+    label: { kind: 'plain' },
+  }));
+}
+
+/** `series` of a timeline of `count` photos shown in timeline order. */
+function grouping(series: Series[], count: number): Grouping {
+  return { order: Array.from({ length: count }, (_, i) => i), series };
 }
 
 function renderView(photos: number, completing: Completing | null = null) {
@@ -77,7 +86,7 @@ describe('TimelineView', () => {
 
   it('shows how far reading EXIF in the background has got', async () => {
     mockedTimeline.mockResolvedValue(entries(2));
-    mockedSeries.mockResolvedValue([]);
+    mockedSeries.mockResolvedValue(grouping([], 2));
     renderView(2, { done: 1234, total: 34600 });
 
     // pl-PL groups digits with a space from five digits on.
@@ -89,7 +98,9 @@ describe('TimelineView', () => {
   it('regroups with the gap from the slider and remembers it for the folder', async () => {
     saveGap('C:\\Zdjęcia', 4);
     mockedTimeline.mockResolvedValue(entries(6));
-    mockedSeries.mockImplementation((gap) => Promise.resolve(pairs(gap === 30 ? 3 : 1)));
+    mockedSeries.mockImplementation((gap) =>
+      Promise.resolve(grouping(pairs(gap === 30 ? 3 : 1), 6)),
+    );
     renderView(6);
 
     const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
@@ -109,7 +120,7 @@ describe('TimelineView', () => {
   it('steps the gap by one second with the buttons, within the range', async () => {
     saveGap('C:\\Zdjęcia', 2);
     mockedTimeline.mockResolvedValue(entries(2));
-    mockedSeries.mockResolvedValue(pairs(1));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
     const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
     const decrease = screen.getByRole('button', { name: 'Zmniejsz odstęp' });
@@ -130,7 +141,7 @@ describe('TimelineView', () => {
   it('cannot go above the largest gap', () => {
     saveGap('C:\\Zdjęcia', 60);
     mockedTimeline.mockResolvedValue(entries(2));
-    mockedSeries.mockResolvedValue(pairs(1));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
 
     expect(screen.getByRole('button', { name: 'Zwiększ odstęp' })).toBeDisabled();
@@ -138,7 +149,7 @@ describe('TimelineView', () => {
 
   it('keeps an open viewer in step with the view and gap', async () => {
     mockedTimeline.mockResolvedValue(entries(4));
-    mockedSeries.mockResolvedValue(pairs(1));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 4));
     renderView(4);
     expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'series', gap: 10 });
 
@@ -152,7 +163,7 @@ describe('TimelineView', () => {
   it('starts other folders at the default gap', async () => {
     saveGap('D:\\Inne', 4);
     mockedTimeline.mockResolvedValue(entries(2));
-    mockedSeries.mockResolvedValue(pairs(1));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
 
     expect(screen.getByRole('slider', { name: 'Odstęp w serii' })).toHaveValue('10');
@@ -168,7 +179,7 @@ describe('TimelineView', () => {
     [22, '22 serie (44 zdjęcia).'],
   ])('counts %i series in Polish', async (count, text) => {
     mockedTimeline.mockResolvedValue(entries(2 * count));
-    mockedSeries.mockResolvedValue(pairs(count));
+    mockedSeries.mockResolvedValue(grouping(pairs(count), 2 * count));
     renderView(2 * count);
 
     expect(await screen.findByRole('status')).toHaveTextContent(text);
@@ -176,7 +187,7 @@ describe('TimelineView', () => {
 
   it('starts with the series view and switches to all photos', async () => {
     mockedTimeline.mockResolvedValue(entries(4));
-    mockedSeries.mockResolvedValue(pairs(1));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 4));
     renderView(4);
     const seriesButton = screen.getByRole('button', { name: 'Serie' });
     const allButton = screen.getByRole('button', { name: 'Wszystkie zdjęcia' });
@@ -192,7 +203,7 @@ describe('TimelineView', () => {
 
   it('explains when there are no series and still offers all photos', async () => {
     mockedTimeline.mockResolvedValue(entries(3));
-    mockedSeries.mockResolvedValue([]);
+    mockedSeries.mockResolvedValue(grouping([], 3));
     renderView(3);
 
     expect(await screen.findByText('Nie znaleziono serii zdjęć.')).toBeInTheDocument();

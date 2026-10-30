@@ -10,7 +10,7 @@ import {
   type ScanProgress,
   type ScanSummary,
 } from './api';
-import { getSeries, getTimeline, type TimelineEntry } from '../timeline/api';
+import { getSeries, getTimeline, type Series, type TimelineEntry } from '../timeline/api';
 import '../../i18n';
 import { ScanScreen } from './ScanScreen';
 
@@ -94,7 +94,12 @@ describe('ScanScreen', () => {
     localStorage.clear();
     mockedPick.mockResolvedValue('C:\\Zdjęcia');
     mockedTimeline.mockResolvedValue(entries);
-    mockedSeries.mockResolvedValue([{ start: 0, len: 2 }]);
+    // Series of the first two photos, in the order of the timeline last answered.
+    mockedSeries.mockImplementation(async () => {
+      const timeline: TimelineEntry[] = (await mockedTimeline.mock.results.at(-1)?.value) ?? [];
+      const series: Series[] = [{ start: 0, len: 2, label: { kind: 'plain' } }];
+      return { order: timeline.map((_, i) => i), series };
+    });
     vi.mocked(onScanRefreshed).mockImplementation((handler) => {
       announceRefresh = handler;
       return Promise.resolve(() => {});

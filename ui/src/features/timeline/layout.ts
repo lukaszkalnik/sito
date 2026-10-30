@@ -1,4 +1,4 @@
-import type { Series, TimelineEntry } from './api';
+import type { Series, SeriesLabel, TimelineEntry } from './api';
 
 /** Width of a tile in pixels. */
 export const TILE_WIDTH = 160;
@@ -23,17 +23,15 @@ export const BLOCK_GAP = TILE_GAP;
 /** Height of a row of series blocks: header, one row of tiles and the block's bottom padding. */
 export const BLOCK_ROW_HEIGHT = SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT + SERIES_END_SPACE;
 
-/** Photos side by side in a row of blocks: one short series, or single photos. */
-export interface RowGroup {
-  entries: TimelineEntry[];
-  /** A series (a tinted block with a header), or consecutive single photos. */
-  series: boolean;
-}
+/** Photos side by side in a row of blocks: one short series (a tinted block with a header), or consecutive single photos. */
+export type RowGroup =
+  | { kind: 'series'; entries: TimelineEntry[]; label: SeriesLabel }
+  | { kind: 'singles'; entries: TimelineEntry[] };
 
 /** One row of the virtualized timeline. */
 export type TimelineRow =
   | { kind: 'day'; key: string; date: string }
-  | { kind: 'series'; key: string; entries: TimelineEntry[] }
+  | { kind: 'series'; key: string; entries: TimelineEntry[]; label: SeriesLabel }
   | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean }
   /** Short series, each in its own block with a header, mixed with single photos. */
   | { kind: 'blocks'; key: string; groups: RowGroup[] };
@@ -99,7 +97,7 @@ export function buildRows(
     const entry = entries[i] as TimelineEntry;
     const s = seriesAt.get(i);
     if (s) {
-      builder.addSeries(entries.slice(i, i + s.len));
+      builder.addSeries(entries.slice(i, i + s.len), s.label);
       i += s.len;
     } else {
       if (mode === 'all') builder.addSingle(entry);
@@ -125,16 +123,16 @@ class RowBuilder {
   }
 
   /** Adds a series: a block in the open row if it fits on one row, else its own rows. */
-  addSeries(members: TimelineEntry[]): void {
+  addSeries(members: TimelineEntry[], label: SeriesLabel): void {
     const first = members[0];
     if (!first) return;
     this.enterDay(first);
     if (members.length <= this.columns) {
-      this.placeBlock(members);
+      this.placeBlock(members, label);
       return;
     }
     this.closeRow();
-    this.rows.push({ kind: 'series', key: `series-${first.id}`, entries: members });
+    this.rows.push({ kind: 'series', key: `series-${first.id}`, entries: members, label });
     this.pushSeriesTiles(members);
   }
 
@@ -144,14 +142,14 @@ class RowBuilder {
     const last = this.open?.groups.at(-1);
     // Next to other single photos a tile costs one column; after a block it
     // starts its own group, with its own padding.
-    const needed = last && !last.series ? TILE_WIDTH + TILE_GAP : BLOCK_GAP + blockWidth(1);
+    const needed = last?.kind === 'singles' ? TILE_WIDTH + TILE_GAP : BLOCK_GAP + blockWidth(1);
     if (!this.open || !last || this.open.used + needed > this.width) {
       this.closeRow();
-      this.open = { groups: [{ entries: [photo], series: false }], used: blockWidth(1) };
+      this.open = { groups: [{ kind: 'singles', entries: [photo] }], used: blockWidth(1) };
       return;
     }
-    if (last.series) this.open.groups.push({ entries: [photo], series: false });
-    else last.entries.push(photo);
+    if (last.kind === 'singles') last.entries.push(photo);
+    else this.open.groups.push({ kind: 'singles', entries: [photo] });
     this.open.used += needed;
   }
 
@@ -161,9 +159,9 @@ class RowBuilder {
     return this.rows;
   }
 
-  private placeBlock(members: TimelineEntry[]): void {
+  private placeBlock(members: TimelineEntry[], label: SeriesLabel): void {
     const needed = blockWidth(members.length);
-    const group = { entries: members, series: true };
+    const group: RowGroup = { kind: 'series', entries: members, label };
     if (this.open && this.open.used + BLOCK_GAP + needed <= this.width) {
       this.open.groups.push(group);
       this.open.used += BLOCK_GAP + needed;
@@ -198,7 +196,7 @@ class RowBuilder {
     if (!this.open) return;
     const { groups } = this.open;
     const key = groups[0]?.entries[0]?.id;
-    if (groups.some((g) => g.series)) {
+    if (groups.some((g) => g.kind === 'series')) {
       this.rows.push({ kind: 'blocks', key: `blocks-${key}`, groups });
     } else {
       const entries = groups.flatMap((g) => g.entries);

@@ -107,3 +107,38 @@ test('opens a photo in the viewer with the current view and gap', async ({ page 
     { request: { id: 3, scanId: 1, mode: 'all', gap: 10 } },
   ]);
 });
+
+test('shows interleaved series of two cameras in one piece each, naming the camera', async ({
+  page,
+}) => {
+  // Four photos 2 s apart; photos 0 and 2 come from one camera, 1 and 3 from another.
+  await mockTauri(page, {
+    pickedFolder: 'C:\Zdjęcia',
+    scanProgress: [],
+    scanResult: { ok: { scanId: 1, photosFound: 4, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 4, newest: '2024-06-01T12:00:06', stepSeconds: 2 },
+    order: [0, 2, 1, 3],
+    series: [
+      { start: 0, len: 2, label: { kind: 'camera', name: 'Canon EOS R6' } },
+      { start: 2, len: 2, label: { kind: 'camera', name: 'Pixel 8' } },
+    ],
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+
+  const headers = page.getByRole('heading', { level: 3 });
+  await expect(headers).toHaveText([
+    '2 zdjęcia · 12:00:02–12:00:06 · Canon EOS R6',
+    '2 zdjęcia · 12:00:00–12:00:04 · Pixel 8',
+  ]);
+  const tiles = page.getByRole('button', { name: /^Otwórz / });
+  await expect(tiles).toHaveCount(4);
+  const names = await tiles.evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')));
+  expect(names).toEqual([
+    'Otwórz IMG_00004.jpg',
+    'Otwórz IMG_00002.jpg',
+    'Otwórz IMG_00003.jpg',
+    'Otwórz IMG_00001.jpg',
+  ]);
+});

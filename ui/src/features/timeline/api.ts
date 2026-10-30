@@ -26,16 +26,39 @@ export async function getTimeline(): Promise<TimelineEntry[]> {
   return invoke<TimelineEntry[]>('get_timeline');
 }
 
-/** A series: `len` consecutive timeline entries starting at id `start`. Mirrors `SeriesDto`. */
+/**
+ * What a series' header says about its camera: its name (or that it is
+ * unknown) when the series overlaps a series of another camera. Mirrors
+ * `SeriesLabelDto`.
+ */
+export type SeriesLabel =
+  | { readonly kind: 'plain' }
+  | { readonly kind: 'camera'; readonly name: string }
+  | { readonly kind: 'unknownCamera' };
+
+/**
+ * A series: `len` consecutive entries starting at `start`, counted in display
+ * order. Mirrors `SeriesDto`.
+ */
 export interface Series {
-  start: number;
-  len: number;
+  readonly start: number;
+  readonly len: number;
+  readonly label: SeriesLabel;
+}
+
+/** The series and the display order of the timeline entries. Mirrors `GroupingDto`. */
+export interface Grouping {
+  /** Indices of the timeline entries in the order they are shown. */
+  readonly order: readonly number[];
+  /** The series as ranges of display positions, sorted by start. */
+  readonly series: readonly Series[];
 }
 
 /**
- * Returns the series of the last finished scan: neighbouring photos at most
- * `maxGapSeconds` apart (the backend default when omitted).
+ * Returns the series of the last finished scan, each camera's photos at most
+ * `maxGapSeconds` apart (the backend default when omitted), with the order
+ * to show the timeline entries in.
  */
-export async function getSeries(maxGapSeconds?: number): Promise<Series[]> {
-  return invoke<Series[]>('get_series', { maxGapSeconds });
+export async function getSeries(maxGapSeconds?: number): Promise<Grouping> {
+  return invoke<Grouping>('get_series', { maxGapSeconds });
 }
