@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { onFirstClick } from '../../clicks/firstClick';
 import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { thumbnailUrl } from '../timeline/thumbnails';
@@ -95,7 +96,12 @@ function ViewerBar({
         <FormatNote format={entry.format} />
         <span className="viewer-folder">{entry.relativeDir || t('timeline.rootFolder')}</span>
       </p>
-      <button type="button" className="viewer-reject" title={rejectHint} onClick={onReject}>
+      <button
+        type="button"
+        className="viewer-reject"
+        title={rejectHint}
+        onClick={onFirstClick(onReject)}
+      >
         {t('reject.button')}
       </button>
       <button
@@ -103,11 +109,11 @@ function ViewerBar({
         className="viewer-close"
         title={t('undo.hint')}
         disabled={!canUndo}
-        onClick={onUndo}
+        onClick={onFirstClick(onUndo)}
       >
         {t('undo.button')}
       </button>
-      <button type="button" className="viewer-close" onClick={onClose}>
+      <button type="button" className="viewer-close" onClick={onFirstClick(onClose)}>
         {t('viewer.close')}
       </button>
     </header>

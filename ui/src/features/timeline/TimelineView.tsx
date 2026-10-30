@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { onFirstClick } from '../../clicks/firstClick';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
 import type { Completing } from '../scan/scanReducer';
@@ -218,7 +219,7 @@ function TimelineBody({ timeline, mode, gap, scanId, reveal, onRevealed }: Timel
 function UndoButton({ canUndo, onUndo }: { canUndo: boolean; onUndo: () => void }) {
   const { t } = useTranslation();
   return (
-    <button type="button" title={t('undo.hint')} disabled={!canUndo} onClick={onUndo}>
+    <button type="button" title={t('undo.hint')} disabled={!canUndo} onClick={onFirstClick(onUndo)}>
       {t('undo.button')}
     </button>
   );

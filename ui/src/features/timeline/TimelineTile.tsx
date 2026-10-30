@@ -1,6 +1,7 @@
 import { type SyntheticEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { onFirstClick } from '../../clicks/firstClick';
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
 import { thumbnailUrl } from './thumbnails';
@@ -168,7 +169,7 @@ export function TimelineTile({
         type="button"
         className="timeline-tile-open"
         aria-label={t('timeline.open', { name: entry.name })}
-        onClick={() => onOpen(entry)}
+        onClick={onFirstClick(() => onOpen(entry))}
       />
     </li>
   );

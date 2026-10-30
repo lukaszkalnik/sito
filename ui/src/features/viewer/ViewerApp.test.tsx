@@ -7,10 +7,11 @@ import { canUndo, onTimelineChanged, rejectPhoto } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
 import { getTimeline } from '../timeline/api';
 import {
+  closeWindow,
+  currentViewerRequest,
   getViewerPhoto,
   onViewerContext,
   onViewerShow,
-  currentViewerRequest,
   type ViewerPhoto,
 } from './api';
 import { ViewerApp } from './ViewerApp';
@@ -27,6 +28,7 @@ vi.mock('../reject/api', async (importActual) => ({
 }));
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
+  closeWindow: vi.fn(),
   currentViewerRequest: vi.fn(),
   getViewerPhoto: vi.fn(),
   onViewerShow: vi.fn(),
@@ -148,5 +150,31 @@ describe('ViewerApp', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Ten dysk nie ma kosza – wybierz folder „Odrzucone”.',
     );
+  });
+
+  it('closes once on a double-click of „Zamknij”', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    // Still closing when the second click arrives.
+    vi.mocked(closeWindow).mockReturnValue(new Promise(() => {}));
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Zamknij' }));
+
+    expect(closeWindow).toHaveBeenCalledOnce();
+  });
+
+  it('rejects only one photo on a double-click of „Odrzuć”', async () => {
+    vi.mocked(getViewerPhoto).mockImplementation((request) =>
+      Promise.resolve(page(request.id, request.id + 1)),
+    );
+    vi.mocked(rejectPhoto).mockImplementation((id) => Promise.resolve({ name: `IMG_${id}.jpg` }));
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Odrzuć' }));
+    await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' });
+
+    expect(rejectPhoto).toHaveBeenCalledOnce();
   });
 });

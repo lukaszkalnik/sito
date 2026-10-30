@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { onFirstClick } from '../../clicks/firstClick';
 import { rejectErrorCode, rejectPhoto, type Undone } from '../reject/api';
 import type { RejectDestination } from '../reject/destination';
 import { useRejectDestination } from '../reject/useRejectDestination';
@@ -45,7 +46,7 @@ function EmptyViewer({ canUndo, undo }: Pick<UndoControls, 'canUndo' | 'undo'>) 
         type="button"
         className="viewer-close"
         disabled={!canUndo}
-        onClick={() => void undo()}
+        onClick={onFirstClick(() => void undo())}
       >
         {t('undo.button')}
       </button>
@@ -84,13 +85,27 @@ function useReject({ photo, onShowId, undo }: ReadyViewerProps, destination: Rej
   };
 }
 
+/** Closes the window; ignores clicks while it is already closing (a double-click). */
+function useCloseOnce() {
+  const closing = useRef(false);
+  return useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    closeWindow()
+      .catch((err: unknown) => console.error('Cannot close the viewer', err))
+      .finally(() => {
+        closing.current = false;
+      });
+  }, []);
+}
+
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
   const { request, photo, onShowId, undo } = props;
   const { t } = useTranslation();
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
-  const close = useCallback(() => void closeWindow(), []);
+  const close = useCloseOnce();
   return (
     <PhotoViewer
       photo={photo}

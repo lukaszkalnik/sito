@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
+import { onFirstClick } from '../../clicks/firstClick';
 import type { ToastMessage } from './useUndo';
 import './Toast.css';
 
@@ -17,7 +18,7 @@ export function Toast({ message, onUndo }: { message: ToastMessage | null; onUnd
         >
           <span>{message.text}</span>
           {message.kind === 'undoable' && (
-            <button type="button" onClick={onUndo}>
+            <button type="button" onClick={onFirstClick(onUndo)}>
               {t('undo.button')}
             </button>
           )}
