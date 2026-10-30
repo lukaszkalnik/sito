@@ -9,12 +9,18 @@ const PIXEL = Buffer.from(
 );
 
 // 30 photos (IMG_00030 is id 0); series of 3 at ids 0–2, 10–12 and 20–22.
-async function openViewer(page: Page, id: number, mode: 'series' | 'all') {
-  for (const host of ['photo', 'thumb']) {
-    await page.route(`http://${host}.localhost/**`, (route) =>
-      route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }),
-    );
-  }
+async function openViewer(
+  page: Page,
+  id: number,
+  mode: 'series' | 'all',
+  photoImage: { contentType: string; body: Buffer } = { contentType: 'image/png', body: PIXEL },
+) {
+  await page.route('http://photo.localhost/**', (route) =>
+    route.fulfill({ status: 200, ...photoImage }),
+  );
+  await page.route('http://thumb.localhost/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL }),
+  );
   await mockTauri(page, {
     pickedFolder: null,
     scanProgress: [],
@@ -141,4 +147,60 @@ test('shows a spinner while a photo is slow to load', async ({ page }) => {
   await expect(spinner).toBeVisible();
   release();
   await expect(spinner).toHaveCount(0);
+});
+
+// A 2000×1500 photo, so the viewer has something to zoom into.
+const LARGE_PHOTO = {
+  contentType: 'image/svg+xml',
+  body: Buffer.from(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1500">' +
+      '<rect width="2000" height="1500" fill="#357"/><circle cx="1000" cy="750" r="400" fill="#eb5"/></svg>',
+  ),
+};
+
+test('zooms to 100 %, keeping the zoom within a series only', async ({ page }) => {
+  // Photos 1 and 2 are in one series, photo 10 starts the next one.
+  await openViewer(page, 1, 'series', LARGE_PHOTO);
+  await expect(photo(page, 'IMG_00029.jpg')).toBeVisible();
+  const zoom = page.getByRole('group', { name: 'Powiększenie' });
+  await expect(zoom).toHaveCount(0);
+
+  await page.keyboard.press('1');
+  await expect(zoom).toContainText('100%');
+  const box = await photo(page, 'IMG_00029.jpg').boundingBox();
+  expect(box?.width).toBe(2000);
+
+  await page.keyboard.press('ArrowRight');
+  await expect(photo(page, 'IMG_00028.jpg')).toBeVisible();
+  await expect(zoom).toContainText('100%');
+
+  await page.keyboard.press('ArrowRight');
+  await expect(photo(page, 'IMG_00020.jpg')).toBeVisible();
+  await expect(zoom).toHaveCount(0);
+});
+
+test('switches between fit and 100 % with a double-click', async ({ page }) => {
+  await openViewer(page, 1, 'series', LARGE_PHOTO);
+  const shown = photo(page, 'IMG_00029.jpg');
+  await expect(shown).toBeVisible();
+  const zoom = page.getByRole('group', { name: 'Powiększenie' });
+
+  await shown.dblclick();
+  await expect(zoom).toContainText('100%');
+
+  await shown.dblclick();
+  await expect(zoom).toHaveCount(0);
+});
+
+test('pans with Shift+arrows without stepping to another photo', async ({ page }) => {
+  await openViewer(page, 1, 'series', LARGE_PHOTO);
+  const shown = photo(page, 'IMG_00029.jpg');
+  await expect(shown).toBeVisible();
+  await page.keyboard.press('1');
+  const before = await shown.boundingBox();
+
+  await page.keyboard.press('Shift+ArrowRight');
+
+  await expect.poll(async () => (await shown.boundingBox())?.x).toBeLessThan(before?.x ?? 0);
+  await expect(shown).toBeVisible();
 });
