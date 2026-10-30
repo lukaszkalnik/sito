@@ -4,7 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sito_core::reject::{RejectError, abandon, complete, prepare, reject, restore};
+use sito_core::reject::{PhotoFiles, RejectError, abandon, complete, prepare, reject, restore};
 use tempfile::TempDir;
 
 fn write(path: &Path, content: &str) {
@@ -395,4 +395,41 @@ fn a_pair_gets_one_common_number_when_its_names_are_taken() {
         fs::read_to_string(odrzucone.join("P1010001.ORF")).unwrap(),
         "older raw"
     );
+}
+
+#[test]
+fn photo_files_of_a_pair_lists_the_photo_first_then_its_other_files() {
+    let dir = TempDir::new().unwrap();
+    let (jpeg, raw) = pair_with_sidecars(&dir);
+    let album = dir.path().join("Album");
+
+    assert_eq!(
+        PhotoFiles::find(&jpeg).all(),
+        [
+            jpeg,
+            album.join(format!("P1010001.JPG{SIDECAR}")),
+            raw,
+            album.join(format!("P1010001.ORF{SIDECAR}")),
+        ]
+    );
+}
+
+#[test]
+fn photo_files_of_a_lone_photo_is_the_photo_alone() {
+    let dir = TempDir::new().unwrap();
+    let photo = dir.path().join("IMG_1.jpg");
+    write(&photo, "photo");
+
+    assert_eq!(PhotoFiles::find(&photo).all(), [photo]);
+}
+
+#[test]
+fn photo_files_leave_out_a_date_file_shared_by_an_original_and_its_edited_copy() {
+    let dir = TempDir::new().unwrap();
+    let (photo, _) = photo_with_sidecar(&dir);
+    let copy = dir.path().join("Album/IMG_1-edytowano.jpg");
+    write(&copy, "edited");
+
+    assert_eq!(PhotoFiles::find(&copy).all(), [copy]);
+    assert_eq!(PhotoFiles::find(&photo).all(), [photo]);
 }

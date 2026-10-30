@@ -19,3 +19,4 @@ pub mod takeout;
 pub mod thumbnail;
 pub mod tiff;
 pub mod timeline;
+pub mod trash;

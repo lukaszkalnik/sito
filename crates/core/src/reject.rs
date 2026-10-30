@@ -9,8 +9,11 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::scan::{REJECTED_DIR, find_companion};
-use crate::takeout::find_own_sidecar;
+use crate::scan::REJECTED_DIR;
+
+mod files;
+
+pub use files::{Companion, PhotoFiles};
 
 /// Name ending given to a date file moved along with its photo, so it pairs
 /// with the photo by name wherever the photo is renamed to.
@@ -109,17 +112,22 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
         source,
     })?;
 
-    let companion = find_companion(path).map(|file| file.path);
+    let files = PhotoFiles::find(path);
     let mut names = vec![name];
-    names.extend(companion.as_deref().and_then(Path::file_name));
+    names.extend(
+        files
+            .companion
+            .as_ref()
+            .and_then(|companion| companion.path.file_name()),
+    );
     let targets = free_names(&dir, &names).ok_or_else(|| RejectError::Occupied(dir.join(name)))?;
 
     let mut extra = Vec::new();
-    extra.extend(sidecar_move(path, &targets[0], &dir));
-    if let (Some(companion), Some(companion_target)) = (companion, targets.get(1)) {
-        extra.extend(sidecar_move(&companion, companion_target, &dir));
+    extra.extend(sidecar_move(files.sidecar, &targets[0], &dir));
+    if let (Some(companion), Some(companion_target)) = (files.companion, targets.get(1)) {
+        extra.extend(sidecar_move(companion.sidecar, companion_target, &dir));
         extra.push(FileMove {
-            from: companion,
+            from: companion.path,
             to: companion_target.clone(),
         });
     }
@@ -130,10 +138,10 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
     })
 }
 
-/// The move of the own Takeout date file of the photo file at `path`, which
-/// goes to `target` in `dir`.
-fn sidecar_move(path: &Path, target: &Path, dir: &Path) -> Option<FileMove> {
-    let from = find_own_sidecar(path)?;
+/// The move of the date file `sidecar` of a photo file that goes to `target`
+/// in `dir`.
+fn sidecar_move(sidecar: Option<PathBuf>, target: &Path, dir: &Path) -> Option<FileMove> {
+    let from = sidecar?;
     let mut name = target.file_name()?.to_os_string();
     name.push(SIDECAR_SUFFIX);
     let to = free_names(dir, &[&name])?.pop()?;
