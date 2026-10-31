@@ -2,6 +2,8 @@
 
 **Status:** 📝 concept drafted (2026-10-31; plan in plan mode when the slice starts)
 
+**Parked** by the user on 2026-10-31: [slice 41](41-update-check.md) (check on start, one-click install) comes first; this stage waits at the end of the roadmap until the user brings it back.
+
 ## Idea
 
 Asked by the user on 2026-10-31: updates install themselves without a click. Stage 2 of auto update, built on [slice 41](41-update-check.md) (signing, manifest, check on every start, the update notice and its state machine).
