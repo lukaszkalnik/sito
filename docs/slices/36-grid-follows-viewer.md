@@ -1,6 +1,6 @@
 # Slice 36 – Main window follows the viewer
 
-**Status:** 🧪 implemented, ready for testing (2026-10-31)
+**Status:** ✅ done (tested by the user 2026-10-31)
 
 ## Context
 
