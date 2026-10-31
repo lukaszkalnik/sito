@@ -18,13 +18,15 @@ Choosing the folder again („Wybierz inny folder”) fixes the timeline today, 
 
 Sito notices that photos changed on disk and brings the timeline up to date, or at least says what happened and offers a rescan, instead of showing a load error.
 
+**Rescan button (asked by the user, 2026-10-31):** whatever else the slice does, the main window's bar gets a button „Odśwież” to rescan the open folder on demand, e.g. right after the user changed files in Explorer. It runs the same background refresh as a reopened folder: the grid stays usable, „Sprawdzanie zmian…” shows meanwhile, and only new or changed files are read. A shortcut for it goes into `ui/src/shortcuts/keymap.ts` (F5 is the usual key for refreshing). It is disabled while a scan or refresh is running.
+
 ## Candidate approaches
 
 1. **Detect on failure.** When the photo protocol or a reject cannot find a file, it reports a distinct error code (`missing`). The viewer and the grid then show „Plik został przeniesiony lub usunięty poza Sito” with a button „Odśwież folder”, which runs the background refresh that already runs when the last folder is reopened on start („Sprawdzanie zmian…”, [Timeline](../domain/timeline.md#main-window-bar)). Small, and no background work while nothing changes.
 2. **Refresh on focus.** When the main window or the viewer gets focus again (the user was in Explorer), run the background refresh. It catches changes before the user hits them, but costs a walk of the folder (about how long for 34,600 photos?) on every return to the app.
 3. **Watch the folder** (`notify` crate, ReadDirectoryChangesW on Windows, FSEvents on macOS) and refresh after changes settle. The most immediate, but a new dependency, many events for a large rename, and watcher limits on network drives.
 
-Approaches can combine: 1 as the safety net, plus 2 or 3.
+Approaches can combine: the rescan button always, 1 as the safety net (its „Odśwież folder” does what the button does), plus 2 or 3.
 
 ## Open questions
 
