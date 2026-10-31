@@ -43,6 +43,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 32a | [Fixes from testing slice 32](slices/32a-accept-test-fixes.md) | ✅ |
 | 33 | [Several cameras at one event](slices/33-split-by-camera.md) | ✅ |
 | 37 | [Steady top bar during background work](slices/37-steady-top-bar.md) | ✅ |
+| 40 | [Keep the grid position per folder](slices/40-keep-grid-position.md) | 📝 |
 | 36 | [Main window follows the viewer](slices/36-grid-follows-viewer.md) | 🧪 |
 | 39 | [Opening a folder while another is still checked](slices/39-switch-folder-during-refresh.md) | 🧪 |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | 📝 |
