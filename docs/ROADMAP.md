@@ -46,6 +46,8 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 36 | [Main window follows the viewer](slices/36-grid-follows-viewer.md) | ✅ |
 | 39 | [Opening a folder while another is still checked](slices/39-switch-folder-during-refresh.md) | ✅ |
 | 40 | [Keep the grid position per folder](slices/40-keep-grid-position.md) | 🧪 |
+| 41 | [Update check on start](slices/41-update-check.md) | 📝 |
+| 42 | [Zero-click update](slices/42-zero-click-update.md) | 📝 |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
