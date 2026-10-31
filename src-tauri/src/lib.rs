@@ -8,6 +8,7 @@ mod reject;
 mod scan;
 mod series;
 mod smoke;
+mod throttle;
 mod thumbnails;
 mod viewer;
 mod window_fit;

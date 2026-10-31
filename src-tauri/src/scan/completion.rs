@@ -12,6 +12,7 @@ use super::photo_cache::{Pending, PhotoCacheState};
 use super::state::{AppState, Generation};
 use super::{SCAN_REFRESHED, ScanSummaryDto};
 use crate::reject::TIMELINE_CHANGED;
+use crate::throttle::Throttle;
 
 /// Event with the [`CompletingDto`] progress of the second pass.
 pub const SCAN_COMPLETING: &str = "scan-completing";
@@ -132,42 +133,9 @@ fn emit(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
     }
 }
 
-/// Says when at least `every` has passed since it last said so.
-#[derive(Debug)]
-struct Throttle {
-    every: Duration,
-    last: Instant,
-}
-
-impl Throttle {
-    fn new(every: Duration, start: Instant) -> Self {
-        Self { every, last: start }
-    }
-
-    /// Whether `every` has passed since the start or the last `true`.
-    fn is_due(&mut self, now: Instant) -> bool {
-        let due = now.duration_since(self.last) >= self.every;
-        if due {
-            self.last = now;
-        }
-        due
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_throttle_is_due_once_per_period() {
-        let start = Instant::now();
-        let mut throttle = Throttle::new(Duration::from_secs(10), start);
-
-        assert!(!throttle.is_due(start + Duration::from_secs(9)));
-        assert!(throttle.is_due(start + Duration::from_secs(10)));
-        assert!(!throttle.is_due(start + Duration::from_secs(19)));
-        assert!(throttle.is_due(start + Duration::from_secs(21)));
-    }
 
     #[test]
     fn a_resumed_pass_counts_the_photos_read_before() {
