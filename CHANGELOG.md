@@ -2,6 +2,22 @@
 
 What changed in each release of Sito, from the user's point of view. The section of a version is published as its GitHub release notes.
 
+## v0.14.0 – 2026-10-31
+
+### New
+
+- **Accept the keepers of a series.** „Zaakceptuj” in the viewer (or the key A) marks the shown photo as accepted; accepted photos carry a green check in the grid and in the viewer's series strip. Accepting never touches the file, the mark survives restarts, and „Cofnij” / Ctrl+Z undo it like a rejection.
+- **The main window follows the viewer.** The photo shown in the viewer is framed in the grid, which scrolls to it when it is out of view (after a short pause, so holding an arrow key stays smooth). When the viewer closes, that photo pulses for a few seconds so you find your place.
+
+### Improved
+
+- **Several cameras at one event are kept apart:** a series now holds the photos of one camera only, even when two cameras shot the same moment, and is shown in one piece. A series that overlaps another camera's series names its camera in its header (e.g. „· Canon EOS R6”).
+- **The top bar keeps its height** while Sito works in the background: „Sprawdzanie zmian…” and the EXIF progress float in a small note at the bottom of the window instead of making the bar and the grid jump.
+
+### Fixed
+
+- Choosing another folder could hang at „znaleziono 0 zdjęć” for many minutes while Sito was still checking the previously opened folder for changes (for example after its subfolders were renamed). Opening a folder now stops that check right away, and a long check keeps what it has read if it is stopped or Sito is closed.
+
 ## v0.13.0 – 2026-10-30
 
 ### New
