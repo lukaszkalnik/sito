@@ -14,4 +14,4 @@ Sito is licensed MIT OR Apache-2.0. The app contains compiled copies of Rust cra
 ## What is included
 
 - Only what ships: Rust dependencies for Windows and macOS without build and dev dependencies, and exactly the npm packages in the UI bundle.
-- Accepted licenses are a reviewed list. Rust: MIT, Apache-2.0, Unicode-3.0, BSD-3-Clause, Zlib, MPL-2.0. npm: MIT, ISC, Apache-2.0. A dependency with another license fails CI until the license is reviewed and added.
+- Accepted licenses are a reviewed list. Rust: MIT, Apache-2.0, Unicode-3.0, BSD-3-Clause, Zlib, ISC, MPL-2.0. npm: MIT, ISC, Apache-2.0. A dependency with another license fails CI until the license is reviewed and added.

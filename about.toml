@@ -9,6 +9,9 @@ accepted = [
     "Unicode-3.0",
     "BSD-3-Clause",
     "Zlib",
+    # MIT-like permissive license of `ring`, `rustls-webpki` and `untrusted`
+    # (TLS of the update check).
+    "ISC",
     # File-level copyleft: the crates stay unmodified and the notices point to
     # their source code on crates.io, as section 3.2 asks.
     "MPL-2.0",

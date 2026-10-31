@@ -25,6 +25,17 @@
       "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost thumb: http://thumb.localhost photo: http://photo.localhost data:; style-src 'self' 'unsafe-inline'"
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "REPLACE_WITH_THE_CONTENTS_OF_sito-updater.key.pub",
+      "endpoints": [
+        "https://github.com/lukaszkalnik/sito/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
     "targets": [
@@ -56,6 +67,7 @@
           "Polish": "installer/Polish.nsh"
         }
       }
-    }
+    },
+    "createUpdaterArtifacts": true
   }
 }

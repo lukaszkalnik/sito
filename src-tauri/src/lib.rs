@@ -10,6 +10,7 @@ mod series;
 mod smoke;
 mod throttle;
 mod thumbnails;
+mod update;
 mod viewer;
 mod window_fit;
 
@@ -24,6 +25,7 @@ use tauri::Manager;
 pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // Remembers the size and position of both windows across launches. The
         // windows are placed by `window_fit::show_placed` instead of the plugin, whose
         // own restore runs later on the main thread and would move a shown window.
@@ -41,6 +43,7 @@ pub fn run() -> tauri::Result<()> {
         .on_menu_event(|app, event| about::on_menu_event(app, &event))
         .manage(scan::state::AppState::default())
         .manage(viewer::ViewerState::default())
+        .manage(update::UpdateState::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
             thumbnails::handle(&ctx, &request, responder);
         })
@@ -63,7 +66,9 @@ pub fn run() -> tauri::Result<()> {
             reject::get_undo_state,
             accept::accept_photo,
             accept::unaccept_photo,
-            accept::get_accepted_ids
+            accept::get_accepted_ids,
+            update::check_for_update,
+            update::install_update
         ])
         .run(tauri::generate_context!())
 }
