@@ -245,29 +245,34 @@ export function anchoredScrollTop(
   if (scrollTop <= 0) return 0;
 
   const newTops = tileTops(newRows);
-  let start = 0;
-  for (const row of oldRows) {
-    const { entries, offset } = tilesOf(row);
-    const top = start + offset;
-    start += rowHeight(row);
+  for (const { entry, top } of tilePositions(oldRows)) {
     // Only the tiles count as visible, not a header or the space below them.
-    if (entries.length === 0 || top + TILE_ROW_HEIGHT - TILE_GAP <= scrollTop) continue;
-    const newTop = entries.map((entry) => newTops.get(entry.id)).find((t) => t !== undefined);
+    if (top + TILE_ROW_HEIGHT - TILE_GAP <= scrollTop) continue;
+    const newTop = newTops.get(entry.id);
     if (newTop !== undefined) return Math.max(0, newTop - (top - scrollTop));
   }
   return totalHeight(newRows);
 }
 
-/** Top of each photo's tile, by photo id. */
-function tileTops(rows: readonly TimelineRow[]): Map<number, number> {
-  const tops = new Map<number, number>();
+/** A photo of the rows and the top of its tile in pixels. */
+export interface TilePosition {
+  readonly entry: TimelineEntry;
+  readonly top: number;
+}
+
+/** The photos of `rows` in display order, each with the top of its tile. */
+export function* tilePositions(rows: readonly TimelineRow[]): Generator<TilePosition> {
   let start = 0;
   for (const row of rows) {
     const { entries, offset } = tilesOf(row);
-    for (const entry of entries) tops.set(entry.id, start + offset);
+    for (const entry of entries) yield { entry, top: start + offset };
     start += rowHeight(row);
   }
-  return tops;
+}
+
+/** Top of each photo's tile, by photo id. */
+function tileTops(rows: readonly TimelineRow[]): Map<number, number> {
+  return new Map(Array.from(tilePositions(rows), ({ entry, top }) => [entry.id, top]));
 }
 
 /**
@@ -282,15 +287,10 @@ export function revealScrollTop(
   viewHeight: number,
 ): number | null {
   const tileHeight = TILE_ROW_HEIGHT - TILE_GAP;
-  let start = 0;
-  for (const row of rows) {
-    const { entries, offset } = tilesOf(row);
-    if (entries.some((entry) => entry.id === id)) {
-      const top = start + offset;
-      if (top >= scrollTop && top + tileHeight <= scrollTop + viewHeight) return scrollTop;
-      return Math.max(0, Math.round(top - (viewHeight - tileHeight) / 2));
-    }
-    start += rowHeight(row);
+  for (const { entry, top } of tilePositions(rows)) {
+    if (entry.id !== id) continue;
+    if (top >= scrollTop && top + tileHeight <= scrollTop + viewHeight) return scrollTop;
+    return Math.max(0, Math.round(top - (viewHeight - tileHeight) / 2));
   }
   return null;
 }
