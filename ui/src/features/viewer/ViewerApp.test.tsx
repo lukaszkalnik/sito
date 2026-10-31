@@ -92,11 +92,12 @@ describe('ViewerApp', () => {
     render(<ViewerApp />);
     await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
 
-    expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 3 });
+    // The announcement is an effect, which may run only after the photo is on screen.
+    await vi.waitFor(() => expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 3 }));
     await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
     await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' });
 
-    expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 4 });
+    await vi.waitFor(() => expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 4 }));
   });
 
   it('shows a spinner while it waits for its photo', () => {
