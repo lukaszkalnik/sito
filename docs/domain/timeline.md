@@ -7,6 +7,14 @@ How the grid of photos and the photo viewer show photos and behave while they lo
 - The bar above the grid keeps its height: the folder path and the summary (photos, series, photos without a date, unreadable entries) are one line each, cut with an ellipsis in a narrow window, with the full text as a tooltip.
 - Notes about background work float in a small pill at the bottom centre of the window, over the grid: „Sprawdzanie zmian…” while a reopened folder is checked for changes, and the progress of the EXIF pass of a first scan ([Photos](photos.md#first-scan-of-a-takeout)); both can show together. Clicks go through the pill to the tiles, and the grid ends with some empty space, so the last row can be scrolled above it. The undo toast shows at the top centre, just below the bar.
 
+## Reopening a folder
+
+- Sito reopens the folder opened last when it starts.
+- Each folder reopens as it was left, whether it was closed by choosing another folder or by quitting Sito: with its own time gap ([Grouping](grouping.md)), in its view („Serie” / „Wszystkie”) and scrolled to the same place.
+- The place is kept as the photo at the top of the grid (by its path in the folder) and how far its tile was scrolled past, not as a pixel offset, so it survives another window width, view or gap, and photos rejected or added since. If that photo is gone, the grid opens at the first older photo it shows, else at its last photo. A folder left at the very top opens at the top.
+- The place is restored as soon as the grid shows photos, also from the cache before „Sprawdzanie zmian…” ends; the top photo then stays in place while the refresh changes the rows. If the user scrolls before that, the grid stays where they scrolled. It is stored when scrolling settles (also after the grid followed the viewer) and when the folder closes.
+- View and place are kept for the 50 folders used last, on this machine only (webview storage).
+
 ## Series in the grid
 
 - Each series has a header with its photo count and time range (e.g. „3 zdjęcia · 17:00:11–17:00:22”); when it overlaps a series of another camera, the header also names its camera ([Grouping](grouping.md#several-cameras-at-one-event)). A series that fits on one row is a tinted block next to other blocks and single photos.

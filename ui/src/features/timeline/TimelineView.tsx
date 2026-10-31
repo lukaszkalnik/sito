@@ -13,11 +13,13 @@ import { openViewer, sendViewerContext } from '../viewer/api';
 import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
 import { useUndo } from '../reject/useUndo';
-import { loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
+import { MAX_GAP, MIN_GAP } from './gapSetting';
 import type { TimelineMode } from './layout';
 import type { Reveal } from './reveal';
 import { TimelineGrid } from './TimelineGrid';
+import { useFolderPosition, useGap, useMode } from './useFolderView';
 import { useFollowViewer } from './useFollowViewer';
+import type { SavedPosition } from './useSavedPosition';
 import { useTimelineEntries, type TimelineEntriesState } from './useTimelineEntries';
 import './TimelineView.css';
 
@@ -110,18 +112,6 @@ function GapSlider({ gap, onChange }: { gap: number; onChange: (gap: number) => 
   );
 }
 
-/** The gap of the folder at `path`: the one chosen in this view, else its stored one. */
-function useGap(path: string) {
-  // Each picked folder keeps its own gap; another folder starts from its stored one.
-  const [chosen, setChosen] = useState<{ path: string; gap: number } | null>(null);
-  const gap = chosen?.path === path ? chosen.gap : loadGap(path);
-  const changeGap = (seconds: number) => {
-    setChosen({ path, gap: seconds });
-    saveGap(path, seconds);
-  };
-  return [gap, changeGap] as const;
-}
-
 /**
  * The photo the viewer of scan `scanId` shows, and a photo to scroll into view
  * and highlight: the one last restored by "Cofnij", else the one the viewer
@@ -192,11 +182,13 @@ interface TimelineBodyProps {
   onRevealed: () => void;
   /** The photo the viewer shows, if any. */
   followed: number | null;
+  savedPosition: SavedPosition;
 }
 
 /** Below the bar: the grid, or a message while loading, on error or without series. */
 function TimelineBody(props: TimelineBodyProps) {
-  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed } = props;
+  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed, savedPosition } =
+    props;
   const { t } = useTranslation();
   switch (timeline.status) {
     case 'loading':
@@ -227,6 +219,7 @@ function TimelineBody(props: TimelineBodyProps) {
           reveal={reveal}
           onRevealed={onRevealed}
           followed={followed}
+          savedPosition={savedPosition}
           onOpen={(entry) =>
             void openViewer({ id: entry.id, scanId, mode, gap }).catch((err: unknown) =>
               console.error('Cannot open the viewer', err),
@@ -260,7 +253,8 @@ export function TimelineView({
   // A new scan id means another scan finished, so the timeline is reloaded; a
   // refreshed summary keeps the id and the view.
   const timeline = useTimelineEntries(summary.scanId, gap);
-  const [mode, setMode] = useState<TimelineMode>('series');
+  const [mode, setMode] = useMode(path);
+  const savedPosition = useFolderPosition(path);
   const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
   const { canUndo, undo, toast } = useUndo(showRestored);
   const acceptedIds = useAcceptedIds(summary.scanId);
@@ -291,6 +285,7 @@ export function TimelineView({
         reveal={reveal}
         onRevealed={revealed}
         followed={followed}
+        savedPosition={savedPosition}
       />
       <Toast message={toast} onUndo={() => void undo()} />
       <ScanNotes refreshing={summary.refreshing} completing={completing} />

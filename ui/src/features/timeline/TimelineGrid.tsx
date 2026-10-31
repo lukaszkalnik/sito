@@ -15,6 +15,7 @@ import {
 import type { Reveal } from './reveal';
 import { TimelineRowView } from './TimelineRowView';
 import { useElementWidth, useGridScroll } from './useGridScroll';
+import type { SavedPosition } from './useSavedPosition';
 import './TimelineGrid.css';
 
 interface TimelineGridProps {
@@ -32,6 +33,8 @@ interface TimelineGridProps {
   onRevealed?: () => void;
   /** The photo the viewer shows: framed, and scrolled to when hidden. */
   followed?: number | null;
+  /** Where the grid's position is kept between openings of the folder. */
+  savedPosition?: SavedPosition;
 }
 
 /** The rows of the grid for the measured `width`. */
@@ -87,9 +90,11 @@ export function TimelineGrid({
   reveal = null,
   onRevealed,
   followed = null,
+  savedPosition,
 }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const rows = useRows(entries, series, mode, useElementWidth(scrollRef));
+  const width = useElementWidth(scrollRef);
+  const rows = useRows(entries, series, mode, width);
   // Folders only tell photos apart when the scan spans more than one.
   const showFolder = useMemo(() => spansSeveralFolders(entries), [entries]);
   const virtualizer = useRowVirtualizer(rows, scrollRef);
@@ -97,6 +102,8 @@ export function TimelineGrid({
     reveal,
     onRevealed,
     follow: followed,
+    saved: savedPosition,
+    measured: width > 0,
   });
   const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed };
 

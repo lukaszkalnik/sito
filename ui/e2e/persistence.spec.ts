@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { invokedCommands, mockTauri } from './tauri-mock';
+import { photoY, topPhoto } from './timeline-helpers';
 
 const SUMMARY = { scanId: 7, photosFound: 30, unreadableEntries: 0, withoutDate: 0 };
 
@@ -46,4 +47,44 @@ test('starts with the folder picker the first time, then remembers the folder', 
   expect(await page.evaluate(() => localStorage.getItem('sito.lastFolder'))).toBe(
     'D:\\Desktop\\Złote gody',
   );
+});
+
+test('reopens a folder in its last view and at its last photo', async ({ page }) => {
+  const folder = 'D:\\Desktop\\Złote gody';
+  await page.addInitScript((folder) => {
+    localStorage.setItem('sito.lastFolder', folder);
+    // Seeded once; a reload must find what the app stored itself.
+    if (localStorage.getItem('sito.folderView') !== null) return;
+    const position = { path: 'Camera\\IMG_00700.jpg', takenAt: '2024-05-31T12:00:00', offset: 0 };
+    localStorage.setItem(
+      'sito.folderView',
+      JSON.stringify({ [folder]: { mode: 'all', position } }),
+    );
+  }, folder);
+  await mockTauri(page, {
+    pickedFolder: folder,
+    scanProgress: [],
+    scanResult: { ok: { ...SUMMARY, photosFound: 1000 } },
+    timeline: { count: 1000, newest: '2024-06-01T12:00:00', stepSeconds: 300 },
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+
+  await expect(page.getByRole('button', { name: 'Wszystkie zdjęcia' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  // Its row is at the top, wherever it is in the row.
+  await expect.poll(() => photoY(page, 'IMG_00700.jpg')).toBe(0);
+
+  // Scroll a bit further and restart.
+  await page.getByTestId('timeline').evaluate((el) => el.scrollBy(0, 1000));
+  const scrolled = await topPhoto(page);
+  expect(await photoY(page, 'IMG_00700.jpg')).not.toBe(0);
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('sito.folderView')))
+    .toContain(scrolled.name);
+  await page.reload();
+
+  await expect.poll(() => topPhoto(page)).toEqual(scrolled);
 });

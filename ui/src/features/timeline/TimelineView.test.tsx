@@ -6,6 +6,7 @@ import { getSeries, getTimeline, type Grouping, type Series, type TimelineEntry 
 import '../../i18n';
 import type { Completing } from '../scan/scanReducer';
 import { sendViewerContext } from '../viewer/api';
+import { loadFolderView, saveFolderMode } from './folderView';
 import { loadGap, saveGap } from './gapSetting';
 import { TimelineView } from './TimelineView';
 
@@ -63,7 +64,7 @@ function grouping(series: Series[], count: number): Grouping {
 }
 
 function renderView(photos: number, completing: Completing | null = null) {
-  render(
+  return render(
     <TimelineView
       path="C:\Zdjęcia"
       summary={{
@@ -225,5 +226,22 @@ describe('TimelineView', () => {
 
     expect(await screen.findByTestId('timeline')).toBeInTheDocument();
     expect(screen.queryByText('Nie znaleziono serii zdjęć.')).toBeNull();
+  });
+
+  it('reopens a folder in the view it was left in', async () => {
+    saveFolderMode('D:\\Inne', 'series');
+    mockedTimeline.mockResolvedValue(entries(4));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 4));
+    const first = renderView(4);
+    await userEvent.click(screen.getByRole('button', { name: 'Wszystkie zdjęcia' }));
+    first.unmount();
+
+    renderView(4);
+
+    expect(screen.getByRole('button', { name: 'Wszystkie zdjęcia' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(loadFolderView('D:\\Inne').mode).toBe('series');
   });
 });

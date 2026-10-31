@@ -1,6 +1,6 @@
 # Slice 40 – Keep the grid position per folder
 
-**Status:** 📝 planned (2026-10-31)
+**Status:** 🧪 ready for testing (2026-10-31)
 
 ## Context
 
@@ -55,7 +55,7 @@ Leaning to 1: the position is a per-machine UI convenience, like the gap setting
 
 ## Plan
 
-### Approach (frontend only, `localStorage`) (frontend only, `localStorage`)
+### Approach (frontend only, `localStorage`)
 
 ### Data layer: `ui/src/features/timeline/folderView.ts` (new)
 
@@ -104,3 +104,15 @@ Leaning to 1: the position is a per-machine UI convenience, like the gap setting
 1. `docs: plan slice 40` (plan into the slice file, status 📝 planned).
 2. `refactor: share tile positions in the grid layout`.
 3. `feat: keep the grid position and view per folder` (+ tests, domain doc, slice 🧪, roadmap).
+
+## Implementation notes
+
+- Done as planned; what it established is in [Timeline](../domain/timeline.md#reopening-a-folder).
+- `GridScrollTargets` takes `saved` and `measured`; `TimelineGrid` gets a `savedPosition` (`load`/`save`, bound to the folder by `useFolderPosition` in `useFolderView.ts`). The grid loads the position when it mounts, so a remount within the same folder (rescan, "no series" message) picks up the latest stored one; a folder switch unmounts the grid with the old folder's `save`.
+- Besides the debounce and unmount, the position is also stored on `pagehide`, for quitting Sito right after scrolling.
+- The fallback for a photo that is gone uses the first photo not newer than it in display order; in „Serie” several cameras' series can interleave, so this is approximate there, which is fine for a convenience.
+- `scrollTo` moved to its own file (`scrollTo.ts`), shared by `useGridScroll.ts` and `useSavedPosition.ts`.
+
+## Testing
+
+Debug build: scroll deep into a large folder, switch to „Wszystkie”, choose another folder and then this one again; quit and restart Sito. Each time the grid reopens in „Wszystkie” with the same photo at the top. Also: reject the top photo, close and reopen (opens at the next older photo); resize the window between closing and reopening.

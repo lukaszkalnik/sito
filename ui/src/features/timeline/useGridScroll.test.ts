@@ -1,11 +1,13 @@
 import type { Virtualizer } from '@tanstack/react-virtual';
 import { act, renderHook } from '@testing-library/react';
+import type { UIEvent } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TimelineEntry } from './api';
 import { buildRows, DAY_ROW_HEIGHT, TILE_GAP, TILE_ROW_HEIGHT } from './layout';
 import type { Reveal } from './reveal';
 import { FOLLOW_DELAY_MS, useGridScroll } from './useGridScroll';
+import { SAVE_DELAY_MS, type SavedPosition } from './useSavedPosition';
 
 const VIEW_HEIGHT = 600;
 const TILE_HEIGHT = TILE_ROW_HEIGHT - TILE_GAP;
@@ -36,13 +38,20 @@ const virtualizer = { measure: vi.fn() } as unknown as Virtualizer<HTMLDivElemen
 interface Props {
   follow: number | null;
   reveal: Reveal | null;
+  measured?: boolean;
 }
 
-function renderGridScroll(element: HTMLElement, initial: Props) {
+function renderGridScroll(element: HTMLElement, initial: Props, saved?: SavedPosition) {
   const scrollRef = { current: element };
   return renderHook(
-    ({ follow, reveal }: Props) =>
-      useGridScroll(scrollRef, rows, virtualizer, { reveal, onRevealed: undefined, follow }),
+    ({ follow, reveal, measured = true }: Props) =>
+      useGridScroll(scrollRef, rows, virtualizer, {
+        reveal,
+        onRevealed: undefined,
+        follow,
+        saved,
+        measured,
+      }),
     { initialProps: initial },
   );
 }
@@ -121,5 +130,102 @@ describe('useGridScroll following the viewer', () => {
     expect(result.current.highlighted).toEqual(reveal);
     act(() => vi.advanceTimersByTime(3000));
     expect(result.current.highlighted).toBeNull();
+  });
+});
+
+describe('useGridScroll keeping the position of the folder', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const stored = { path: 'IMG_20.jpg', takenAt: '2024-06-01T12:39:00', offset: 10 };
+
+  function storage(position: typeof stored | null) {
+    return { load: vi.fn(() => position), save: vi.fn() };
+  }
+
+  /** Scrolls like the user: the element moves, then its scroll event reaches the handler. */
+  function userScroll(
+    element: HTMLElement,
+    onScroll: (event: UIEvent<HTMLElement>) => void,
+    top: number,
+  ) {
+    element.scrollTop = top;
+    act(() => onScroll({ currentTarget: element } as unknown as UIEvent<HTMLElement>));
+  }
+
+  it('restores the stored photo once the width is measured', () => {
+    const element = scrollElement();
+    const saved = storage(stored);
+    const { rerender } = renderGridScroll(
+      element,
+      { follow: null, reveal: null, measured: false },
+      saved,
+    );
+    expect(element.scrollTop).toBe(0);
+
+    rerender({ follow: null, reveal: null, measured: true });
+
+    expect(element.scrollTop).toBe(topOf(20) + 10);
+    expect(saved.load).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps where the user scrolled before the restore', () => {
+    const element = scrollElement();
+    const saved = storage(stored);
+    const { result, rerender } = renderGridScroll(
+      element,
+      { follow: null, reveal: null, measured: false },
+      saved,
+    );
+
+    userScroll(element, result.current.onScroll, 300);
+    rerender({ follow: null, reveal: null, measured: true });
+
+    expect(element.scrollTop).toBe(300);
+  });
+
+  it('saves the position once scrolling settles', () => {
+    const element = scrollElement();
+    const saved = storage(null);
+    const { result } = renderGridScroll(element, { follow: null, reveal: null }, saved);
+
+    userScroll(element, result.current.onScroll, topOf(5) + 30);
+    act(() => vi.advanceTimersByTime(SAVE_DELAY_MS - 1));
+    expect(saved.save).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(1));
+
+    expect(saved.save).toHaveBeenCalledWith({
+      path: 'IMG_5.jpg',
+      takenAt: '2024-06-01T12:54:00',
+      offset: 30,
+    });
+  });
+
+  it('saves the position right away when the grid goes away', () => {
+    const element = scrollElement();
+    const saved = storage(null);
+    const { result, unmount } = renderGridScroll(element, { follow: null, reveal: null }, saved);
+
+    userScroll(element, result.current.onScroll, topOf(5));
+    unmount();
+
+    expect(saved.save).toHaveBeenCalledTimes(1);
+    expect(saved.save).toHaveBeenCalledWith(
+      expect.objectContaining({ path: 'IMG_5.jpg', offset: 0 }),
+    );
+  });
+
+  it('never saves before the stored position was restored', () => {
+    const element = scrollElement();
+    const saved = storage(stored);
+    const { unmount } = renderGridScroll(
+      element,
+      { follow: null, reveal: null, measured: false },
+      saved,
+    );
+
+    unmount();
+
+    expect(saved.save).not.toHaveBeenCalled();
   });
 });

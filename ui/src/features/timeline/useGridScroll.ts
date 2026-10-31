@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject, type UIEv
 
 import { anchoredScrollTop, revealScrollTop, type TimelineRow } from './layout';
 import { HIGHLIGHT_MS, type Reveal } from './reveal';
+import { scrollTo } from './scrollTo';
+import { useSavedPosition, type SavedPosition } from './useSavedPosition';
 
 /** How long to wait for a revealed photo to appear in the rows. */
 const REVEAL_WAIT_MS = 2000;
@@ -24,12 +26,6 @@ export function useElementWidth(ref: RefObject<HTMLElement | null>): number {
     return () => observer.disconnect();
   }, [ref]);
   return width;
-}
-
-/** Scrolls `element` to `top` and remembers where it ended up. */
-function scrollTo(element: HTMLElement, top: number, lastScrollTop: ScrollTopRef) {
-  element.scrollTop = top;
-  lastScrollTop.current = element.scrollTop;
 }
 
 /** Keeps the photos at the top of the view in place when the rows change, before paint. */
@@ -121,30 +117,38 @@ export interface GridScrollTargets {
   onRevealed: (() => void) | undefined;
   /** The photo the viewer shows, kept in view without highlighting it. */
   follow: number | null;
+  /** Where the position is kept between openings of the folder; restored once the rows are final. */
+  saved?: SavedPosition;
+  /** Whether the grid's width is known, so the rows are final. */
+  measured: boolean;
 }
 
 /**
  * Scrolling of the grid: keeps the photos at the top of the view in place
  * when the rows change (new gap, mode or width), so the grid never visibly
- * jumps; reveals and follows photos as described in {@link GridScrollTargets}.
+ * jumps; restores the saved position, reveals and follows photos as described
+ * in {@link GridScrollTargets}.
  * Returns the highlighted photo and the grid's scroll handler.
  */
 export function useGridScroll(
   scrollRef: RefObject<HTMLElement | null>,
   rows: readonly TimelineRow[],
   virtualizer: Virtualizer<HTMLDivElement, Element>,
-  { reveal, onRevealed, follow }: GridScrollTargets,
+  { reveal, onRevealed, follow, saved, measured }: GridScrollTargets,
 ) {
   // The scroll position in the old rows. Read from scroll events, because by
   // the time the effect runs, a shorter new canvas may already have made the
   // browser clamp `scrollTop`.
   const lastScrollTop = useRef(0);
   useAnchoredRows(scrollRef, rows, virtualizer, lastScrollTop);
+  // After anchoring, so the restore lands on the final rows; before revealing, so a reveal wins.
+  const scrolled = useSavedPosition(scrollRef, rows, measured, saved, lastScrollTop);
   const highlighted = useRevealScroll(scrollRef, rows, reveal, onRevealed, lastScrollTop);
   useFollowScroll(scrollRef, rows, follow, lastScrollTop);
 
   const onScroll = (event: UIEvent<HTMLElement>) => {
     lastScrollTop.current = event.currentTarget.scrollTop;
+    scrolled();
   };
   return { highlighted, onScroll };
 }
