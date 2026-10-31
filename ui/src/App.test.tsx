@@ -8,6 +8,11 @@ vi.mock('./features/about/api', () => ({
   onShowLicenses: vi.fn(() => Promise.resolve(() => {})),
 }));
 
+vi.mock('./features/update/api', () => ({
+  checkForUpdate: vi.fn(() => Promise.resolve({ currentVersion: '0.9.0', update: null })),
+  onCheckRequested: vi.fn(() => Promise.resolve(() => {})),
+}));
+
 describe('App', () => {
   it('renders the Polish title and folder button', () => {
     render(<App />);

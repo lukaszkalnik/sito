@@ -12,6 +12,11 @@ vi.mock('./api', () => ({
   appVersion: vi.fn(),
 }));
 
+vi.mock('../update/api', () => ({
+  checkForUpdate: vi.fn(() => Promise.resolve({ currentVersion: '0.9.0', update: null })),
+  onCheckRequested: vi.fn(() => Promise.resolve(() => {})),
+}));
+
 /** Renders the app and returns a function that clicks „Licencje…” in the menu. */
 async function renderApp(): Promise<() => void> {
   let showLicenses = () => {};

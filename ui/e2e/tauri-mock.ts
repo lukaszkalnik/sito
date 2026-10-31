@@ -62,6 +62,14 @@ export interface TauriMock {
    * event per step (for the scan's id), `everyMs` apart.
    */
   completing?: { steps: { done: number; total: number }[]; everyMs: number };
+  /**
+   * Newer version returned by `check_for_update` (the running one is 0.9.0).
+   * Default: none. `install_update` streams `installProgress`, then never
+   * returns, like the app that the installer closes.
+   */
+  update?: { version: string; notes: string | null; install: 'inApp' | 'manual' };
+  /** Progress messages streamed by `install_update`. Default: none. */
+  installProgress?: unknown[];
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -325,6 +333,13 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           }
           case 'get_accepted_ids':
             return [...accepted].filter((id) => !rejected.includes(id));
+          case 'check_for_update':
+            return { currentVersion: '0.9.0', update: m.update ?? null };
+          case 'install_update': {
+            const send = callbacks.get((args.onProgress as { id: number }).id);
+            (m.installProgress ?? []).forEach((message, index) => send?.({ index, message }));
+            return new Promise(() => {});
+          }
           case 'plugin:app|version':
             return '0.9.0';
           case 'get_undo_state':

@@ -1,0 +1,38 @@
+/* Bottom right, clear of the bar (slice 37) and the background-work pill at the bottom centre. */
+.update-notice-area {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  max-width: min(24rem, calc(100vw - 2rem));
+}
+
+.update-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
+  /* Keeps the text from wobbling while the percentage counts up. */
+  font-variant-numeric: tabular-nums;
+}
+
+.update-notice p {
+  margin: 0;
+}
+
+.update-notice [role='alert'] {
+  color: var(--danger);
+}
+
+.update-notice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

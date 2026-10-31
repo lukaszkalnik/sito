@@ -131,5 +131,30 @@
     "loading": "Wczytywanie licencji…",
     "loadError": "Nie udało się wczytać licencji.",
     "close": "Zamknij"
+  },
+  "update": {
+    "label": "Aktualizacja Sito",
+    "checking": "Sprawdzanie aktualizacji…",
+    "available": "Dostępna jest nowa wersja Sito: {{version}}.",
+    "manual": "Pobierz ją ze strony wydań Sito na GitHubie.",
+    "install": "Zainstaluj i uruchom ponownie",
+    "whatsNew": "Co nowego?",
+    "notNow": "Nie teraz",
+    "downloading": "Pobieranie aktualizacji…",
+    "downloadingPercent": "Pobieranie aktualizacji… {{percent}}",
+    "installing": "Instalowanie aktualizacji…",
+    "installFailed": "Nie udało się zainstalować aktualizacji. {{reason}}",
+    "upToDate": "Masz najnowszą wersję ({{version}}).",
+    "checkFailed": "Nie udało się sprawdzić aktualizacji. {{reason}}",
+    "close": "Zamknij",
+    "notesTitle": "Co nowego w wersji {{version}}",
+    "notes": "Opis zmian (po angielsku)",
+    "errors": {
+      "network": "Brak połączenia z GitHubem.",
+      "badSignature": "Pobrany plik nie ma prawidłowego podpisu Sito.",
+      "noUpdate": "Nie znaleziono aktualizacji.",
+      "unsupported": "Na tym systemie aktualizację trzeba zainstalować ręcznie.",
+      "internal": "Wystąpił nieoczekiwany błąd."
+    }
   }
 }
