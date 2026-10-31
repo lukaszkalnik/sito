@@ -38,4 +38,5 @@ Approaches can combine: the rescan button always, 1 as the safety net (its „Od
 ## Builds on
 
 - The background refresh of a reopened folder and its note „Sprawdzanie zmian…” ([Timeline](../domain/timeline.md#main-window-bar)).
+- [Slice 39](39-switch-folder-during-refresh.md): the refresh stops when another folder is opened and stores what it read every 200 photos, so „Odśwież” can start one at any time and a refresh of a renamed folder can be interrupted without losing its work.
 - Error codes of commands mapped to messages in `pl.json` (CLAUDE.md, Errors).

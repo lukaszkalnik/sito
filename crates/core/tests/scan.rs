@@ -4,13 +4,28 @@
 use std::fs;
 use std::path::Path;
 
-use sito_core::scan::{ScanError, SearchProgress, find_photos};
+use sito_core::scan::{ScanError, SearchProgress, find_photos, find_photos_until};
 use tempfile::TempDir;
 
 fn touch(root: &Path, relative: &str) {
     let path = root.join(relative);
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     fs::write(path, b"").unwrap();
+}
+
+#[test]
+fn a_search_stops_on_request() {
+    let dir = TempDir::new().unwrap();
+    // More entries than one progress interval, where it asks.
+    for i in 0..600 {
+        touch(dir.path(), &format!("IMG_{i:04}.jpg"));
+    }
+
+    let stopped = find_photos_until(dir.path(), || true, |_| {});
+    let finished = find_photos_until(dir.path(), || false, |_| {}).unwrap();
+
+    assert!(matches!(stopped, Err(ScanError::Stopped)));
+    assert_eq!(finished.photos.len(), 600);
 }
 
 fn gallery() -> TempDir {

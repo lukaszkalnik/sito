@@ -7,6 +7,7 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use chrono::NaiveDateTime;
@@ -23,6 +24,20 @@ use crate::timeline::{ExifInfo, Photo, TimeSource};
 pub const CACHE_VERSION: i64 = 4;
 
 const TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
+
+/// A photo cache shared between threads, `None` when there is none. Scans
+/// lock it only for short steps, never while they walk a folder or read
+/// photos, so one scan never holds up another.
+pub type SharedCache = Mutex<Option<PhotoCache>>;
+
+/// Runs `f` on the cache in `shared`, if there is one, holding its lock
+/// only meanwhile.
+pub fn with_cache<R>(shared: &SharedCache, f: impl FnOnce(&mut PhotoCache) -> R) -> Option<R> {
+    // A panic while holding the lock leaves at worst an outdated cache,
+    // which only makes scans read more.
+    let mut cache = shared.lock().unwrap_or_else(PoisonError::into_inner);
+    cache.as_mut().map(f)
+}
 
 /// Error while reading or writing the photo cache.
 #[derive(Debug, Error)]

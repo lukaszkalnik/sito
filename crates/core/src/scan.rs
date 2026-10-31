@@ -110,6 +110,10 @@ pub enum ScanError {
         #[source]
         source: std::io::Error,
     },
+    /// The scan was stopped on request (its result was no longer wanted);
+    /// not a failure.
+    #[error("scan stopped")]
+    Stopped,
 }
 
 /// The kind of a photo file, which decides how it is read and shown.
@@ -164,6 +168,20 @@ pub fn is_photo(path: &Path) -> bool {
 /// inspected.
 pub fn find_photos(
     root: &Path,
+    on_progress: impl FnMut(SearchProgress),
+) -> Result<SearchResult, ScanError> {
+    find_photos_until(root, || false, on_progress)
+}
+
+/// Like [`find_photos`], but asks `should_stop` every few hundred entries
+/// whether to give up.
+///
+/// # Errors
+///
+/// As [`find_photos`], and [`ScanError::Stopped`] once `should_stop` says so.
+pub fn find_photos_until(
+    root: &Path,
+    should_stop: impl Fn() -> bool,
     mut on_progress: impl FnMut(SearchProgress),
 ) -> Result<SearchResult, ScanError> {
     check_root(root)?;
@@ -179,23 +197,7 @@ pub fn find_photos(
         result.entries_seen += 1;
         match entry {
             Ok(entry) if entry.file_type().is_file() && is_photo(entry.path()) => {
-                match entry.metadata() {
-                    Ok(meta) => {
-                        let list = if is_in_rejected_dir(entry.path(), root) {
-                            &mut result.rejected
-                        } else {
-                            &mut result.photos
-                        };
-                        list.push(FoundFile {
-                            modified: meta.modified().ok(),
-                            size: meta.len(),
-                            path: entry.into_path(),
-                            sidecar: None,
-                            companion: None,
-                        });
-                    }
-                    Err(_) => result.unreadable_entries += 1,
-                }
+                add_photo(&mut result, entry, root);
             }
             Ok(entry) if entry.file_type().is_file() && is_sidecar_candidate(entry.path()) => {
                 // A date file that cannot be inspected only means its photo
@@ -214,6 +216,9 @@ pub fn find_photos(
             Err(_) => result.unreadable_entries += 1,
         }
         if result.entries_seen % PROGRESS_INTERVAL == 0 {
+            if should_stop() {
+                return Err(ScanError::Stopped);
+            }
             on_progress(progress_of(&result));
         }
     }
@@ -221,6 +226,28 @@ pub fn find_photos(
     group_files(&mut result, sidecars);
     on_progress(progress_of(&result));
     Ok(result)
+}
+
+/// Adds the photo file `entry` to the photos or, inside a rejected folder of
+/// `root`, to the rejected ones; counts it as unreadable if it cannot be
+/// inspected.
+fn add_photo(result: &mut SearchResult, entry: walkdir::DirEntry, root: &Path) {
+    let Ok(meta) = entry.metadata() else {
+        result.unreadable_entries += 1;
+        return;
+    };
+    let list = if is_in_rejected_dir(entry.path(), root) {
+        &mut result.rejected
+    } else {
+        &mut result.photos
+    };
+    list.push(FoundFile {
+        modified: meta.modified().ok(),
+        size: meta.len(),
+        path: entry.into_path(),
+        sidecar: None,
+        companion: None,
+    });
 }
 
 /// Attaches Takeout date files to their photos and joins RAW+JPEG pairs.

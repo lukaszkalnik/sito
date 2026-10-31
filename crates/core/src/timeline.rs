@@ -13,9 +13,9 @@ use chrono::NaiveDateTime;
 pub use pending::{Completion, complete_pending};
 
 use crate::metadata::{Orientation, read_photo_metadata};
-use crate::photo_cache::{CacheError, PhotoCache};
+use crate::photo_cache::{CacheError, PhotoCache, SharedCache, with_cache};
 use crate::scan::{
-    FoundFile, ScanError, StampedFile, find_companion, find_photos, is_in_rejected_dir,
+    FoundFile, ScanError, StampedFile, find_companion, find_photos_until, is_in_rejected_dir,
 };
 use crate::takeout::{TakeoutUse, find_sidecar};
 use read::{read_photos, to_photo};
@@ -201,56 +201,64 @@ pub fn build_timeline(
     root: &Path,
     on_progress: impl FnMut(TimelineProgress),
 ) -> Result<Timeline, ScanError> {
-    build_timeline_cached(root, None, ReadMode::Full, on_progress)
+    let no_cache = SharedCache::new(None);
+    build_timeline_cached(root, &no_cache, ReadMode::Full, || false, on_progress)
 }
 
 /// Like [`build_timeline`], but takes photos whose files are unchanged from
 /// `cache` instead of reading them, reads the others as `mode` says, and
-/// stores what it read; photos under `root` that are gone are removed from
-/// the cache. Only the photos that really need reading count in the reading
-/// progress. Cached photos whose EXIF is still pending stay pending.
+/// stores each chunk it read right away, so a stopped scan keeps its work.
+/// Once the scan is complete, photos under `root` that are gone are removed
+/// from the cache. Only the photos that really need reading count in the
+/// reading progress. Cached photos whose EXIF is still pending stay pending.
 ///
-/// The cache only speeds things up: if it cannot be read or written, every
-/// photo is read as without one.
+/// The cache is locked only to look photos up and to store them, never
+/// while the folder is walked or photos are read. It only speeds things up:
+/// if it cannot be read or written, every photo is read as without one.
+///
+/// `should_stop` is asked every few hundred files whether to give up.
 ///
 /// # Errors
 ///
 /// Returns an error if `root` does not exist, is not a folder, or cannot be
-/// inspected.
+/// inspected, and [`ScanError::Stopped`] once `should_stop` says so.
 pub fn build_timeline_cached(
     root: &Path,
-    cache: Option<&mut PhotoCache>,
+    cache: &SharedCache,
     mode: ReadMode,
+    should_stop: impl Fn() -> bool,
     mut on_progress: impl FnMut(TimelineProgress),
 ) -> Result<Timeline, ScanError> {
-    let found = find_photos(root, |p| {
+    let found = find_photos_until(root, &should_stop, |p| {
         on_progress(TimelineProgress::Searching {
             found: p.photos_found,
         });
     })?;
 
     let all_files: Vec<&FoundFile> = found.photos.iter().chain(&found.rejected).collect();
-    let (mut photos, to_read) = split_cached(&all_files, cache.as_deref(), root);
-    let read = read_photos(&to_read, mode, &mut on_progress);
-
-    if let Some(cache) = cache {
-        update_cache(cache, root, &read, &all_files);
-    }
+    let known = with_cache(cache, |cache| cache.photos_under(root).ok())
+        .flatten()
+        .unwrap_or_default();
+    let (mut photos, to_read) = split_cached(&all_files, known);
+    let store = |chunk: &[Photo]| {
+        // Failing to cache only means reading these photos again next time.
+        with_cache(cache, |cache| cache.store(chunk).ok());
+    };
+    let read = read_photos(&to_read, mode, &should_stop, store, &mut on_progress)?;
+    // Only a complete scan tells which cached photos are gone.
+    with_cache(cache, |cache| forget_missing(cache, root, &all_files));
 
     photos.extend(read);
     Ok(sorted_timeline(root, photos, found.unreadable_entries))
 }
 
-/// Splits `files` into the photos still up to date in `cache` and the files
-/// that need reading.
+/// Splits `files` into the photos still up to date among the `known` cached
+/// ones and the files that need reading.
 fn split_cached<'a>(
     files: &[&'a FoundFile],
-    cache: Option<&PhotoCache>,
-    root: &Path,
+    known: Vec<Photo>,
 ) -> (Vec<Photo>, Vec<&'a FoundFile>) {
-    let known: HashMap<PathBuf, Photo> = cache
-        .and_then(|cache| cache.photos_under(root).ok())
-        .unwrap_or_default()
+    let known: HashMap<PathBuf, Photo> = known
         .into_iter()
         .map(|photo| (photo.path.clone(), photo))
         .collect();
@@ -277,11 +285,8 @@ fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
         && photo.companion == file.companion
 }
 
-/// Stores the freshly `read` photos in `cache` and forgets cached photos
-/// under `root` that are no longer among `present`.
-fn update_cache(cache: &mut PhotoCache, root: &Path, read: &[Photo], present: &[&FoundFile]) {
-    // Failing to cache only means reading these photos again next time.
-    let _ = cache.store(read);
+/// Forgets cached photos under `root` that are no longer among `present`.
+fn forget_missing(cache: &mut PhotoCache, root: &Path, present: &[&FoundFile]) {
     let present: HashSet<PathBuf> = present.iter().map(|file| file.path.clone()).collect();
     let _ = cache.forget_missing(root, &present);
 }

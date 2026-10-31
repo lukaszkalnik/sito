@@ -9,7 +9,7 @@ use sito_core::timeline::{Completion, Photo, complete_pending};
 use tauri::{AppHandle, Emitter, Manager};
 
 use super::photo_cache::{Pending, PhotoCacheState};
-use super::state::AppState;
+use super::state::{AppState, Generation};
 use super::{SCAN_REFRESHED, ScanSummaryDto};
 use crate::reject::TIMELINE_CHANGED;
 
@@ -38,8 +38,9 @@ pub struct CompletingDto {
 
 /// Reads the pending EXIF of the photos of `root` (shown as scan `scan_id`)
 /// on a blocking thread, updating that scan as it goes. Stops when another
-/// scan replaces it; the photos not read yet stay pending in the cache.
-pub fn complete_in_background(app: AppHandle, root: PathBuf, scan_id: u64) {
+/// folder is opened after `generation`, so the two do not share the disk;
+/// the photos not read yet stay pending in the cache.
+pub fn complete_in_background(app: AppHandle, root: PathBuf, scan_id: u64, generation: Generation) {
     tauri::async_runtime::spawn_blocking(move || {
         let pending = app.state::<PhotoCacheState>().pending(&root);
         if pending.photos.is_empty() {
@@ -50,7 +51,7 @@ pub fn complete_in_background(app: AppHandle, root: PathBuf, scan_id: u64) {
             pending.photos.len(),
             pending.read
         );
-        complete(&app, &pending, scan_id);
+        complete(&app, &pending, scan_id, generation);
     });
 }
 
@@ -67,7 +68,7 @@ fn progress(scan_id: u64, already_read: usize, done: usize, total: usize) -> Com
 
 /// Runs the second pass over `pending`, applying what it read to scan
 /// `scan_id` at most every [`UPDATE_EVERY`] and in full once it finishes.
-fn complete(app: &AppHandle, pending: &Pending, scan_id: u64) {
+fn complete(app: &AppHandle, pending: &Pending, scan_id: u64, generation: Generation) {
     let cache = app.state::<PhotoCacheState>();
     let state = app.state::<AppState>();
     let mut unapplied: Vec<Photo> = Vec::new();
@@ -100,7 +101,7 @@ fn complete(app: &AppHandle, pending: &Pending, scan_id: u64) {
             }
         },
         report,
-        || !state.is_current(scan_id),
+        || !state.is_current(scan_id) || !state.is_latest(generation),
     );
     match completion {
         Completion::Finished if state.update_photos(scan_id, &unapplied) => {

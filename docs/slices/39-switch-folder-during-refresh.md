@@ -1,6 +1,6 @@
 # Slice 39 – Opening a folder while another is still checked
 
-**Status:** 📝 planned (plan approved 2026-10-31)
+**Status:** 🧪 implemented, ready for testing (2026-10-31)
 
 ## Context
 

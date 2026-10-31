@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use sito_core::photo_cache::PhotoCache;
+use sito_core::photo_cache::{PhotoCache, SharedCache};
 use sito_core::scan::ScanError;
 use sito_core::timeline::{self, Photo, ReadMode, Timeline, TimelineProgress};
 
@@ -26,7 +26,7 @@ pub struct Pending {
 /// The photo cache, or `None` if it could not be opened; scans then read
 /// every photo, as before the cache existed.
 #[derive(Debug)]
-pub struct PhotoCacheState(Mutex<Option<PhotoCache>>);
+pub struct PhotoCacheState(SharedCache);
 
 impl PhotoCacheState {
     /// Opens the cache in `file`. A damaged file is deleted and created anew:
@@ -58,24 +58,26 @@ impl PhotoCacheState {
 
     /// Scans `root`, reading only photos the cache does not know unchanged.
     /// Photos with a Takeout date file are dated from it alone and their
-    /// EXIF left pending (see [`Self::pending`]).
+    /// EXIF left pending (see [`Self::pending`]). The cache stays usable by
+    /// others meanwhile; `should_stop` can end the scan early.
     ///
     /// # Errors
     ///
-    /// Returns an error if `root` cannot be scanned.
+    /// Returns an error if `root` cannot be scanned, and
+    /// [`ScanError::Stopped`] once `should_stop` says so.
     pub fn scan(
         &self,
         root: &Path,
+        should_stop: impl Fn() -> bool,
         on_progress: impl FnMut(TimelineProgress),
     ) -> Result<Timeline, ScanError> {
-        let mut cache = self.lock();
         // Without a cache, pending photos could never be completed.
-        let mode = if cache.is_some() {
+        let mode = if self.lock().is_some() {
             ReadMode::TakeoutFirst
         } else {
             ReadMode::Full
         };
-        timeline::build_timeline_cached(root, cache.as_mut(), mode, on_progress)
+        timeline::build_timeline_cached(root, &self.0, mode, should_stop, on_progress)
     }
 
     /// The cached photos of `root` whose EXIF is still pending, in path order.
@@ -158,7 +160,7 @@ mod tests {
 
         let state = PhotoCacheState::open(&file);
         assert!(state.cached_timeline(dir.path()).is_none());
-        let scanned = state.scan(dir.path(), |_| {}).unwrap();
+        let scanned = state.scan(dir.path(), || false, |_| {}).unwrap();
 
         let cached = state.cached_timeline(dir.path()).unwrap();
         assert_eq!(cached.photos, scanned.photos);

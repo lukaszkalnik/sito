@@ -13,7 +13,7 @@ use crate::error::{CommandError, off_main_thread};
 use crate::reject::TIMELINE_CHANGED;
 use crate::thumbnails::Thumbnails;
 use photo_cache::PhotoCacheState;
-use state::AppState;
+use state::{AppState, Generation};
 
 pub mod completion;
 pub mod photo_cache;
@@ -181,6 +181,8 @@ impl From<ScanError> for CommandError {
             ScanError::NotFound(_) => Self::NotFound,
             ScanError::NotADirectory(_) => Self::NotADirectory,
             ScanError::Io { .. } => Self::Io,
+            // Only background scans are stopped, and they report nothing.
+            ScanError::Stopped => Self::Internal,
         }
     }
 }
@@ -197,6 +199,8 @@ pub const SCAN_REFRESHED: &str = "scan-refreshed";
 /// through `on_progress`. Either way only new or changed photos are read,
 /// photos with a Takeout date file without their EXIF at first; that is read
 /// afterwards in the background (see [`completion::complete_in_background`]).
+///
+/// Opening a folder stops the background work of the folder opened before.
 #[tauri::command]
 pub async fn start_scan(
     path: PathBuf,
@@ -204,22 +208,28 @@ pub async fn start_scan(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, CommandError> {
+    let generation = state.begin_scan();
     if path.is_dir()
         && let Some(cached) = app.state::<PhotoCacheState>().cached_timeline(&path)
     {
         let mut summary = ScanSummaryDto::new(0, &cached);
         summary.scan_id = state.set_timeline(cached);
         summary.refreshing = true;
-        refresh_in_background(app, path, summary.scan_id);
+        refresh_in_background(app, path, summary.scan_id, generation);
         return Ok(summary);
     }
 
     let scanner = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        scanner.state::<PhotoCacheState>().scan(&path, |progress| {
-            // A closed channel only means the UI stopped listening.
-            let _ = on_progress.send(progress.into());
-        })
+        // Never stopped: the UI opens no other folder while it waits for this one.
+        scanner.state::<PhotoCacheState>().scan(
+            &path,
+            || false,
+            |progress| {
+                // A closed channel only means the UI stopped listening.
+                let _ = on_progress.send(progress.into());
+            },
+        )
     })
     .await;
 
@@ -228,7 +238,7 @@ pub async fn start_scan(
             let mut summary = ScanSummaryDto::new(0, &timeline);
             let root = timeline.root.clone();
             summary.scan_id = state.set_timeline(timeline);
-            completion::complete_in_background(app.clone(), root, summary.scan_id);
+            completion::complete_in_background(app.clone(), root, summary.scan_id, generation);
             clean_thumbnails_in_background(app);
             Ok(summary)
         }
@@ -244,10 +254,19 @@ pub async fn start_scan(
 }
 
 /// Rescans `path` (shown from the cache as scan `scan_id`) and swaps the
-/// result in, keeping photo ids.
-fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64) {
+/// result in, keeping photo ids. Stops, keeping what it read in the cache,
+/// once another folder is opened after `generation`.
+fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64, generation: Generation) {
     tauri::async_runtime::spawn_blocking(move || {
-        let summary = match app.state::<PhotoCacheState>().scan(&path, |_| {}) {
+        let should_stop = || !app.state::<AppState>().is_latest(generation);
+        let summary = match app
+            .state::<PhotoCacheState>()
+            .scan(&path, should_stop, |_| {})
+        {
+            Err(ScanError::Stopped) => {
+                log::info!("background rescan of {} stopped", path.display());
+                return;
+            }
             Ok(timeline) => {
                 let summary = ScanSummaryDto::new(scan_id, &timeline);
                 if !app.state::<AppState>().refresh(scan_id, timeline) {
@@ -277,7 +296,7 @@ fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64) {
         }
         app.state::<PhotoCacheState>()
             .clean_thumbnails(&app.state::<Thumbnails>());
-        completion::complete_in_background(app, path, scan_id);
+        completion::complete_in_background(app, path, scan_id, generation);
     });
 }
 

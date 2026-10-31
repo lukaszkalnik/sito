@@ -1,18 +1,19 @@
 // Test helpers may panic freely.
 #![allow(clippy::unwrap_used)]
 
+use std::cell::Cell;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use chrono::NaiveDate;
 use sito_core::metadata::Orientation;
-use sito_core::photo_cache::PhotoCache;
-use sito_core::scan::{FileStamp, StampedFile};
+use sito_core::photo_cache::{PhotoCache, SharedCache};
+use sito_core::scan::{FileStamp, ScanError, StampedFile};
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
-    ExifInfo, Photo, ReadMode, TimeSource, TimelineProgress, build_timeline, build_timeline_cached,
-    cached_timeline,
+    ExifInfo, Photo, ReadMode, TimeSource, Timeline, TimelineProgress, build_timeline,
+    build_timeline_cached, cached_timeline,
 };
 use tempfile::TempDir;
 
@@ -33,16 +34,100 @@ fn gallery() -> TempDir {
     dir
 }
 
+/// Scans `root` with `cache`, shared as the app shares it, reporting to `on_progress`.
+fn scan_with(
+    root: &Path,
+    cache: &mut PhotoCache,
+    on_progress: impl FnMut(TimelineProgress),
+) -> Timeline {
+    let placeholder = PhotoCache::open_in_memory().unwrap();
+    let shared = SharedCache::new(Some(std::mem::replace(cache, placeholder)));
+    let timeline =
+        build_timeline_cached(root, &shared, ReadMode::Full, || false, on_progress).unwrap();
+    *cache = shared.into_inner().unwrap().unwrap();
+    timeline
+}
+
+/// Scans `root` with `cache`.
+fn scan(root: &Path, cache: &mut PhotoCache) -> Timeline {
+    scan_with(root, cache, |_| {})
+}
+
 /// How many photos a scan had to read (the total of its reading progress).
 fn scan_reading(root: &Path, cache: &mut PhotoCache) -> u64 {
     let mut total = 0;
-    build_timeline_cached(root, Some(cache), ReadMode::Full, |progress| {
+    scan_with(root, cache, |progress| {
         if let TimelineProgress::Reading { total: t, .. } = progress {
             total = t;
         }
-    })
-    .unwrap();
+    });
     total
+}
+
+/// Adds `count` copies of a fixture photo to `dir`, more than one reading chunk.
+fn add_copies(dir: &Path, count: usize) {
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/exif/no-exif.jpg");
+    for i in 0..count {
+        fs::copy(&fixture, dir.join(format!("copy-{i:03}.jpg"))).unwrap();
+    }
+}
+
+#[test]
+fn the_cache_is_free_while_photos_are_read() {
+    let dir = gallery();
+    let shared = SharedCache::new(Some(PhotoCache::open_in_memory().unwrap()));
+    let mut free_while_reading = Vec::new();
+
+    build_timeline_cached(
+        dir.path(),
+        &shared,
+        ReadMode::Full,
+        || false,
+        |progress| {
+            if let TimelineProgress::Reading { .. } = progress {
+                free_while_reading.push(shared.try_lock().is_ok());
+            }
+        },
+    )
+    .unwrap();
+
+    assert_ne!(free_while_reading, Vec::<bool>::new());
+    assert!(free_while_reading.iter().all(|&free| free));
+}
+
+#[test]
+fn a_stopped_scan_keeps_what_it_read_and_forgets_nothing() {
+    let dir = gallery();
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    let before = scan(dir.path(), &mut cache).photos.len() + 1;
+    fs::remove_file(dir.path().join("broken-date.jpg")).unwrap();
+    add_copies(dir.path(), 450);
+    let shared = SharedCache::new(Some(cache));
+    let stop = Cell::new(false);
+
+    let result = build_timeline_cached(
+        dir.path(),
+        &shared,
+        ReadMode::Full,
+        || stop.get(),
+        |progress| {
+            // Stops once the first chunk is read.
+            if let TimelineProgress::Reading { done, .. } = progress {
+                stop.set(done > 0);
+            }
+        },
+    );
+
+    assert!(matches!(result, Err(ScanError::Stopped)));
+    let cached = shared
+        .into_inner()
+        .unwrap()
+        .unwrap()
+        .photos_under(dir.path())
+        .unwrap();
+    // One chunk of 200 copies, and the photo that is gone is still there.
+    assert_eq!(cached.len(), before + 200);
+    assert!(cached.iter().any(|p| p.path.ends_with("broken-date.jpg")));
 }
 
 #[test]
@@ -99,9 +184,8 @@ fn a_cached_scan_gives_the_same_timeline() {
     let mut cache = PhotoCache::open_in_memory().unwrap();
     let fresh = build_timeline(dir.path(), |_| {}).unwrap();
 
-    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
-    let from_cache =
-        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    scan(dir.path(), &mut cache);
+    let from_cache = scan(dir.path(), &mut cache);
 
     assert_eq!(from_cache, fresh);
     assert_eq!(from_cache.rejected.len(), 1);
@@ -111,8 +195,7 @@ fn a_cached_scan_gives_the_same_timeline() {
 fn the_cache_alone_shows_the_folder_as_last_scanned() {
     let dir = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    let scanned =
-        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    let scanned = scan(dir.path(), &mut cache);
 
     let instant = cached_timeline(dir.path(), &cache).unwrap();
 
@@ -130,11 +213,11 @@ fn the_cache_alone_shows_the_folder_as_last_scanned() {
 fn photos_that_are_gone_are_forgotten() {
     let dir = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    scan(dir.path(), &mut cache);
     let before = cache.photos_under(dir.path()).unwrap().len();
 
     fs::remove_file(dir.path().join("broken-date.jpg")).unwrap();
-    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    scan(dir.path(), &mut cache);
 
     let after = cache.photos_under(dir.path()).unwrap();
     assert_eq!(after.len(), before - 1);
@@ -146,11 +229,11 @@ fn keeps_the_photos_of_other_folders() {
     let first = gallery();
     let second = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
-    build_timeline_cached(first.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
-    build_timeline_cached(second.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    scan(first.path(), &mut cache);
+    scan(second.path(), &mut cache);
 
     fs::remove_file(second.path().join("broken-date.jpg")).unwrap();
-    build_timeline_cached(second.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+    scan(second.path(), &mut cache);
 
     assert_eq!(
         cache.photos_under(first.path()).unwrap().len(),
@@ -278,7 +361,7 @@ fn keeps_its_contents_across_reopening() {
     let file = db.path().join("photos.db");
     {
         let mut cache = PhotoCache::open(&file).unwrap();
-        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+        scan(dir.path(), &mut cache);
     }
 
     let mut cache = PhotoCache::open(&file).unwrap();
@@ -293,7 +376,7 @@ fn a_cache_of_another_version_starts_empty() {
     let file = db.path().join("photos.db");
     {
         let mut cache = PhotoCache::open(&file).unwrap();
-        build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::Full, |_| {}).unwrap();
+        scan(dir.path(), &mut cache);
     }
     let conn = rusqlite::Connection::open(&file).unwrap();
     conn.execute("UPDATE meta SET value = 0 WHERE key = 'version'", [])

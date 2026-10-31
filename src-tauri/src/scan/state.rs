@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -234,13 +235,31 @@ impl Scan {
     }
 }
 
+/// Which opening of a folder some background work belongs to; work of an
+/// earlier one stops (see [`AppState::is_latest`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Generation(u64);
+
 /// App-wide state managed by Tauri.
 #[derive(Debug, Default)]
 pub struct AppState {
     scan: Mutex<Option<Scan>>,
+    /// How many times a folder has been opened.
+    opened: AtomicU64,
 }
 
 impl AppState {
+    /// Starts opening a folder: from now on, background work of folders
+    /// opened before is no longer [`Self::is_latest`].
+    pub fn begin_scan(&self) -> Generation {
+        Generation(self.opened.fetch_add(1, Ordering::SeqCst) + 1)
+    }
+
+    /// Whether no folder has been opened since `generation`.
+    pub fn is_latest(&self, generation: Generation) -> bool {
+        self.opened.load(Ordering::SeqCst) == generation.0
+    }
+
     /// The last finished scan, if any.
     pub fn scan(&self) -> MutexGuard<'_, Option<Scan>> {
         // A panic while holding the lock cannot leave the scan half-written
@@ -309,6 +328,18 @@ mod tests {
     use sito_core::timeline::{ExifInfo, TimeSource};
 
     use super::*;
+
+    #[test]
+    fn opening_a_folder_makes_earlier_work_outdated() {
+        let state = AppState::default();
+        let first = state.begin_scan();
+        assert!(state.is_latest(first));
+
+        let second = state.begin_scan();
+
+        assert!(!state.is_latest(first));
+        assert!(state.is_latest(second));
+    }
 
     /// Photos named `names`, one second apart, newest first.
     fn timeline(names: &[&str]) -> Timeline {

@@ -7,33 +7,46 @@ use rayon::prelude::*;
 
 use super::{ExifInfo, Photo, ReadMode, TimeSource, TimelineProgress};
 use crate::metadata::{is_plausible_capture_time, read_photo_metadata};
-use crate::scan::FoundFile;
+use crate::scan::{FoundFile, ScanError};
 use crate::takeout::{ChosenTime, choose_time, read_sidecar};
 
 /// Number of photos read between two progress reports.
 pub(super) const READ_CHUNK: usize = 200;
 
-/// Reads `files` in parallel as `mode` says, reporting progress after each
-/// chunk of [`READ_CHUNK`] files.
+/// Reads `files` in parallel as `mode` says, in chunks of [`READ_CHUNK`]
+/// files: before each chunk it asks `should_stop` whether to give up, and
+/// after it hands the chunk to `store` and reports progress.
+///
+/// # Errors
+///
+/// [`ScanError::Stopped`] once `should_stop` says so; the chunks read before
+/// have been stored.
 pub(super) fn read_photos(
     files: &[&FoundFile],
     mode: ReadMode,
+    should_stop: impl Fn() -> bool,
+    mut store: impl FnMut(&[Photo]),
     on_progress: &mut impl FnMut(TimelineProgress),
-) -> Vec<Photo> {
+) -> Result<Vec<Photo>, ScanError> {
     let total = files.len() as u64;
-    let mut read = Vec::with_capacity(files.len());
+    let mut read: Vec<Photo> = Vec::with_capacity(files.len());
     on_progress(TimelineProgress::Reading { done: 0, total });
     for chunk in files.chunks(READ_CHUNK) {
+        if should_stop() {
+            return Err(ScanError::Stopped);
+        }
+        let start = read.len();
         read.par_extend(chunk.par_iter().map(|file| match mode {
             ReadMode::Full => to_photo(file),
             ReadMode::TakeoutFirst => to_photo_takeout_first(file),
         }));
+        store(&read[start..]);
         on_progress(TimelineProgress::Reading {
             done: read.len() as u64,
             total,
         });
     }
-    read
+    Ok(read)
 }
 
 /// The photo with everything read: its EXIF and its Takeout date file.

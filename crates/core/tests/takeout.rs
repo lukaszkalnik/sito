@@ -6,7 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
-use sito_core::photo_cache::PhotoCache;
+use sito_core::photo_cache::{PhotoCache, SharedCache};
 use sito_core::reject::{reject, restore};
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
@@ -106,9 +106,21 @@ fn a_rejected_and_restored_photo_keeps_its_takeout_date() {
 
 /// Scans `dir` in [`ReadMode::TakeoutFirst`] into a fresh cache.
 fn quick_scan(dir: &TempDir) -> PhotoCache {
-    let mut cache = PhotoCache::open_in_memory().unwrap();
-    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::TakeoutFirst, |_| {}).unwrap();
-    cache
+    rescan(dir, PhotoCache::open_in_memory().unwrap())
+}
+
+/// Scans `dir` in [`ReadMode::TakeoutFirst`] with `cache`, shared as the app shares it.
+fn rescan(dir: &TempDir, cache: PhotoCache) -> PhotoCache {
+    let shared = SharedCache::new(Some(cache));
+    build_timeline_cached(
+        dir.path(),
+        &shared,
+        ReadMode::TakeoutFirst,
+        || false,
+        |_| {},
+    )
+    .unwrap();
+    shared.into_inner().unwrap().unwrap()
 }
 
 /// Reads the pending photos of `dir` into `cache`, stopping when `should_stop` says so.
@@ -200,7 +212,7 @@ fn a_stopped_completion_resumes_later() {
 
     let stopped = complete(&dir, &mut cache, || true);
     // A rescan keeps the unread photos pending.
-    build_timeline_cached(dir.path(), Some(&mut cache), ReadMode::TakeoutFirst, |_| {}).unwrap();
+    let mut cache = rescan(&dir, cache);
 
     assert_eq!(stopped, Completion::Stopped);
     assert_eq!(cache.pending_under(dir.path()).unwrap().len(), pending);
