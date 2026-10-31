@@ -9,4 +9,5 @@ What Sito works on and how it behaves **today**, independent of how the code is 
 | [Rejecting](rejecting.md) | What happens to photos the user rejects |
 | [Accepting](accepting.md) | Marking the keepers of a series, and the undo stack shared with rejecting |
 | [Timeline and viewer](timeline.md) | How the grid and the viewer show and load photos: tile shapes, the viewer bar and strip, thumbnail order, spinners, staying responsive |
+| [Updates](updates.md) | Checking for a newer version, the update notice, installing it, what goes over the network |
 | [Licenses](licenses.md) | Sito's license and the third-party notices shown in the app |

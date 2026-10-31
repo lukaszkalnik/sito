@@ -34,6 +34,12 @@ The installer is per-user and needs no admin rights, so a silent install has no 
 - Release discipline: since every published release now reaches users without their action, a bad release spreads faster. The smoke test (and [slice 28](28-real-app-e2e.md)) are the gate; consider a test of updating from the previous release in the release workflow.
 - `docs/domain/updates.md` and `docs/RELEASING.md` describe the automatic path and the opt-out.
 
+## Builds on (from slice 41)
+
+- `src-tauri/src/update.rs`: `UpdateState` keeps the update found by the check; `install_update` downloads (throttled progress over a channel), verifies and installs, and already holds the reject/accept lock and saves the window state before the installer closes the app (`before_exit`). Stage 2 splits download and install (`Update::download` / `Update::install`) and keeps the bytes until the app closes; `installMode` `quiet` for the silent run.
+- `ui/src/features/update/updateReducer.ts`: the notice's state machine (`checking`, `available`, `downloading`, `installing`, ...); add the states for „ready, installs on close” and „updated to X”.
+- The release side (signing key, `latest.json` with notes, manifest check before publishing) needs no change.
+
 ## Try
 
 With auto update on, start the previous version while a newer one is published: after a while the note says it will install on close. Close Sito, wait a moment, start it: it is the new version and says so once. Turn auto update off: only the slice 41 notice appears.

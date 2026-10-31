@@ -21,6 +21,10 @@ Found on 2026-10-30 while installing v0.13.0: choosing `D:\Program Files\sito` o
 - App data (action log, caches, window state) lives in the user profile in both modes, so nothing else moves.
 - `docs/RELEASING.md` (installing on Windows) and `docs/domain/` describe the new choice.
 
+## Builds on
+
+- **Updates ([slice 41](41-update-check.md)):** the updater runs the NSIS installer in passive mode with `/UPDATE`. For a per-machine install that needs admin rights, so the update would show a UAC prompt; check that it still works (or that the notice says so) and update `docs/domain/updates.md`.
+
 ## Try
 
 Install into `D:\Program Files\Sito` „dla wszystkich użytkowników” (UAC prompt), into a folder under `D:\Lukasz` „tylko dla mnie”, and pick a protected folder „tylko dla mnie” to see the clear message; update an existing install in each mode.

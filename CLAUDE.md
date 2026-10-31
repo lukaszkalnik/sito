@@ -115,7 +115,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 ### Security and privacy
 
-- No network access except the checksum-verified model download.
+- No network access except the checksum-verified model download and the signature-verified update check and download (Rust side only, see `docs/domain/updates.md`).
 - Tauri capabilities and the CSP stay minimal; every new permission or allowed source needs a stated reason.
 - Logs stay on the machine (the logger only runs in debug builds) and never contain image data.
 

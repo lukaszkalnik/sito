@@ -1,6 +1,6 @@
 # Slice 41 – Update check on start
 
-**Status:** 📝 planned (2026-10-31; plan approved, implementation not started)
+**Status:** 🧪 ready for testing (2026-10-31; implemented, waits for the signing key and the user's test)
 
 ## Idea
 
@@ -124,3 +124,21 @@ Findings that shape the plan:
 - CI manual run of the Release workflow: build with signatures, `.sig` in the artifact, smoke test green.
 - Manual test by the user (Windows): install the artifact; `node scripts/local-update-manifest.mjs Sito_…-setup.exe 99.0.0`, `npx http-server`/`python -m http.server 8000` in the artifact's folder, `SITO_UPDATE_ENDPOINT=http://localhost:8000/latest.json npm run tauri dev`: the notice shows 99.0.0 → „Co nowego?” → install → passive installer without UAC/SmartScreen → Sito restarts (installed version). Offline: no notice. „Pomoc → Sprawdź aktualizacje…” without an update: „Masz najnowszą wersję”.
 - Real test: the first release with the updater gets installed by hand; the next release shows up in the app.
+
+## Implementation (2026-10-31)
+
+Done as planned, with these differences:
+
+- `check_for_update` returns `UpdateCheck { currentVersion, update: Option<UpdateInfo> }`, so „Masz najnowszą wersję (0.14.0)” needs no second call for the version.
+- Install progress is one channel message type `InstallProgress`: `downloading { downloaded, total }` (at most every 100 ms) and `installing` once the download is verified, instead of a final progress message.
+- The reject/accept lock is taken in `install_update` around `Update::install` (not inside the `on_before_exit` hook), so it is released again if starting the installer fails. The hook saves the window state and runs the plugin's own cleanup, which a custom hook replaces.
+- „Nie teraz” returns the notice to `idle`; there is no separate `dismissed` state, since both show nothing and the menu check works the same from either.
+- `requireSignedVersion` stays off: it rejects signatures whose trusted comment carries no version, and it is not verified yet that our CLI version writes it. Worth turning on once a signed release shows the version in its `.sig`.
+- The release workflow fails early while `plugins.updater.pubkey` is the placeholder.
+
+### Open before the release
+
+1. **Step 1 (user):** generate the key pair, set the two secrets, put the public key into `src-tauri/tauri.conf.json` (see [Releasing](../RELEASING.md#update-signing-key)). Until then signatures never verify and the Release workflow stops.
+2. Manual Release workflow run: `.sig` in the artifact, smoke test green.
+3. Manual test on Windows ([Releasing](../RELEASING.md#testing-an-update-locally)): notice → „Co nowego?” → install without UAC/SmartScreen → restart; offline start shows nothing; menu check says „Masz najnowszą wersję”.
+4. CHANGELOG of the first release with the updater: say that from this version on updates arrive in the app, and that this one is installed by hand once more.
