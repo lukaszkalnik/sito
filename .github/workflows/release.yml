@@ -23,7 +23,8 @@ jobs:
         include:
           - os: windows-latest
             args: ''
-            bundles: target/release/bundle/nsis/*-setup.exe
+            # The installer and its update signature (`.sig`).
+            bundles: target/release/bundle/nsis/*-setup.exe*
           - os: macos-latest
             args: '--target universal-apple-darwin'
             bundles: target/universal-apple-darwin/release/bundle/dmg/*.dmg
@@ -49,6 +50,28 @@ jobs:
         shell: bash
         run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > /dev/null
 
+      # Without the real public key every update would fail its signature
+      # check, so a release built before the key is in place is refused.
+      - name: Check that the updater has its public key
+        shell: bash
+        run: |
+          if grep -q 'REPLACE_WITH_THE_CONTENTS' src-tauri/tauri.conf.json; then
+            echo "::error::plugins.updater.pubkey in src-tauri/tauri.conf.json is a placeholder (see docs/RELEASING.md, Update signing key)"
+            exit 1
+          fi
+
+      # The notes the app shows with the update (`latest.json`).
+      - name: Read the changes of the tag for the update manifest
+        id: notes
+        if: env.IS_TAG == 'true'
+        shell: bash
+        run: |
+          {
+            echo 'body<<SITO_NOTES_END'
+            node scripts/release-notes.mjs "$GITHUB_REF_NAME" --changes-only
+            echo 'SITO_NOTES_END'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -59,15 +82,19 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # macOS signing and notarization come later (slice 14).
+      # macOS signing and notarization come later (slice 23). The updater
+      # signing key signs the update bundles and their `latest.json` entries.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ env.IS_TAG == 'true' && github.ref_name || '' }}
           releaseName: 'Sito ${{ github.ref_name }}'
-          # Replaced by the CHANGELOG.md section when the release is published.
-          releaseBody: 'Release notes follow once the build has passed.'
+          # The changes alone, which also become the notes in `latest.json`;
+          # the release page gets the full notes when it is published.
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           args: ${{ matrix.args }}
 
@@ -139,6 +166,14 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      # The updater reads `latest.json` of the newest published release; a
+      # broken one stays in the draft instead of reaching installed apps.
+      - name: Check the update manifest
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern latest.json --dir manifest --repo "$GITHUB_REPOSITORY"
+          node scripts/check-update-manifest.mjs manifest/latest.json "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish with the CHANGELOG.md section as release notes
         run: |
           node scripts/release-notes.mjs "$GITHUB_REF_NAME" > notes.md
