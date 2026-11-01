@@ -16,14 +16,16 @@ Today ([Accepting](../domain/accepting.md#undo), [slice 32](32-accept-photo.md))
 - The hint goes back to rejections: e.g. „Cofnij ostatnie odrzucenie (Ctrl+Z)”; `undo.failed` likewise.
 - A rejected accepted photo still comes back accepted on undo (unchanged).
 
-## Candidate approaches
+## Approach
 
-1. **Keep logging accepts, leave them out of undo (preferred).** Accepts and un-accepts stay in the action log (every action is logged), but the undo lookup (`last_row_under` / `last_undoable` in `crates/core/src/actions.rs`) only considers `reject` and `trash` rows. `LoggedAction::Accept`, `undo_accept` and the `Unaccepted` / `Reaccepted` undo kinds go away. No migration: existing accept rows simply are no longer offered for undo.
-2. **Stop logging accepts.** The `accepted` table alone holds the marks. Less code, but breaks the rule that every action is logged; ruled out unless the user prefers it.
+Decided by the user on 2026-11-01: **accepts and un-accepts are no longer logged.** The `accepted` table alone holds the marks; the action log is for file moves (rejections), which are what undo is for. The "every action is logged" rule in `CLAUDE.md` is about rejected photos, so it still holds.
+
+- `crates/core/src/actions.rs`: accepting and un-accepting only change the `accepted` table (no `accept` / `unaccept` rows). The undo lookup (`last_row_under` / `last_undoable`) only considers `reject` and `trash` rows. `LoggedAction::Accept`, `AcceptAction`, `AcceptChange` and `undo_accept` go away.
+- Existing `accept` / `unaccept` rows in users' logs stay untouched (durable data, no migration edits); they are simply never offered for undo again. Whether to keep the `KIND_ACCEPT` / `KIND_UNACCEPT` constants only for documenting old rows is decided when planning.
 
 ## To check when planning
 
 - `src-tauri/src/reject.rs`: `undo_last` / `UndoneDto` / `UndoneKind` shrink back to rejections; whether to rename `undo_last` back (separate `refactor:` commit).
 - UI: `ui/src/features/accept/useToggleAccept.ts` toast kind (no „Cofnij”), `ui/src/features/reject/useUndo.ts` toast per kind, `useUndoAvailable` no longer listens to `accepted-changed`; `pl.json` drops `undo.unaccepted` / `undo.reaccepted`.
-- Tests: core undo order skips accepts (accept, reject, accept → undo restores the rejection and leaves both marks); Vitest for the accept toast without „Cofnij”; the Playwright accept flow no longer undoes via „Cofnij”.
+- Tests: accepting writes no log row; undo order ignores accepts (accept, reject, accept → undo restores the rejection and leaves both marks); old `accept` rows in a log are not offered for undo; Vitest for the accept toast without „Cofnij”; the Playwright accept flow no longer undoes via „Cofnij”.
 - Docs: `docs/domain/accepting.md` (Undo section), `rejecting.md` („one stack shared with accepting”), `timeline.md` where it mentions undo.
