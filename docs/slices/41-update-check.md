@@ -1,5 +1,6 @@
 ---
 status: 🧪 ready for testing
+release: v0.15.0
 ---
 
 # Slice 41 – Update check on start

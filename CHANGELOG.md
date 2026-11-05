@@ -2,6 +2,13 @@
 
 What changed in each release of Sito, from the user's point of view. The section of a version is published as its GitHub release notes.
 
+## v0.15.0 – 2026-11-05
+
+### New
+
+- **Sito updates itself.** Every time it starts, Sito checks in the background for a newer version and offers it in a notice at the bottom right of the window. On Windows, „Zainstaluj i uruchom ponownie” downloads the update, checks its signature, installs it without admin rights and restarts Sito. „Co nowego?” shows what changed, and „Pomoc → Sprawdź aktualizacje…” checks on demand. On macOS the notice points to the releases page for now. Only the check and the download go over the network, never anything about your photos. This version is the last one you install by hand; from now on updates arrive in the app. ([slice 41](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/41-update-check.md))
+- **Each folder reopens where you left it:** at the same photo and in the same view („Serie” / „Wszystkie”), whether you chose another folder or closed Sito. The place is found by photo, so it holds even when the window has another width or photos were rejected in the meantime. Sito remembers this for the 50 folders opened last. ([slice 40](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/40-keep-grid-position.md))
+
 ## v0.14.0 – 2026-10-31
 
 ### New

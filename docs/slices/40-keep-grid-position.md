@@ -1,5 +1,6 @@
 ---
 status: ✅ done
+release: v0.15.0
 ---
 
 # Slice 40 – Keep the grid position per folder
