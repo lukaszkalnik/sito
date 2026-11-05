@@ -47,7 +47,7 @@ export const line = (f: Figures, over: Overage | null, now: number): string | un
     .at(-1)
   const spent = f.cost !== undefined && over !== null ? Math.max(0, f.cost.usd - over.baseUsd) : 0
   const names = exhausted.map(w => label(w.kind)).join('+')
-  return `⛔ ${names} quota used up · credit used ${usd(spent)}${resetIn(resetsAt, now)}`
+  return `⛔ ${names} quota used up · credit used this session ${usd(spent)}${resetIn(resetsAt, now)}`
 }
 
 /** Remembers the session cost when quota runs out; forgets it once no window is used up. */

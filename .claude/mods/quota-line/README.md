@@ -6,10 +6,10 @@ A Claude Code mod that keeps a status line under the prompt with the account's q
 5h 42.5% · resets in 2h 10m  |  7d 18% · resets in 3d 1h
 ```
 
-Once a window is used up (100%), the line switches to the credit spent since that moment and when the quota comes back:
+Once a window is used up (100%), the line switches to the credit this session has spent since that moment, and when the quota comes back. Claude Code reports no account-wide credit balance, so spending in other sessions is not counted:
 
 ```
-⛔ 5h quota used up · credit used $2.25 · resets in 45m
+⛔ 5h quota used up · credit used this session $2.25 · resets in 45m
 ```
 
 The countdown refreshes every minute. Off a subscription (no rate-limit readings) the line stays hidden.

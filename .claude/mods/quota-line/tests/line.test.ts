@@ -28,7 +28,7 @@ describe('quota line', () => {
       { baseUsd: 1.5 },
       now,
     )
-    expect(text).toBe('⛔ 5h quota used up · credit used $2.25 · resets in 45m')
+    expect(text).toBe('⛔ 5h quota used up · credit used this session $2.25 · resets in 45m')
   })
 
   test('shows nothing without rate-limit readings', async () => {
