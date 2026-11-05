@@ -157,6 +157,16 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 - Dev scripts (`scripts/`) follow PEP 8 with type hints.
 
+## IDE tools (RustRover MCP)
+
+When the `rustrover` MCP server is connected (`mcp__rustrover__*` tools; RustRover must be open on this project), prefer it over text tools for anything that needs code understanding, because it resolves symbols semantically instead of matching text:
+
+- **Finding code:** `search_symbol` to locate a type, function or field; `get_symbol_info` for a symbol's signature, type and docs; `analyze_calls` for callers/callees instead of grepping for a name.
+- **Refactoring:** `rename_refactoring` for renaming a symbol across files instead of editing each occurrence by hand.
+- **Quick checks after an edit:** `get_file_problems` on the changed files for errors and warnings before running the full build. It does not replace the required `cargo fmt` / `cargo clippy` / `cargo test` and frontend checks before committing.
+- **Keep using** Read/Edit/Write for reading and changing files, Grep/Glob for plain text or file-name searches (strings, comments, `pl.json` keys), and Bash for `cargo`/`npm`/`git` commands. Do not use the IDE's `reformat_file` (rustfmt and Prettier are the formatters of record) or `execute_terminal_command`.
+- If the server is not connected, fall back to the text tools without asking.
+
 ## Tech stack
 
 - **App shell:** Tauri 2 (Rust backend, system webview). Plugins: `dialog` (folder picker), `window-state` (window size and position), `log` (debug builds only).
