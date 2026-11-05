@@ -31,7 +31,7 @@ describe('quota line', () => {
     expect(text).toBe('⛔ 5h quota used up · credit used this session $2.25 · resets in 45m')
   })
 
-  test('shows nothing without rate-limit readings', async () => {
-    expect(line({ rateLimits: [] }, null, now)).toBe(undefined)
+  test('says so before any rate-limit reading', async () => {
+    expect(line({ rateLimits: [] }, null, now)).toBe('quota: no reading yet')
   })
 })

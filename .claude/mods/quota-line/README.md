@@ -12,7 +12,7 @@ Once a window is used up (100%), the line switches to the credit this session ha
 ⛔ 5h quota used up · credit used this session $2.25 · resets in 45m
 ```
 
-The countdown refreshes every minute. Off a subscription (no rate-limit readings) the line stays hidden.
+The countdown refreshes every minute. Until Claude Code reports a rate-limit reading (or off a subscription, where there is none) it shows `quota: no reading yet`.
 
 ## Install
 

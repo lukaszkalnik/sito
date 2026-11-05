@@ -31,8 +31,8 @@ export const resetIn = (iso: string | undefined, now: number): string => {
 }
 
 /** The status text for the figures and the remembered cost at exhaustion. */
-export const line = (f: Figures, over: Overage | null, now: number): string | undefined => {
-  if (f.rateLimits.length === 0) return undefined
+export const line = (f: Figures, over: Overage | null, now: number): string => {
+  if (f.rateLimits.length === 0) return 'quota: no reading yet'
   const exhausted = f.rateLimits.filter(isExhausted)
   if (exhausted.length === 0) {
     return f.rateLimits
