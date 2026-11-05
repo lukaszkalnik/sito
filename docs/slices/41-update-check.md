@@ -4,7 +4,7 @@ status: 🧪 ready for testing
 
 # Slice 41 – Update check on start
 
-Since 2026-10-31; implemented, waits for the signing key and the user's test.
+Since 2026-10-31; implemented, signing key set up on 2026-11-05; waits for a manual Release run and the user's test.
 
 ## Idea
 
@@ -142,7 +142,7 @@ Done as planned, with these differences:
 
 ### Open before the release
 
-1. **Step 1 (user):** generate the key pair, set the two secrets, put the public key into `src-tauri/tauri.conf.json` (see [Releasing](../RELEASING.md#update-signing-key)). Until then signatures never verify and the Release workflow stops.
+1. ~~**Step 1 (user):** generate the key pair, set the two secrets, put the public key into `src-tauri/tauri.conf.json`~~ Done on 2026-11-05 (key ID `16FBDC84716AF028`, see [Releasing](../RELEASING.md#update-signing-key)).
 2. Manual Release workflow run: `.sig` in the artifact, smoke test green.
 3. Manual test on Windows ([Releasing](../RELEASING.md#testing-an-update-locally)): notice → „Co nowego?” → install without UAC/SmartScreen → restart; offline start shows nothing; menu check says „Masz najnowszą wersję”.
 4. CHANGELOG of the first release with the updater: say that from this version on updates arrive in the app, and that this one is installed by hand once more.

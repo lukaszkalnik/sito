@@ -32,17 +32,19 @@ Publishing is what ships the update: installed apps read `latest.json` of the ne
 
 Updates are signed with a minisign key pair, separate from code signing. The public key is in `plugins.updater.pubkey` of `src-tauri/tauri.conf.json` and built into every app; the app installs only updates signed with the matching private key.
 
-**One-time setup** (on the dev machine, never in a cloud session, so the private key stays there):
+**Current key:** minisign key ID `16FBDC84716AF028`, generated on 2026-11-05 on the Mac. The private key and its password are kept in the user's 1Password (the only copy outside the GitHub secrets) and in the repository secrets `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Releases are built by CI, so no machine needs the key for a normal release.
+
+**Setting up a new key** (only if the key is lost or must be replaced; run by the user on their own machine, never in a cloud session or by Claude, so the private key and password stay with the user):
 
 ```bash
-npx tauri signer generate -w D:\Lukasz\tools\keys\sito-updater.key   # asks for a password
-gh secret set TAURI_SIGNING_PRIVATE_KEY < D:\Lukasz\tools\keys\sito-updater.key
-gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD                       # the same password
+mkdir -p ~/keys && npx tauri signer generate -w ~/keys/sito-updater.key   # asks for a password
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/keys/sito-updater.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD                            # prompts for the same password
 ```
 
-Put the contents of `sito-updater.key.pub` into `plugins.updater.pubkey` (replacing the placeholder, which makes the Release workflow fail) and commit it.
+Put the contents of `sito-updater.key.pub` into `plugins.updater.pubkey` (the Release workflow fails while it is the placeholder) and commit it.
 
-**Back up the private key and its password outside GitHub** (e.g. in a password manager): secrets cannot be read back. If the key is lost, installed apps can no longer update: generate a new pair, release with the new public key, and every user installs that release by hand once.
+**Back up the private key and its password outside GitHub** (in 1Password): secrets cannot be read back. If the key is lost, installed apps can no longer update: generate a new pair, release with the new public key, and every user installs that release by hand once.
 
 **Update manifest:** with `bundle.createUpdaterArtifacts`, the build writes a `.sig` next to each installer and `tauri-action` uploads `latest.json` (version, the tag's CHANGELOG changes as notes, a signed download URL per platform) to the release. The publish job refuses a manifest without the tag's version, notes, or a signed Windows and macOS entry (`scripts/check-update-manifest.mjs`).
 
