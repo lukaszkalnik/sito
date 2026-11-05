@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.14.0
+---
+
 # Slice 36 – Main window follows the viewer
 
-**Status:** ✅ done (tested by the user 2026-10-31)
+Tested by the user 2026-10-31.
 
 ## Context
 

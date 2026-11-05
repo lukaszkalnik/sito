@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.14.0
+---
+
 # Slice 32a – Fixes from testing slice 32 (accept a photo)
 
-**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/accepting.md](../domain/accepting.md))
+Tested by the user on 2026-10-30; what it established is in [docs/domain/accepting.md](../domain/accepting.md).
 
 ## Context
 

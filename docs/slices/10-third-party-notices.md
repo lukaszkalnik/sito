@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.9.0
+---
+
 # Slice 10 – Third-party license notices
 
-**Status:** ✅ done (tested by the user on 2026-10-28; released as v0.9.0; what it established is in [docs/domain/licenses.md](../domain/licenses.md))
+Tested by the user on 2026-10-28; what it established is in [docs/domain/licenses.md](../domain/licenses.md).
 
 ## Context
 

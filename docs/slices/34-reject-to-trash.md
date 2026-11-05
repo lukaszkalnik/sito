@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.13.0
+---
+
 # Slice 34 – Reject into the system trash
 
-**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/rejecting.md](../domain/rejecting.md))
+Tested by the user on 2026-10-30; what it established is in [docs/domain/rejecting.md](../domain/rejecting.md).
 
 ## Context
 

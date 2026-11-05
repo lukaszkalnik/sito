@@ -1,6 +1,10 @@
+---
+status: 🧪 ready for testing
+---
+
 # Slice 40 – Keep the grid position per folder
 
-**Status:** 🧪 ready for testing (2026-10-31)
+Since 2026-10-31.
 
 ## Context
 

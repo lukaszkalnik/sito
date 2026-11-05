@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.10.0
+---
+
 # Slice 25 – Google Takeout dates
 
-**Status:** ✅ done (tested by the user 2026-10-29) (what it established is in [docs/domain/photos.md](../domain/photos.md) and [docs/domain/rejecting.md](../domain/rejecting.md))
+Tested by the user 2026-10-29; what it established is in [docs/domain/photos.md](../domain/photos.md) and [docs/domain/rejecting.md](../domain/rejecting.md).
 
 ## Context
 

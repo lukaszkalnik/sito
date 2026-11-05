@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.7.0
+---
+
 # Slice 8 – Reject into "Odrzucone" with undo
 
-**Status:** ✅ done (tested by the user on 2026-10-27; released as v0.7.3)
+Tested by the user on 2026-10-27.
 
 ## Context
 

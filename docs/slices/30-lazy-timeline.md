@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.13.0
+---
+
 # Slice 30 – Load the viewer lazily
 
-**Status:** ✅ done (what it established is in [docs/domain/timeline.md](../domain/timeline.md#viewer))
+What it established is in [docs/domain/timeline.md](../domain/timeline.md#viewer).
 
 ## Context
 

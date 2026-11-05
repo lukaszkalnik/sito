@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.1.0
+---
+
 # Slice 1 – Count photos
 
-**Status:** ✅ done (tested by the user on 2026-10-26)
+Tested by the user on 2026-10-26.
 
 ## Context
 

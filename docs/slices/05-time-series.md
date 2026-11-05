@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.4.0
+---
+
 # Slice 5 – Time series
 
-**Status:** ✅ done (tested by the user on 2026-10-27 with v0.4.0)
+Tested by the user on 2026-10-27 with v0.4.0.
 
 ## Context
 

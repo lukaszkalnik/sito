@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.13.0
+---
+
 # Slice 29 – Faster first scan of Takeout folders
 
-**Status:** ✅ done (what it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout))
+What it established is in [docs/domain/photos.md](../domain/photos.md#first-scan-of-a-takeout).
 
 ## Context
 

@@ -1,6 +1,10 @@
+---
+status: 📝 concept drafted
+---
+
 # Slice 43 – Undo only rejections
 
-**Status:** 📝 concept drafted (2026-11-01; plan in plan mode when the slice starts)
+Since 2026-11-01; plan in plan mode when the slice starts.
 
 ## Idea
 

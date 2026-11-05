@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.8.0
+---
+
 # Slice 9 – Persistence
 
-**Status:** ✅ done (tested by the user on 2026-10-27 with a debug build; released as v0.8.0)
+Tested by the user on 2026-10-27 with a debug build.
 
 ## Context
 

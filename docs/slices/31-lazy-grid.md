@@ -1,6 +1,10 @@
+---
+status: 📝 concept drafted
+---
+
 # Slice 31 – Load the grid lazily
 
-**Status:** 📝 concept drafted (plan in plan mode when the slice starts)
+Plan in plan mode when the slice starts.
 
 ## Context
 

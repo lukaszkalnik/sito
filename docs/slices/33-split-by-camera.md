@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.14.0
+---
+
 # Slice 33 – Several cameras at one event
 
-**Status:** ✅ done (tested by the user on 2026-10-30; what it established is in [docs/domain/grouping.md](../domain/grouping.md))
+Tested by the user on 2026-10-30; what it established is in [docs/domain/grouping.md](../domain/grouping.md).
 
 ## Implementation notes
 

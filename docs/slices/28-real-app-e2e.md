@@ -1,6 +1,10 @@
+---
+status: 📝 draft
+---
+
 # Slice 28 – End-to-end tests of the real app
 
-**Status:** 📝 draft (concept; detailed plan when the slice starts)
+Concept; detailed plan when the slice starts.
 
 ## Context
 

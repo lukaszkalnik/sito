@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.1.0
+---
+
 # Slice 2 – Installable app
 
-**Status:** ✅ done (tested by the user on 2026-10-26 with v0.1.1)
+Tested by the user on 2026-10-26 with v0.1.1.
 
 ## Context
 

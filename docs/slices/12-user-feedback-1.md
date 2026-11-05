@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.13.0
+---
+
 # Slice 12 – User feedback 1
 
-**Status:** ✅ done (tested by the user on 2026-10-29; what it established is in [docs/domain/timeline.md](../domain/timeline.md))
+Tested by the user on 2026-10-29; what it established is in [docs/domain/timeline.md](../domain/timeline.md).
 
 ## Context
 

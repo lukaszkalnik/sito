@@ -2,7 +2,7 @@
 
 Work is split into vertical slices. Each slice goes through all layers (core → Tauri → UI) and ends with something the user can try in the running app. Ship one slice at a time; the user tests it before the next one starts.
 
-Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is added, and ideas go into `docs/ideas/`. The roadmap only links to those files with each slice's status; it never describes a slice, not even in one line. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status emoji in the table, the slice heading and the slice plan in sync.
+Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is added, and ideas go into `docs/ideas/`. The roadmap only links to those files with each slice's status; it never describes a slice, not even in one line. Plan each slice in plan mode before implementing it and save the approved plan into the same file, then implement. Keep the status in the table and in the slice's frontmatter (`status`, plus `release` once a release ships it) in sync.
 
 **Numbers are IDs, not order.** A slice keeps its number forever, like a ticket; a new slice gets the next free number. The order of the table is the order of work: the first slice not done is next. Refer to other slices by number and link.
 

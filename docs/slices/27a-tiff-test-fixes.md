@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.12.0
+---
+
 # Slice 27a – Fixes from testing slice 27 (TIFF)
 
-**Status:** ✅ done (tested by the user on 2026-10-29; released as v0.12.0; what it established is in [docs/domain/photos.md](../domain/photos.md))
+Tested by the user on 2026-10-29; what it established is in [docs/domain/photos.md](../domain/photos.md).
 
 ## Context
 

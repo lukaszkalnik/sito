@@ -1,6 +1,10 @@
+---
+status: ⬜ not started
+---
+
 # Slice 21 – Faces and eyes
 
-**Status:** ⬜ not started (moved from the roadmap; concept and plan when the slice starts)
+Moved from the roadmap; concept and plan when the slice starts.
 
 ## Idea
 

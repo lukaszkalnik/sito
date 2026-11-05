@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.10.0
+---
+
 # Slice 11 – Showcase screenshots for the README
 
-**Status:** ✅ done (checked by the user on 2026-10-28; how to regenerate the screenshots: [docs/images/README.md](../images/README.md))
+Checked by the user on 2026-10-28; how to regenerate the screenshots: [docs/images/README.md](../images/README.md).
 
 ## Context
 

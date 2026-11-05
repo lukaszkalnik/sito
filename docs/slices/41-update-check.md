@@ -1,6 +1,10 @@
+---
+status: 🧪 ready for testing
+---
+
 # Slice 41 – Update check on start
 
-**Status:** 🧪 ready for testing (2026-10-31; implemented, waits for the signing key and the user's test)
+Since 2026-10-31; implemented, waits for the signing key and the user's test.
 
 ## Idea
 

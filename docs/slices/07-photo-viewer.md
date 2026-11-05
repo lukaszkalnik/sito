@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.6.0
+---
+
 # Slice 7 – Photo viewer
 
-**Status:** ✅ done (tested by the user on 2026-10-27 with v0.6.4)
+Tested by the user on 2026-10-27 with v0.6.4.
 
 Planned together with [slice 8](08-reject-with-undo.md) (since changed to an `Odrzucone` folder instead of the trash).
 

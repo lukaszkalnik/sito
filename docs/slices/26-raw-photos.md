@@ -1,6 +1,11 @@
+---
+status: ✅ done
+release: v0.11.0
+---
+
 # Slice 26 – RAW photos
 
-**Status:** ✅ done (tested by the user on 2026-10-28; released as v0.11.0; what it established is in [docs/domain/photos.md](../domain/photos.md) and [docs/domain/rejecting.md](../domain/rejecting.md))
+Tested by the user on 2026-10-28; what it established is in [docs/domain/photos.md](../domain/photos.md) and [docs/domain/rejecting.md](../domain/rejecting.md).
 
 ## Context
 
