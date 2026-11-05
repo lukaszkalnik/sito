@@ -1,0 +1,6 @@
+{
+  "name": "quota-line",
+  "version": "0.1.0",
+  "description": "Status line with quota usage and next reset; once quota is used up, shows the credit spent past the limit",
+  "types": "./types/index.d.ts"
+}

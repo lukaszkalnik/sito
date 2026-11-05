@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "sito-mods": {
+      "source": {
+        "source": "github",
+        "repo": "lukaszkalnik/sito"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "quota-line@sito-mods": true
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "sito-mods",
+  "owner": { "name": "lukaszkalnik" },
+  "plugins": [
+    {
+      "name": "quota-line",
+      "source": "./.claude/mods/quota-line",
+      "description": "Status line with quota usage and next reset; once quota is used up, shows the credit spent past the limit"
+    }
+  ]
+}
