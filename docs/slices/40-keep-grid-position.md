@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 40 – Keep the grid position per folder
 
-Since 2026-10-31.
+Since 2026-10-31. Tested by the user 2026-11-05; its knowledge is in [Timeline](../domain/timeline.md).
 
 ## Context
 
