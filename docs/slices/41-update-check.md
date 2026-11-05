@@ -5,7 +5,7 @@ release: v0.15.0
 
 # Slice 41 – Update check on start
 
-Since 2026-10-31; implemented, signing key set up on 2026-11-05; waits for a manual Release run and the user's test.
+Since 2026-10-31; implemented, signing key set up and v0.15.0 (the first release with the updater) published on 2026-11-05, with signed Windows and macOS entries in `latest.json`. Waits for the user's test: on the Mac, install v0.15.0 and check the notice once v0.15.1 is out. The one-click Windows install is untested, since the user has no Windows machine.
 
 ## Idea
 
