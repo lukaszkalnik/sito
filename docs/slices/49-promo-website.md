@@ -37,7 +37,8 @@ Considered and not chosen:
 
 - **Language:** the app UI is Polish; decide whether the site is Polish only, or Polish and English (the release notes are English). If several languages, keep strings out of the markup as in the app.
 - **Privacy:** no analytics, trackers, cookies or third-party fonts/CDNs, in the spirit of the app's offline promise; host fonts and images in the repo.
-- **macOS and Windows warnings:** the builds are unsigned for now ([slice 47](47-windows-code-signing.md), [slice 23](23-macos-polish.md)); the page explains briefly how to get past SmartScreen and Gatekeeper, and the text is dropped once signing lands.
+- **Store links first** (user, 2026-11-07): once Sito is in the [Microsoft Store](52-microsoft-store.md) (and later the [Mac App Store](51-mac-app-store.md)), the store badges are the prominent download buttons. The GitHub installers come second, for people who avoid the stores. Until a store listing exists, that platform's GitHub installer is the main button. Build the download section so a store link can replace the main button without redesigning the page.
+- **macOS and Windows warnings:** the GitHub builds are unsigned ([slice 47](47-windows-code-signing.md) parked, [slice 50](50-macos-code-signing.md) after 1.0); next to them the page explains briefly how to get past SmartScreen and Gatekeeper.
 - **Content to reuse:** `README.md` (pitch), `CHANGELOG.md` (what is new in the newest release; link or excerpt), screenshots from `docs/images/` if suitable, the app icon.
 - **Pages setup:** GitHub Pages source = GitHub Actions (a repo setting the user switches on); deploy only from `main`/release tags.
 - **CI:** HTML/CSS checked by Prettier like the rest of the repo; a check that the link logic picks the right assets (e.g. a small test of the asset-matching function, or the release workflow failing if an expected asset is missing).

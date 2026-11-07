@@ -6,6 +6,8 @@ status: 📝 concept drafted
 
 Since 2026-11-07; plan in plan mode when the slice starts.
 
+**Parked** by the user on 2026-11-07: the [Microsoft Store](52-microsoft-store.md) becomes the main way to install on Windows and gives a Microsoft-signed package, so the GitHub installer may stay unsigned as a second option. Revisit only if a cheap certificate in the user's own name becomes available, or the store route fails.
+
 ## Idea
 
 Asked by the user on 2026-11-07: the Windows installer and app are code-signed, so Windows shows a known publisher instead of "Unknown publisher" and SmartScreen stops blocking the download and the first start ("Windows protected your PC" → *More info* → *Run anyway*, see [Releasing](../RELEASING.md#installing-on-windows)).

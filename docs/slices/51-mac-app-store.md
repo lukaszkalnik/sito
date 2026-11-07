@@ -6,9 +6,11 @@ status: 📝 concept drafted
 
 Since 2026-11-07; plan in plan mode when the slice starts.
 
+**Postponed** by the user on 2026-11-07 until after the 1.0 release, together with [slice 50](50-macos-code-signing.md) (same paid developer account).
+
 ## Idea
 
-Asked by the user on 2026-11-07: Sito is available in the Mac App Store, next to the signed download from GitHub ([slice 50](50-macos-code-signing.md)). Users find it there, install it with one click, and the store keeps it up to date.
+Asked by the user on 2026-11-07: Sito is available in the Mac App Store, next to the download from GitHub ([slice 50](50-macos-code-signing.md)). As on Windows ([slice 52](52-microsoft-store.md)), the store is the main way to install and the [promo website](49-promo-website.md) links to it prominently; the GitHub download is the second option. Users find it there, install it with one click, and the store keeps it up to date.
 
 ## What is different from the Developer ID build
 

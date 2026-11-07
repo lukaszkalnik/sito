@@ -6,9 +6,11 @@ status: 📝 concept drafted
 
 Since 2026-11-07; plan in plan mode when the slice starts. Split out of [slice 23](23-macos-polish.md), which keeps the other macOS fixes.
 
+**Postponed** by the user on 2026-11-07 until after the 1.0 release (more features, at least English and German UI, [slice 22](22-english-german-ui.md)): the Apple Developer Program costs 99 USD a year, worth paying only once Sito is ready for a wider audience. Until then the unsigned DMG stays, with the Privacy & Security steps in the release notes.
+
 ## Idea
 
-Asked by the user on 2026-11-07, to be done soon: the macOS app is signed with a Developer ID certificate and notarized by Apple, so it opens like any downloaded app, with at most the usual "downloaded from the internet" question.
+Asked by the user on 2026-11-07: the macOS app is signed with a Developer ID certificate and notarized by Apple, so it opens like any downloaded app, with at most the usual "downloaded from the internet" question.
 
 **Why now:** installing v0.x on the user's Mac was hard to figure out. macOS refused to start the unsigned app, and the right-click → *Open* bypass in [Releasing](../RELEASING.md#installing-on-macos) no longer works on current macOS (removed in macOS 15 Sequoia). The only way was System Settings → Privacy & Security, scrolling down past many entries to *Open Anyway*. Testers and other users will not find that.
 
