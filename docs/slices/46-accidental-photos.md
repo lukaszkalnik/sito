@@ -34,7 +34,7 @@ A per-photo mark („Przypadkowe”) like [slice 44](44-out-of-focus.md) and [sl
 
 ## Builds on
 
-- [Slice 44](44-out-of-focus.md): the mark kinds, the background analysis pass and cache, the badge, the marked-only review and dismissing.
+- [Slice 44](44-out-of-focus.md): the mark kinds, the background analysis pass and cache, the badge, the marked-only view in the „Widok” dropdown and dismissing.
 - [Slice 45](45-bad-exposure.md): the exposure measures, as one signal of an accidental photo.
 - [Slice 19](19-split-by-content.md): the image embeddings, if approach 2 is chosen.
 

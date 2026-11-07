@@ -14,7 +14,7 @@ Like [slice 44](44-out-of-focus.md), this is a **per-photo** mark for every phot
 
 ## Candidate behaviour
 
-- Two mark kinds, under- and overexposed, shown, reviewed and dismissed the same way as the out-of-focus mark of slice 44.
+- Two mark kinds, under- and overexposed, shown, reviewed and dismissed the same way as the out-of-focus mark of slice 44, with their own entries in the view dropdown („Widok”).
 - Only clearly failed exposures are marked, not photos that are a bit dark or bright: a photo the user could still save in an editor is not the target.
 - Thresholds are settings.
 
