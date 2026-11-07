@@ -20,7 +20,7 @@ Yes on Windows. The updater's download and install are separate steps, so Sito c
 2. **On start:** if a download from the previous session is waiting, install it before the main window opens, then restart. Applies the update sooner, but delays that start by the install (a few seconds) and needs the installer to be kept on disk between sessions.
 3. **Right away** while Sito is open: interrupts the user's work; ruled out.
 
-The installer is per-user and needs no admin rights, so a silent install has no UAC prompt. macOS waits for [slice 23](23-macos-polish.md) (signing), as in slice 41.
+The installer is per-user and needs no admin rights, so a silent install has no UAC prompt. macOS waits for [slice 50](50-macos-code-signing.md) (signing), as in slice 41.
 
 ## Candidate UI
 

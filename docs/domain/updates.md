@@ -33,6 +33,6 @@ A card at the bottom right of the main window, over the start screen and the gri
 ## Installing
 
 - **Windows:** one click. Sito downloads the installer, checks its signature against the public key built into the app (an update signed with another key is refused), and runs it in passive mode: a small progress window, no questions. The per-user install needs no admin rights. Before the installer closes Sito, the window sizes are saved and a running reject or accept finishes; none starts after that. The installer then starts the new version.
-- **macOS:** the notice shows the version and its notes but says to download the new version from the releases page; installing in the app comes with signing ([slice 23](../slices/23-macos-polish.md)).
+- **macOS:** the notice shows the version and its notes but says to download the new version from the releases page; installing in the app comes with signing ([slice 50](../slices/50-macos-code-signing.md)).
 - Only installs that already contain the updater can update themselves; versions before it are updated by running the installer by hand ([Releasing](../RELEASING.md#installing-on-windows)).
 - Updating is offered, never forced.

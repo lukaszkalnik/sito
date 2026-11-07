@@ -8,7 +8,7 @@ Moved from the roadmap; concept and plan when the slice starts.
 
 ## Idea
 
-Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
+Restoring from the macOS trash, macOS-specific fixes. Signing and notarization moved to [slice 50](50-macos-code-signing.md) (2026-11-07), the Mac App Store is [slice 51](51-mac-app-store.md).
 
 ## Notes
 
@@ -17,4 +17,4 @@ Signing, notarization, restoring from the macOS trash, macOS-specific fixes.
 
 ## Builds on
 
-- Auto update ([slice 41](41-update-check.md), [slice 42](42-zero-click-update.md)): the update manifest already lists a macOS bundle; once the app is signed and notarized, verify that the updater can replace the `.app` and enable the install path on macOS.
+- Auto update ([slice 41](41-update-check.md), [slice 42](42-zero-click-update.md)): the update manifest already lists a macOS bundle; enabling the install path on macOS is part of [slice 50](50-macos-code-signing.md).

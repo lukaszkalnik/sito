@@ -41,7 +41,8 @@ Since 2 is out for an individual in Germany, the realistic choice is between 1 (
 
 ## Related slices
 
-- **macOS signing and notarization** ([slice 23](23-macos-polish.md)) is the same kind of work for the other platform: the same release workflow step pattern (secrets, a check before publishing, docs). Build the verification step so macOS can add its own check (`codesign --verify`, `spctl`) next to it.
+- **macOS signing and notarization** ([slice 50](50-macos-code-signing.md)) is the same kind of work for the other platform: the same release workflow step pattern (secrets, a check before publishing, docs). Build the verification step so macOS can add its own check (`codesign --verify`, `spctl`) next to it.
+- **Microsoft Store** ([slice 52](52-microsoft-store.md)): the store re-signs MSIX packages, so a store copy is trusted even without a certificate from this slice.
 - **Install anywhere** ([slice 35](35-install-anywhere.md)): a per-machine install shows a UAC prompt; with a signed installer it names the publisher instead of "Unknown publisher".
 - **Zero-click update** ([slice 42](42-zero-click-update.md)): a silent update install is more trustworthy with a signed installer, and on locked-down machines it may need one.
 
