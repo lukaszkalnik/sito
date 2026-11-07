@@ -18,10 +18,14 @@ The page says in a few lines what Sito does (finds series of similar shots, sugg
 
 The installer names carry the version (`Sito_X.Y.Z_x64-setup.exe`, `Sito_X.Y.Z_universal.dmg`, see [RELEASING.md](../RELEASING.md)), so a fixed `releases/latest/download/<name>` link does not work for them as it does for `latest.json` ([Updates](../domain/updates.md)).
 
-- **Rebuild the page on every release:** the Release workflow, after publishing, deploys the site with the version and exact asset URLs filled in. Static page, no requests from the visitor's browser beyond GitHub Pages; the page is never ahead of or behind the published release. Needs a `pages` deploy job (`actions/deploy-pages`) with `pages: write` and `id-token: write` permissions on that job only.
-- **Fetch at view time:** the page reads `https://api.github.com/repos/lukaszkalnik/sito/releases/latest` in the browser and picks the assets by pattern. No coupling to the release workflow, but depends on the GitHub API (rate limit of 60 requests/hour per visitor IP) and needs a fallback link to the releases page.
+**Chosen (user, 2026-11-07): rebuild the page on every release.** The Release workflow, after publishing, deploys the site with the version and exact asset URLs filled in. Static page, no requests from the visitor's browser beyond GitHub Pages; the page is never ahead of or behind the published release. Needs a `pages` deploy job (`actions/deploy-pages`) with `pages: write` and `id-token: write` permissions on that job only.
+
+**Always a link to all releases** below the download buttons (user, 2026-11-07): `https://github.com/lukaszkalnik/sito/releases`, in case a button is wrong or someone wants an older version.
+
+Considered and not chosen:
+
+- **Fetch at view time:** the page reads `https://api.github.com/repos/lukaszkalnik/sito/releases/latest` in the browser and picks the assets by pattern. No coupling to the release workflow, but every visit makes a request to GitHub from the visitor's browser and the buttons appear only after it returns (the unauthenticated limit of 60 requests/hour per IP is rarely an issue).
 - **Unversioned asset copies:** upload `Sito_x64-setup.exe` / `Sito_universal.dmg` alongside the versioned ones, then link `releases/latest/download/...`. Simplest page, but doubles the upload and the installer name no longer shows the version.
-- Fallback in every case: a plain link to `https://github.com/lukaszkalnik/sito/releases/latest`.
 
 ### Building the site
 
