@@ -16,7 +16,7 @@ Clean the bar up so it stays readable and usable in a narrow window.
 
 - **Labels in a row above the controls:** a small caption line above each control group („Odstęp w serii” over the slider, „Odrzucone zdjęcia do:” over the dropdown) instead of a label next to it, so each group is only as wide as its control.
 - **Tooltips instead of labels** where the control explains itself (e.g. the folder icon before the rejection target, or the „Serie / Wszystkie zdjęcia” switch); the label stays as the `aria-label` from `pl.json`, so screen readers still name the control.
-- **„Serie / Wszystkie zdjęcia” as a dropdown** (suggested by the user on 2026-11-07): replace the segmented control with a dropdown like the rejection target's, so it takes the width of one option instead of both.
+- **„Serie / Wszystkie zdjęcia” as a dropdown** (suggested by the user on 2026-11-07): replace the segmented control with a dropdown like the rejection target's, so it takes the width of one option instead of both. [Slice 44](44-out-of-focus.md) plans the same dropdown („Widok”) to add a view for marked photos; this slice comes first, so it builds the dropdown generically (a list of views as a discriminated union), and slice 44 only adds its entry.
 - Possibly a mix: captions for the slider and the rejection target, tooltips elsewhere; and give the folder path and summary more of the width.
 
 ## To check when planning
