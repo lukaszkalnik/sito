@@ -69,3 +69,4 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 35 | [Install anywhere](slices/35-install-anywhere.md) | 📝 |
 | 42 | [Zero-click update](slices/42-zero-click-update.md) | 📝 |
 | 47 | [Windows code signing](slices/47-windows-code-signing.md) | 📝 |
+| 49 | [Promo website](slices/49-promo-website.md) | 📝 |
