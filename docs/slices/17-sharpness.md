@@ -18,3 +18,7 @@ Sharpness score per photo; the sharpest photo in each series is highlighted as s
 ## Try
 
 Do the suggestions match your pick?
+
+## Related
+
+- [Slice 44](44-out-of-focus.md) marks out-of-focus photos with a per-photo sharpness measure cached in the photo cache. Whichever comes first builds the measure and the background analysis pass; the other reuses them.

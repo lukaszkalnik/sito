@@ -18,3 +18,7 @@ Exposure score added; score weights adjustable in settings.
 ## Try
 
 Tune weights on series with exposure differences.
+
+## Related
+
+- [Slice 45](45-bad-exposure.md) marks under- and overexposed photos from the same histogram. Compute the histogram numbers once and cache them for both.

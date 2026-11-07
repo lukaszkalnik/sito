@@ -55,7 +55,10 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
 | 17 | [Sharpness suggestion](slices/17-sharpness.md) | ⬜ |
 | 18 | [Exposure and weights](slices/18-exposure-weights.md) | ⬜ |
+| 44 | [Mark out-of-focus photos](slices/44-out-of-focus.md) | 📝 |
+| 45 | [Mark under- and overexposed photos](slices/45-bad-exposure.md) | 📝 |
 | 19 | [Split by content](slices/19-split-by-content.md) | ⬜ |
+| 46 | [Mark accidental photos](slices/46-accidental-photos.md) | 📝 |
 | 20 | [Series without EXIF date](slices/20-series-without-exif-date.md) | ⬜ |
 | 21 | [Faces and eyes](slices/21-faces-and-eyes.md) | ⬜ |
 | 22 | [English and German UI](slices/22-english-german-ui.md) | ⬜ |

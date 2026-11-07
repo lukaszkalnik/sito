@@ -22,3 +22,4 @@ Series with mixed subjects get split.
 ## Builds on
 
 - [Slice 33](33-split-by-camera.md): a series is a list of its photos (`Series::members`, timeline positions) with a display order (`Arrangement`) built from it, so series need not be contiguous in time. Edits and splits only need to produce member lists; the grid and viewer follow the arrangement.
+- [Slice 46](46-accidental-photos.md) may use the same embeddings to mark accidental photos (e.g. CLIP text prompts like „the inside of a pocket”), which speaks for a CLIP-like model.
