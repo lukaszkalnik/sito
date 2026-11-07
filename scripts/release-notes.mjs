@@ -29,6 +29,13 @@ const install = `## Installing on Windows
 
 Download \`Sito_*_x64-setup.exe\` below and run it; it updates an installed Sito in place.
 The installer is not signed yet, so Windows may show „System Windows ochronił ten komputer”
-("Windows protected your PC"): click „Więcej informacji” (More info), then „Uruchom mimo to” (Run anyway).`;
+("Windows protected your PC"): click „Więcej informacji” (More info), then „Uruchom mimo to” (Run anyway).
+
+## Installing on macOS
+
+Download \`Sito_*_universal.dmg\` below, open it and drag Sito into Applications.
+The app is not signed yet, so macOS refuses the first start. Click Done, open
+System Settings → Privacy & Security, scroll down to Security, click „Otwórz mimo to” (Open Anyway)
+next to the note about Sito and confirm. A newly downloaded version may need this again.`;
 
 console.log(changesOnly ? section : `${section}\n\n${install}`);

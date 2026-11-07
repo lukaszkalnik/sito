@@ -80,7 +80,7 @@ Every build contains `THIRD-PARTY-NOTICES.txt` (shown under „Pomoc → Licencj
 
 1. Download `Sito_X.Y.Z_universal.dmg` (runs on Apple Silicon and Intel) from the [releases page](https://github.com/lukaszkalnik/sito/releases), or with `gh release download vX.Y.Z --repo lukaszkalnik/sito --pattern "*.dmg" --dir ~/Downloads`.
 2. Open it and drag **Sito** into **Applications**.
-3. The app is not signed yet, so the first start needs right-click → **Open** in Applications, then **Open** again. If macOS reports the app as damaged instead, run `xattr -dr com.apple.quarantine /Applications/Sito.app` once.
+3. The app is not signed yet ([slice 50](slices/50-macos-code-signing.md)), so macOS refuses the first start ("Sito" Not Opened). Click **Done**, then open **System Settings → Privacy & Security**, scroll down to the **Security** section, where it says Sito was blocked, and click **Open Anyway**; confirm with your password and **Open Anyway** again. Right-click → **Open** no longer works for this since macOS 15. If macOS reports the app as damaged instead, run `xattr -dr com.apple.quarantine /Applications/Sito.app` once.
 
 **Updating:** Sito shows a notice when a newer version is out; install it by downloading the new DMG and replacing the app (installing from the app comes with signing, see [Updates](domain/updates.md#installing)).
 
