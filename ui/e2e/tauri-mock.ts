@@ -315,7 +315,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             emit('timeline-changed');
             return { name: nameOf(id) };
           }
-          case 'undo_last': {
+          case 'undo_reject': {
             const index = undoableIndex();
             if (index < 0) return null;
             const [id] = rejected.splice(index, 1);

@@ -5,7 +5,7 @@ import { useShortcuts } from '../../shortcuts/useShortcuts';
 import {
   onTimelineChanged,
   rejectErrorCode,
-  undoLast,
+  undoReject,
   undoState,
   type RejectErrorCode,
   type Undone,
@@ -91,7 +91,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     }
     busy.current = true;
     try {
-      const undone = await undoLast();
+      const undone = await undoReject();
       if (undone) {
         setToast({ text: t('undo.done', { name: undone.name }), kind: 'info' });
         onUndone?.(undone);

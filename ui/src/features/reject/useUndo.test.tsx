@@ -1,14 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { undoLast, undoState } from './api';
+import { undoReject, undoState } from './api';
 import '../../i18n';
 import { useUndo } from './useUndo';
 
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
   undoState: vi.fn(),
-  undoLast: vi.fn(),
+  undoReject: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
 
@@ -19,7 +19,7 @@ describe('useUndo', () => {
   });
 
   it('restores with Ctrl+Z and reports the photo', async () => {
-    vi.mocked(undoLast).mockResolvedValue({ id: 4, name: 'IMG_4.jpg' });
+    vi.mocked(undoReject).mockResolvedValue({ id: 4, name: 'IMG_4.jpg' });
     const onUndone = vi.fn();
     const { result } = renderHook(() => useUndo(onUndone));
     await waitFor(() => expect(result.current.undoState).toBe('available'));
@@ -43,7 +43,7 @@ describe('useUndo', () => {
     ['internal', 'Nie udało się cofnąć odrzucenia.'],
     ['somethingNew', 'Nie udało się cofnąć odrzucenia.'],
   ])('explains a failed undo (%s)', async (code, text) => {
-    vi.mocked(undoLast).mockRejectedValue({ code });
+    vi.mocked(undoReject).mockRejectedValue({ code });
     const { result } = renderHook(() => useUndo());
 
     await act(() => result.current.undo());
@@ -52,7 +52,7 @@ describe('useUndo', () => {
   });
 
   it('does nothing when there is nothing to undo', async () => {
-    vi.mocked(undoLast).mockResolvedValue(null);
+    vi.mocked(undoReject).mockResolvedValue(null);
     const onUndone = vi.fn();
     const { result } = renderHook(() => useUndo(onUndone));
 
@@ -78,7 +78,7 @@ describe('useUndo', () => {
         kind: 'error',
       }),
     );
-    expect(undoLast).not.toHaveBeenCalled();
+    expect(undoReject).not.toHaveBeenCalled();
     expect(onUndone).not.toHaveBeenCalled();
   });
 

@@ -167,7 +167,7 @@ fn reject_in(
 /// Undoes the newest rejection in the current folder: moves the photo back
 /// onto the timeline; `None` if there is nothing to undo. Runs off the main thread: the trash can take a moment.
 #[tauri::command]
-pub async fn undo_last(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
+pub async fn undo_reject(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
     off_main_thread(move || {
         let actions = app.state::<Actions>().inner().lock();
         let state = app.state::<AppState>();
@@ -184,7 +184,7 @@ pub async fn undo_last(app: AppHandle) -> Result<Option<UndoneDto>, CommandError
     .await?
 }
 
-/// [`undo_last`] on the given scan and action state.
+/// [`undo_reject`] on the given scan and action state.
 fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>, CommandError> {
     let Some(log) = actions.log.as_ref() else {
         return Ok(None);
@@ -193,12 +193,12 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
         .last_undoable(&scan.timeline.root, actions.undoable_rejections())
         .map_err(|err| log_failed(&err))?;
     action
-        .map(|action| undo_reject(scan, actions, log, &action))
+        .map(|action| restore_rejection(scan, actions, log, &action))
         .transpose()
 }
 
 /// Moves the photo of the rejection `action` back and puts it on the timeline.
-fn undo_reject(
+fn restore_rejection(
     scan: &mut Scan,
     actions: &ActionsState,
     log: &ActionLog,

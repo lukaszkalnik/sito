@@ -62,7 +62,7 @@ pub fn run() -> tauri::Result<()> {
             viewer::current_viewer_request,
             viewer::page::get_viewer_photo,
             reject::reject_photo,
-            reject::undo_last,
+            reject::undo_reject,
             reject::get_undo_state,
             accept::accept_photo,
             accept::unaccept_photo,

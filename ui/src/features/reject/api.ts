@@ -39,8 +39,8 @@ export async function rejectPhoto(id: number, destination: RejectDestination): P
 }
 
 /** Undoes the newest rejection in the open folder: moves the photo back; `null` if there is none. */
-export async function undoLast(): Promise<Undone | null> {
-  return invoke<Undone | null>('undo_last');
+export async function undoReject(): Promise<Undone | null> {
+  return invoke<Undone | null>('undo_reject');
 }
 
 const UNDO_STATES = ['available', 'none', 'trashOnly'] as const;
