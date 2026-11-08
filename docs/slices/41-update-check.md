@@ -5,7 +5,7 @@ release: v0.15.0
 
 # Slice 41 – Update check on start
 
-Since 2026-10-31; implemented, signing key set up and v0.15.0 (the first release with the updater) published on 2026-11-05, with signed Windows and macOS entries in `latest.json`. v0.15.0 installs and opens on the user's Mac, and „Pomoc → Sprawdź aktualizacje…” reaches `latest.json` and reports the latest version (2026-11-05). On 2026-11-08 the installed v0.15.0 offered v0.15.1 in the notice on the Mac, and „Co nowego?” showed its notes (as raw Markdown, see [slice 54](54-release-notes-markdown.md)). The one-click Windows install is untested, since the user has no Windows machine.
+Since 2026-10-31; implemented, signing key set up and v0.15.0 (the first release with the updater) published on 2026-11-05, with signed Windows and macOS entries in `latest.json`. v0.15.0 installs and opens on the user's Mac, and „Pomoc → Sprawdź aktualizacje…” reaches `latest.json` and reports the latest version (2026-11-05). On 2026-11-08 the installed v0.15.0 offered v0.15.1 in the notice on the Mac, and „Co nowego?” showed its notes (as raw Markdown, see [slice 54](54-release-notes-markdown.md)); the notice has no link to the release page yet, see [slice 41a](41a-release-page-link.md). The one-click Windows install is untested, since the user has no Windows machine.
 
 ## Idea
 
