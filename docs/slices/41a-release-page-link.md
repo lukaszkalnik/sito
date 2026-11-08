@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 41a – Link to the release page in the update notice
 
-Since 2026-11-08; plan approved on 2026-11-08, see [Plan](#plan). Implemented on 2026-11-08, see [Implementation notes](#implementation-notes); what it established is in [Updates](../domain/updates.md). Waiting for the user's test on the Mac.
+Since 2026-11-08; plan approved on 2026-11-08, see [Plan](#plan). Implemented on 2026-11-08, see [Implementation notes](#implementation-notes); what it established is in [Updates](../domain/updates.md). Tested by the user on the Mac on 2026-11-08 with a debug build and a local `latest.json` announcing 0.16.0: „Pobierz” opened `…/releases/tag/v0.16.0` in the browser (a 404, as expected, since that test version has no release).
 
 ## Idea
 
@@ -76,4 +76,4 @@ For [slice 54](54-release-notes-markdown.md) (links in the notes), the URL check
 - `src-tauri/src/update/release_page.rs`: `release_page(version) -> Option<Url>` and `github_page(&Url) -> bool` (accepts any page in the repository, its root too).
 - UI: the offer's state holds `failure: { action: 'install' | 'openPage'; code }` (separate `refactor:` commit); `UpdateNotice` maps each action to its message with a `Record`, so a new action is a type error there.
 - Checks green on macOS: Rust fmt, clippy, tests; frontend lint, typecheck, Vitest, Playwright (60 tests).
-- **Not yet done:** the manual check on the Mac with `SITO_UPDATE_ENDPOINT` pointing at a local `latest.json` (see [Verification](#verification)); that is the user's test.
+- Manual check on the Mac done on 2026-11-08 (see the status line). Note for local tests on macOS: the offered version must be higher than the build's own, so its release page does not exist yet and GitHub shows a 404; the URL is what counts. The `darwin-*` entries in the test `latest.json` need a `url` and `signature`, but the check does not verify the signature.
