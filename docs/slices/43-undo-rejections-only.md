@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 43 – Undo only rejections
 
-Concept since 2026-11-01; plan approved on 2026-11-08 (below).
+Concept since 2026-11-01; plan approved on 2026-11-08 (below); implemented on 2026-11-08 (commits 2–5 of the plan), ready for testing. Its knowledge is in [Accepting](../domain/accepting.md#undo) and [Rejecting](../domain/rejecting.md).
 
 ## Idea
 
@@ -105,3 +105,12 @@ Changes on top of the plan above:
 - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
 - `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e` (accept + reject specs)
 - Manual in `npm run tauri dev`: reject a photo, accept two others, Ctrl+Z → the rejected photo is back and the marks stay. Accepting alone leaves „Cofnij” disabled, and the accept toast has no „Cofnij”.
+
+## Testing
+
+To check in `npm run tauri dev`:
+
+- Reject a photo, accept two others, Ctrl+Z → the rejected photo is back (still accepted if it was), and the two marks stay.
+- Accepting or un-accepting alone leaves „Cofnij” disabled; the toast („Zaakceptowano …” / „Cofnięto akceptację …”) has no „Cofnij”.
+- The hint of „Cofnij” reads „Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)”.
+- macOS: reject one photo into „Odrzucone” and then one into the trash; Ctrl+Z brings back the one from „Odrzucone”. „Cofnij” then looks inactive; clicking it (or Ctrl+Z) shows „Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie.”
