@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 43 – Undo only rejections
 
-Concept since 2026-11-01; plan approved on 2026-11-08 (below); implemented on 2026-11-08 (commits 2–5 of the plan), ready for testing. Its knowledge is in [Accepting](../domain/accepting.md#undo) and [Rejecting](../domain/rejecting.md).
+Concept since 2026-11-01; plan approved on 2026-11-08 (below); implemented on 2026-11-08 (commits 2–5 of the plan); tested by the user and done on 2026-11-08 without fixes. Its knowledge is in [Accepting](../domain/accepting.md#undo) and [Rejecting](../domain/rejecting.md).
 
 ## Idea
 
