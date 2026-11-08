@@ -15,7 +15,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 use crate::metadata::Orientation;
-use crate::scan::{FileStamp, StampedFile};
+use crate::scan::{FileStamp, StampedFile, is_photo};
 use crate::takeout::TakeoutUse;
 use crate::timeline::{ExifInfo, Photo, TimeSource};
 
@@ -138,7 +138,8 @@ impl PhotoCache {
         Ok(pending)
     }
 
-    /// All cached photos, of every folder ever scanned.
+    /// All cached photos, of every folder ever scanned, leaving out entries
+    /// for files that are not photos (see [`is_photo`]).
     ///
     /// # Errors
     ///
@@ -166,7 +167,9 @@ impl PhotoCache {
         let mut photos = Vec::new();
         for row in rows {
             // A row that does not parse is skipped; the photo is read again.
-            if let Some(photo) = row?.into_photo() {
+            // A row for a file that is no longer a photo (an older version
+            // stored hidden `._` files) is skipped until a scan forgets it.
+            if let Some(photo) = row?.into_photo().filter(|photo| is_photo(&photo.path)) {
                 photos.push(photo);
             }
         }

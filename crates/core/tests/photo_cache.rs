@@ -210,6 +210,21 @@ fn the_cache_alone_shows_the_folder_as_last_scanned() {
 }
 
 #[test]
+fn cached_entries_that_are_not_photos_are_not_shown() {
+    let dir = gallery();
+    let mut cache = PhotoCache::open_in_memory().unwrap();
+    let scanned = scan(dir.path(), &mut cache);
+    // Earlier versions stored the hidden `._` files macOS writes on exFAT.
+    let mut apple_double = scanned.photos[0].clone();
+    apple_double.path = dir.path().join("._IMG_0001.jpg");
+    cache.store(&[apple_double]).unwrap();
+
+    let instant = cached_timeline(dir.path(), &cache).unwrap();
+
+    assert_eq!(instant.photos, scanned.photos);
+}
+
+#[test]
 fn photos_that_are_gone_are_forgotten() {
     let dir = gallery();
     let mut cache = PhotoCache::open_in_memory().unwrap();
