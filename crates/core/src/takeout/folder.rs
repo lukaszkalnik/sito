@@ -5,14 +5,17 @@ use std::path::{Path, PathBuf};
 
 use super::naming::{is_edited_copy, match_sidecars};
 use super::sidecar::read_sidecar;
-use crate::scan::is_photo;
+use crate::scan::{is_hidden_file, is_photo};
 
-/// Whether `path` may be a Takeout date file (a `.json` file, any case).
+/// Whether `path` may be a Takeout date file (a `.json` file, any case, that
+/// is not hidden; macOS `._name` metadata files keep the `.json` extension).
 #[must_use]
 pub fn is_sidecar_candidate(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
+    !is_hidden_file(path)
+        && path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"))
 }
 
 /// Pairs the photos of one folder with their Takeout date files.
@@ -106,4 +109,22 @@ fn name_of(path: &Path) -> &str {
     path.file_name()
         .and_then(|name| name.to_str())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_files_are_sidecar_candidates_unless_hidden() {
+        assert!(is_sidecar_candidate(Path::new("a.jpg.json")));
+        assert!(is_sidecar_candidate(Path::new(
+            "d/b.JPG.supplemental-metadata.JSON"
+        )));
+        assert!(!is_sidecar_candidate(Path::new("._a.jpg.json")));
+        assert!(!is_sidecar_candidate(Path::new(
+            "d/._b.JPG.supplemental-metadata.json"
+        )));
+        assert!(!is_sidecar_candidate(Path::new("a.jpg")));
+    }
 }

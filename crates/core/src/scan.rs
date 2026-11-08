@@ -129,8 +129,15 @@ pub enum PhotoKind {
 
 /// The kind of the photo at `path`, by its extension (any letter case), or
 /// `None` if it is not a photo Sito reads.
+///
+/// Hidden files (name starting with `.`) are never photos: macOS writes a
+/// hidden `._name` metadata file next to every file on drives without Apple
+/// file systems (e.g. exFAT), and those keep the photo's extension.
 #[must_use]
 pub fn photo_kind(path: &Path) -> Option<PhotoKind> {
+    if is_hidden_file(path) {
+        return None;
+    }
     let ext = path.extension()?.to_str()?;
     if ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg") {
         return Some(PhotoKind::Jpeg);
@@ -142,7 +149,7 @@ pub fn photo_kind(path: &Path) -> Option<PhotoKind> {
 }
 
 /// Returns `true` if the path has the extension of a photo Sito reads
-/// (JPEG, a RAW format or TIFF, any letter case).
+/// (JPEG, a RAW format or TIFF, any letter case) and is not a hidden file.
 #[must_use]
 pub fn is_photo(path: &Path) -> bool {
     photo_kind(path).is_some()
@@ -400,6 +407,14 @@ pub(crate) fn is_in_rejected_dir(path: &Path, root: &Path) -> bool {
         })
 }
 
+/// Whether the file name of `path` starts with `.` (hidden on macOS and
+/// Linux, and the prefix of macOS `._` metadata files).
+pub(crate) fn is_hidden_file(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with('.'))
+}
+
 fn is_hidden(entry: &DirEntry) -> bool {
     entry
         .file_name()
@@ -455,6 +470,19 @@ mod tests {
     fn rejects_other_extensions() {
         for name in ["d.png", "e.heic", "f.cr3", "noext", ".jpg", "g.jpg.txt"] {
             assert!(!is_photo(Path::new(name)), "{name} should not be a photo");
+        }
+    }
+
+    #[test]
+    fn hidden_files_are_not_photos() {
+        for name in [
+            "._IMG_1.JPG",
+            "dir/._a.jpg",
+            ".b.jpeg",
+            "._c.ORF",
+            "._d.tif",
+        ] {
+            assert_eq!(photo_kind(Path::new(name)), None, "{name}");
         }
     }
 }

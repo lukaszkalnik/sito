@@ -4,6 +4,8 @@
 
 Sito works on large photo galleries taken with Android phones: 10,000+ photos per folder, often in subfolders. Sito reads JPEG (`.jpg`, `.jpeg`) and camera RAW files (`.orf`, `.cr2`, `.nef`, `.arw`, `.rw2`, `.raf`, `.dng`; not `.cr3`); and TIFF (`.tif`, `.tiff`).
 
+Sito searches the chosen folder and all its subfolders, except hidden folders (name starting with `.`) and folders containing a `.nomedia` file. **Hidden files are never photos (or Takeout date files)**, whatever their extension. This matters most for the `._name` files macOS writes next to every file on drives without an Apple file system (exFAT, FAT32, network shares): they keep the photo's name and extension, but they only hold Finder metadata.
+
 ## TIFF files
 
 - Scans and reproductions are often TIFF. Metadata comes from the TIFF tags (`DateTimeOriginal`, else `DateTime`; scans often have none and then use a Takeout date or the file date).

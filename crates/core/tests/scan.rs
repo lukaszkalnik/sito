@@ -45,6 +45,10 @@ fn gallery() -> TempDir {
         "WhatsApp/Private/.nomedia",
         "WhatsApp/Private/IMG_0006.jpg",
         "WhatsApp/Private/nested/IMG_0007.jpg",
+        // Skipped: hidden files, e.g. the `._` files macOS writes on exFAT.
+        "._IMG_0001.jpg",
+        "Camera/2024/._IMG_0003.jpeg",
+        "Odrzucone/._IMG_0008.jpg",
         // Rejected photos, in any letter case and at any depth: listed apart.
         "Odrzucone/IMG_0008.jpg",
         "Camera/2024/odrzucone/IMG_0009.jpg",
