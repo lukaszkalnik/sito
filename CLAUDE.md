@@ -34,7 +34,7 @@ Platforms: developed on Windows, macOS later.
 - **Pause at process milestones so the context can be cleared.** At each point below, stop before starting the next piece of work and offer the user the chance to clear the context:
   - a plan is approved and saved into its slice file (before implementing it);
   - a slice is implemented and ready for testing (status 🧪);
-  - testing of a slice is finished (the user's OK);
+  - testing of a slice is finished (the user's OK). A slice may stay 🧪 for a long time when the user cannot test it yet (e.g. it needs a release or another machine); that does not block other slices, and the next prompt need not mention it;
   - a release is published and installed. Releases are made only when the user asks for one, not after every slice; between them the user tests debug builds.
 
   Before pausing, make sure the slice files and the roadmap record where things stand (status, what is done, what comes next), so a fresh session can continue from them alone. Then write the next prompt for the fresh session (self-contained, pointing at the slice file), copy it to the clipboard (`LC_CTYPE=UTF-8 pbcopy` on macOS, since the shell may run with the C locale and `pbcopy` would then mangle non-ASCII characters; `Set-Clipboard` on Windows) and show it in the closing message. Only once the prompt is in the clipboard, offer a plain clear-context button (it clears at once, so never one that also posts instructions the user would need to read first); the user then pastes the prompt into the fresh session.
