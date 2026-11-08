@@ -105,13 +105,11 @@
   },
   "undo": {
     "button": "Cofnij",
-    "hint": "Cofnij ostatnią czynność (Ctrl+Z)",
+    "hint": "Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)",
     "done": "Przywrócono {{name}}",
-    "unaccepted": "Cofnięto akceptację {{name}}",
-    "reaccepted": "Przywrócono akceptację {{name}}",
     "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
-    "failed": "Nie udało się cofnąć ostatniej czynności.",
+    "failed": "Nie udało się cofnąć odrzucenia.",
     "missingFromTrash": "Nie można cofnąć: plik nie jest już w Koszu.",
     "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza."
   },

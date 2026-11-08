@@ -1,5 +1,5 @@
 //! Reject commands: move photos into the "Odrzucone" folder or the system
-//! trash, and undo the newest action (a rejection or an accept).
+//! trash, and undo the newest rejection.
 
 mod drive;
 #[cfg(test)]
@@ -12,12 +12,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::{Deserialize, Serialize};
-use sito_core::actions::{ActionLog, LogError, LoggedAction, Placement, RejectAction};
+use sito_core::actions::{ActionLog, LogError, Placement, RejectAction};
 use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::accept::{self, ACCEPTED_CHANGED};
 use crate::error::{CommandError, off_main_thread};
 use crate::scan::state::{AppState, Scan};
 use trash::{Bin, SystemBin};
@@ -25,7 +24,7 @@ use trash::{Bin, SystemBin};
 /// Event sent to all windows when photos leave or return to the timeline.
 pub const TIMELINE_CHANGED: &str = "timeline-changed";
 
-/// What rejecting and accepting need beyond the scan.
+/// What rejecting, undoing and accepting need beyond the scan.
 #[derive(Debug)]
 pub struct Actions(Mutex<ActionsState>);
 
@@ -81,7 +80,7 @@ pub struct RejectedDto {
     name: String,
 }
 
-/// The action "Cofnij" undid.
+/// The rejected photo "Cofnij" brought back.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UndoneDto {
@@ -90,30 +89,6 @@ pub struct UndoneDto {
     pub(crate) id: Option<usize>,
     /// File name of the photo.
     pub(crate) name: String,
-    /// What undoing did to the photo.
-    pub(crate) kind: UndoneKind,
-}
-
-/// What undoing an action did to its photo.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum UndoneKind {
-    /// A rejected photo is back where it was.
-    Restored,
-    /// An accepted photo lost its mark.
-    Unaccepted,
-    /// A photo whose mark was taken off is accepted again.
-    Reaccepted,
-}
-
-impl UndoneKind {
-    /// The event announcing the change to all windows.
-    fn event(self) -> &'static str {
-        match self {
-            Self::Restored => TIMELINE_CHANGED,
-            Self::Unaccepted | Self::Reaccepted => ACCEPTED_CHANGED,
-        }
-    }
 }
 
 /// Whether "Cofnij" has something to undo in the current folder.
@@ -173,9 +148,8 @@ fn reject_in(
     })
 }
 
-/// Undoes the newest action in the current folder: moves a rejected photo
-/// back onto the timeline, or reverts an accept or un-accept; `None` if there
-/// is nothing to undo. Runs off the main thread: the trash can take a moment.
+/// Undoes the newest rejection in the current folder: moves the photo back
+/// onto the timeline; `None` if there is nothing to undo. Runs off the main thread: the trash can take a moment.
 #[tauri::command]
 pub async fn undo_last(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
     off_main_thread(move || {
@@ -186,8 +160,8 @@ pub async fn undo_last(app: AppHandle) -> Result<Option<UndoneDto>, CommandError
             return Ok(None);
         };
         let undone = undo_in(scan, &actions)?;
-        if let Some(undone) = &undone {
-            announce(&app, undone.kind.event());
+        if undone.is_some() {
+            announce(&app, TIMELINE_CHANGED);
         }
         Ok(undone)
     })
@@ -202,11 +176,9 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
     let action = log
         .last_undoable(&scan.timeline.root)
         .map_err(|err| log_failed(&err))?;
-    match action {
-        None => Ok(None),
-        Some(LoggedAction::Reject(action)) => undo_reject(scan, actions, log, &action).map(Some),
-        Some(LoggedAction::Accept(action)) => accept::undo(scan, log, &action).map(Some),
-    }
+    action
+        .map(|action| undo_reject(scan, actions, log, &action))
+        .transpose()
 }
 
 /// Moves the photo of the rejection `action` back and puts it on the timeline.
@@ -243,11 +215,10 @@ fn undo_reject(
     Ok(UndoneDto {
         id,
         name: file_name(&action.from),
-        kind: UndoneKind::Restored,
     })
 }
 
-/// Whether there is an action to undo in the current folder.
+/// Whether there is a rejection to undo in the current folder.
 // Tauri injects `State` by value into commands.
 #[allow(clippy::needless_pass_by_value)]
 #[tauri::command]
@@ -299,6 +270,7 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::accept;
     use crate::reject::fake_bin::FakeBin;
 
     /// The two fixture photos 5 s apart, which form the only series.
@@ -491,10 +463,9 @@ mod tests {
             serde_json::to_value(UndoneDto {
                 id: Some(3),
                 name: "IMG_1.jpg".into(),
-                kind: UndoneKind::Reaccepted,
             })
             .unwrap(),
-            json!({ "id": 3, "name": "IMG_1.jpg", "kind": "reaccepted" })
+            json!({ "id": 3, "name": "IMG_1.jpg" })
         );
         assert_eq!(
             serde_json::to_value(UndoStateDto { can_undo: true }).unwrap(),
@@ -715,46 +686,29 @@ mod tests {
     }
 
     #[test]
-    fn undo_takes_back_a_rejection_and_then_the_accept_before_it() {
+    fn undo_restores_the_rejection_and_leaves_the_accepts_around_it() {
         let dir = gallery();
         let mut scan = scan(dir.path());
         let mut actions = started(&dir.path().join("sito.db"));
         let id = id_of(&scan, NEWER);
         set_mark(&scan, &actions, NEWER, AcceptChange::Accepted);
-        assert_eq!(accepted_names(&scan, &actions), [NEWER]);
         reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
-        assert_eq!(accepted_names(&scan, &actions), Vec::<String>::new());
+        set_mark(&scan, &actions, OLDER, AcceptChange::Accepted);
+        assert_eq!(accepted_names(&scan, &actions), [OLDER]);
 
         let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
-        assert_eq!(undone.kind, UndoneKind::Restored);
-        // Back from "Odrzucone", still accepted.
-        assert_eq!(accepted_names(&scan, &actions), [NEWER]);
 
-        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
         assert_eq!(
             undone,
             UndoneDto {
                 id: Some(id),
                 name: NEWER.into(),
-                kind: UndoneKind::Unaccepted,
             }
         );
-        assert_eq!(accepted_names(&scan, &actions), Vec::<String>::new());
+        // Back from "Odrzucone", still accepted, and the newer accept stays.
+        assert_eq!(accepted_names(&scan, &actions), [NEWER, OLDER]);
         assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
-    }
-
-    #[test]
-    fn undoing_an_unaccept_accepts_the_photo_again() {
-        let dir = gallery();
-        let mut scan = scan(dir.path());
-        let actions = started(&dir.path().join("sito.db"));
-        set_mark(&scan, &actions, OLDER, AcceptChange::Accepted);
-        set_mark(&scan, &actions, OLDER, AcceptChange::Unaccepted);
-
-        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
-
-        assert_eq!(undone.kind, UndoneKind::Reaccepted);
-        assert_eq!(accepted_names(&scan, &actions), [OLDER]);
+        assert_eq!(accepted_names(&scan, &actions), [NEWER, OLDER]);
     }
 
     #[test]

@@ -25,7 +25,7 @@ describe('useToggleAccept', () => {
 
     expect(acceptPhoto).toHaveBeenCalledWith(4);
     expect(unacceptPhoto).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith({ text: 'Zaakceptowano IMG_4.jpg', kind: 'undoable' });
+    expect(showToast).toHaveBeenCalledWith({ text: 'Zaakceptowano IMG_4.jpg', kind: 'info' });
   });
 
   it('takes the mark off an accepted photo', async () => {
@@ -37,7 +37,7 @@ describe('useToggleAccept', () => {
     expect(unacceptPhoto).toHaveBeenCalledWith(4);
     expect(showToast).toHaveBeenCalledWith({
       text: 'Cofnięto akceptację IMG_4.jpg',
-      kind: 'undoable',
+      kind: 'info',
     });
   });
 

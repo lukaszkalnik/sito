@@ -2,10 +2,10 @@
 #![allow(clippy::unwrap_used)]
 
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use sito_core::accept::{AcceptAction, AcceptChange};
-use sito_core::actions::{ActionLog, LoggedAction};
+use sito_core::accept::AcceptChange;
+use sito_core::actions::ActionLog;
 use tempfile::TempDir;
 
 fn root() -> PathBuf {
@@ -24,103 +24,83 @@ fn accepted(log: &ActionLog) -> HashSet<PathBuf> {
     log.accepted_paths(&root()).unwrap()
 }
 
-/// The newest undoable action, which must be an accept action.
-fn last_accept(log: &ActionLog) -> AcceptAction {
-    match log.last_undoable(&root()).unwrap() {
-        Some(LoggedAction::Accept(action)) => action,
-        other => panic!("not an accept action: {other:?}"),
-    }
+fn rejected(name: &str) -> PathBuf {
+    root().join("Odrzucone").join(name)
 }
 
-#[test]
-fn accepting_and_undoing_marks_and_unmarks_the_photo() {
-    let log = ActionLog::open_in_memory().unwrap();
-
-    let id = log
-        .set_accepted(&photo("IMG_1.jpg"), AcceptChange::Accepted)
+/// How many rows the `actions` table of the log file `db` holds.
+fn action_rows(db: &Path) -> i64 {
+    let conn = rusqlite::Connection::open(db).unwrap();
+    conn.query_row("SELECT COUNT(*) FROM actions", [], |row| row.get(0))
         .unwrap()
-        .unwrap();
-
-    assert_eq!(accepted(&log), HashSet::from([photo("IMG_1.jpg")]));
-    let action = last_accept(&log);
-    assert_eq!(
-        action,
-        AcceptAction {
-            id,
-            path: photo("IMG_1.jpg"),
-            change: AcceptChange::Accepted,
-        }
-    );
-
-    log.undo_accept(&action).unwrap();
-
-    assert_eq!(accepted(&log), HashSet::new());
-    assert!(log.undone_at(id).unwrap().is_some());
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
 }
 
 #[test]
-fn undoing_an_unaccept_puts_the_mark_back() {
-    let log = ActionLog::open_in_memory().unwrap();
+fn accepting_and_unaccepting_change_the_mark_without_logging() {
+    let dir = TempDir::new().unwrap();
+    let db = dir.path().join("sito.db");
+    let log = ActionLog::open(&db).unwrap();
     let path = photo("IMG_1.jpg");
+
     log.set_accepted(&path, AcceptChange::Accepted).unwrap();
+    assert_eq!(accepted(&log), HashSet::from([path.clone()]));
+    // Another window accepting the same photo again changes nothing.
+    log.set_accepted(&path, AcceptChange::Accepted).unwrap();
+    assert_eq!(accepted(&log), HashSet::from([path.clone()]));
 
     log.set_accepted(&path, AcceptChange::Unaccepted).unwrap();
     assert_eq!(accepted(&log), HashSet::new());
 
-    let action = last_accept(&log);
-    assert_eq!(action.change, AcceptChange::Unaccepted);
-    log.undo_accept(&action).unwrap();
-    assert_eq!(accepted(&log), HashSet::from([path.clone()]));
-
-    // Next comes the accept itself.
-    let action = last_accept(&log);
-    assert_eq!(action.change, AcceptChange::Accepted);
-    log.undo_accept(&action).unwrap();
-    assert_eq!(accepted(&log), HashSet::new());
-}
-
-#[test]
-fn a_change_that_changes_nothing_is_not_logged() {
-    let log = ActionLog::open_in_memory().unwrap();
-    let path = photo("IMG_1.jpg");
-
-    assert_eq!(
-        log.set_accepted(&path, AcceptChange::Unaccepted).unwrap(),
-        None
-    );
     assert_eq!(log.last_undoable(&root()).unwrap(), None);
-
-    let first = log
-        .set_accepted(&path, AcceptChange::Accepted)
-        .unwrap()
-        .unwrap();
-    // Another window accepting the same photo again.
-    assert_eq!(
-        log.set_accepted(&path, AcceptChange::Accepted).unwrap(),
-        None
-    );
-    assert_eq!(last_accept(&log).id, first);
+    assert_eq!(action_rows(&db), 0);
 }
 
 #[test]
-fn undo_takes_rejections_and_accepts_newest_first() {
+fn undo_skips_accepts_and_keeps_their_marks() {
     let log = ActionLog::open_in_memory().unwrap();
-    let path = photo("IMG_1.jpg");
-    let rejected = root().join("Odrzucone").join("IMG_1.jpg");
-    log.set_accepted(&path, AcceptChange::Accepted).unwrap();
-    let reject = log.record_reject(&path, &rejected, &[]).unwrap();
+    log.set_accepted(&photo("IMG_1.jpg"), AcceptChange::Accepted)
+        .unwrap();
+    let reject = log
+        .record_reject(&photo("IMG_1.jpg"), &rejected("IMG_1.jpg"), &[])
+        .unwrap();
+    log.set_accepted(&photo("IMG_2.jpg"), AcceptChange::Accepted)
+        .unwrap();
 
-    let Some(LoggedAction::Reject(action)) = log.last_undoable(&root()).unwrap() else {
-        panic!("the rejection comes first");
-    };
+    let action = log.last_undoable(&root()).unwrap().unwrap();
     assert_eq!(action.id, reject);
-    // A rejected photo keeps its mark, so undoing the rejection brings it
-    // back accepted.
-    assert_eq!(accepted(&log), HashSet::from([path]));
     log.mark_undone(reject).unwrap();
 
-    assert_eq!(last_accept(&log).change, AcceptChange::Accepted);
+    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    // A rejected accepted photo keeps its mark, so it comes back accepted.
+    assert_eq!(
+        accepted(&log),
+        HashSet::from([photo("IMG_1.jpg"), photo("IMG_2.jpg")])
+    );
+}
+
+#[test]
+fn old_logged_accepts_are_not_offered_for_undo() {
+    let dir = TempDir::new().unwrap();
+    let db = dir.path().join("sito.db");
+    let log = ActionLog::open(&db).unwrap();
+    let reject = log
+        .record_reject(&photo("IMG_1.jpg"), &rejected("IMG_1.jpg"), &[])
+        .unwrap();
+    // Rows written by versions that still logged accepting (slices 32–42).
+    let text = photo("IMG_2.jpg").to_str().unwrap().to_owned();
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    for kind in ["accept", "unaccept"] {
+        conn.execute(
+            "INSERT INTO actions (at, kind, from_path, to_path)
+             VALUES ('2026-11-01T12:00:00.000+01:00', ?1, ?2, ?2)",
+            rusqlite::params![kind, text],
+        )
+        .unwrap();
+    }
+
+    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, reject);
+    log.mark_undone(reject).unwrap();
+    assert_eq!(log.last_undoable(&root()).unwrap(), None);
 }
 
 #[test]
@@ -137,16 +117,6 @@ fn lists_only_accepted_photos_inside_the_folder() {
         log.accepted_paths(&root().join("Złote gody")).unwrap(),
         HashSet::from([inside])
     );
-    // The sibling's accept is not offered for undo in this folder.
-    assert_eq!(
-        log.last_undoable(&root())
-            .unwrap()
-            .map(|action| match action {
-                LoggedAction::Accept(accept) => accept.path,
-                LoggedAction::Reject(reject) => reject.from,
-            }),
-        Some(root().join("Złote gody").join("IMG_1.jpg"))
-    );
 }
 
 #[test]
@@ -162,7 +132,6 @@ fn keeps_the_marks_across_reopening() {
     let log = ActionLog::open(&file).unwrap();
 
     assert_eq!(accepted(&log), HashSet::from([photo("IMG_1.jpg")]));
-    assert_eq!(last_accept(&log).path, photo("IMG_1.jpg"));
 }
 
 #[test]
@@ -189,14 +158,11 @@ fn upgrading_a_version_3_log_keeps_its_entries() {
 
     let log = ActionLog::open(&db).unwrap();
 
-    assert!(matches!(
-        log.last_undoable(std::path::Path::new("a")).unwrap(),
-        Some(LoggedAction::Reject(_))
-    ));
-    log.set_accepted(std::path::Path::new("a/y.jpg"), AcceptChange::Accepted)
+    assert!(log.last_undoable(Path::new("a")).unwrap().is_some());
+    log.set_accepted(Path::new("a/y.jpg"), AcceptChange::Accepted)
         .unwrap();
     assert_eq!(
-        log.accepted_paths(std::path::Path::new("a")).unwrap(),
+        log.accepted_paths(Path::new("a")).unwrap(),
         HashSet::from([PathBuf::from("a/y.jpg")])
     );
 }

@@ -20,10 +20,10 @@ export function useToggleAccept(
     try {
       if (acceptedIds.has(id)) {
         const { name } = await unacceptPhoto(id);
-        showToast({ text: t('accept.undone', { name }), kind: 'undoable' });
+        showToast({ text: t('accept.undone', { name }), kind: 'info' });
       } else {
         const { name } = await acceptPhoto(id);
-        showToast({ text: t('accept.done', { name }), kind: 'undoable' });
+        showToast({ text: t('accept.done', { name }), kind: 'info' });
       }
     } catch (error) {
       console.error('Cannot change the accepted mark', error);

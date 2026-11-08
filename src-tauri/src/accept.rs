@@ -4,12 +4,12 @@
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
-use sito_core::accept::{AcceptAction, AcceptChange};
+use sito_core::accept::AcceptChange;
 use sito_core::actions::ActionLog;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
-use crate::reject::{Actions, UndoneDto, UndoneKind, announce, file_name, log_failed};
+use crate::reject::{Actions, announce, file_name, log_failed};
 use crate::scan::state::{AppState, Scan};
 
 /// Event sent to all windows when a photo is accepted or loses its mark.
@@ -23,13 +23,13 @@ pub struct AcceptedDto {
     name: String,
 }
 
-/// Marks photo `id` of the current scan as accepted, and logs it.
+/// Marks photo `id` of the current scan as accepted.
 #[tauri::command]
 pub async fn accept_photo(id: usize, app: AppHandle) -> Result<AcceptedDto, CommandError> {
     change_mark(app, id, AcceptChange::Accepted).await
 }
 
-/// Takes the accepted mark off photo `id` of the current scan, and logs it.
+/// Takes the accepted mark off photo `id` of the current scan.
 #[tauri::command]
 pub async fn unaccept_photo(id: usize, app: AppHandle) -> Result<AcceptedDto, CommandError> {
     change_mark(app, id, AcceptChange::Unaccepted).await
@@ -102,26 +102,4 @@ pub(crate) fn accepted_ids(scan: &Scan, paths: &std::collections::HashSet<PathBu
         .filter(|(_, photo)| paths.contains(&photo.path))
         .map(|(id, _)| id)
         .collect()
-}
-
-/// Reverts the accept or un-accept `action`.
-pub(crate) fn undo(
-    scan: &Scan,
-    log: &ActionLog,
-    action: &AcceptAction,
-) -> Result<UndoneDto, CommandError> {
-    log.undo_accept(action).map_err(|err| log_failed(&err))?;
-    let kind = match action.change {
-        AcceptChange::Accepted => UndoneKind::Unaccepted,
-        AcceptChange::Unaccepted => UndoneKind::Reaccepted,
-    };
-    let id = scan
-        .photos()
-        .find(|(_, photo)| photo.path == action.path)
-        .map(|(id, _)| id);
-    Ok(UndoneDto {
-        id,
-        name: file_name(&action.path),
-        kind,
-    })
 }
