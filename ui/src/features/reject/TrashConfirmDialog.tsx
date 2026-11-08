@@ -33,7 +33,13 @@ export function TrashConfirmDialog({
       className="trash-confirm"
       aria-labelledby="trash-confirm-title"
       aria-describedby="trash-confirm-text"
-      onClose={onCancel}
+      // Escape fires `cancel` at once but `close` only in a later task, after
+      // which the dialog may already be open again: cancel on `cancel`, and on
+      // `close` only if the dialog is still closed (it can close without `cancel`).
+      onCancel={onCancel}
+      onClose={() => {
+        if (!dialog.current?.open) onCancel();
+      }}
     >
       <h2 id="trash-confirm-title">{t('destination.confirmTitle')}</h2>
       <p id="trash-confirm-text">{t('destination.confirmText')}</p>

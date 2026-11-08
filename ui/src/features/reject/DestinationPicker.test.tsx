@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -62,5 +62,24 @@ describe('DestinationPicker', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(picker()).toHaveValue('folder');
     expect(loadDestination()).toBe('folder');
+  });
+
+  it('asks again right after Escape, before the dialog has reported closing', async () => {
+    await chooseTrash();
+    // oxlint-disable-next-line typescript/no-non-null-assertion -- the dialog is always rendered
+    const dialog = document.querySelector('dialog')!;
+
+    // A browser's Escape: `cancel`, the dialog closes, and `close` follows in a later task.
+    act(() => {
+      if (dialog.dispatchEvent(new Event('cancel', { cancelable: true }))) dialog.open = false;
+    });
+    await userEvent.selectOptions(picker(), 'kosza');
+    act(() => {
+      dialog.dispatchEvent(new Event('close'));
+    });
+
+    expect(
+      screen.getByRole('dialog', { name: 'Przenosić odrzucone zdjęcia do kosza?' }),
+    ).toBeInTheDocument();
   });
 });
