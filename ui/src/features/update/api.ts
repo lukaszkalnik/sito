@@ -25,13 +25,15 @@ export type InstallProgress =
   | { readonly kind: 'installing' };
 
 /** Error codes of the update commands. Mirrors `UpdateError`. */
-export type UpdateErrorCode = 'network' | 'badSignature' | 'noUpdate' | 'unsupported' | 'internal';
+export type UpdateErrorCode =
+  'network' | 'badSignature' | 'noUpdate' | 'unsupported' | 'openFailed' | 'internal';
 
 const errorCodes: readonly UpdateErrorCode[] = [
   'network',
   'badSignature',
   'noUpdate',
   'unsupported',
+  'openFailed',
   'internal',
 ];
 
@@ -102,6 +104,15 @@ export async function installUpdate(
   channel.onmessage = onProgress;
   try {
     await invoke('install_update', { onProgress: channel });
+  } catch (error) {
+    throw toUpdateError(error);
+  }
+}
+
+/** Opens the release page of the update found by the last check in the system browser. */
+export async function openReleasePage(): Promise<void> {
+  try {
+    await invoke('open_release_page');
   } catch (error) {
     throw toUpdateError(error);
   }

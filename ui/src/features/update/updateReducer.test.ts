@@ -95,6 +95,33 @@ describe('updateReducer', () => {
     });
   });
 
+  it('keeps the offer with the reason when the release page does not open', () => {
+    const failed = run(
+      { type: 'checkStarted', trigger: 'start' },
+      { type: 'found', info: { ...info, install: 'manual' } },
+      { type: 'openPageFailed', code: 'openFailed' },
+    );
+    expect(failed).toEqual({
+      kind: 'available',
+      info: { ...info, install: 'manual' },
+      failure: { action: 'openPage', code: 'openFailed' },
+    });
+
+    const checkedAgain = [
+      { type: 'checkStarted', trigger: 'menu' },
+      { type: 'found', info },
+    ] as const satisfies readonly UpdateEvent[];
+    expect(checkedAgain.reduce(updateReducer, failed)).toEqual({
+      kind: 'available',
+      info,
+      failure: null,
+    });
+  });
+
+  it('ignores a release page failure without an offer', () => {
+    expect(run({ type: 'openPageFailed', code: 'openFailed' })).toEqual(initialUpdateState);
+  });
+
   it('is not interrupted by a check or a dismissal while installing', () => {
     const downloading = run(
       { type: 'checkStarted', trigger: 'start' },

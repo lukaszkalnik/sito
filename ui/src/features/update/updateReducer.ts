@@ -4,7 +4,7 @@ import type { InstallProgress, UpdateErrorCode, UpdateInfo } from './api';
 export type CheckTrigger = 'start' | 'menu';
 
 /** What the user asked of an offered update that failed. */
-export type FailedAction = 'install';
+export type FailedAction = 'install' | 'openPage';
 
 /** A failed action on an offered update, with its reason. */
 export interface Failure {
@@ -35,6 +35,7 @@ export type UpdateEvent =
   | { readonly type: 'installStarted' }
   | { readonly type: 'progress'; readonly progress: InstallProgress }
   | { readonly type: 'installFailed'; readonly code: UpdateErrorCode }
+  | { readonly type: 'openPageFailed'; readonly code: UpdateErrorCode }
   | { readonly type: 'dismissed' };
 
 export const initialUpdateState: UpdateState = { kind: 'idle' };
@@ -49,7 +50,8 @@ function isInstalling(
 /**
  * The notice after `event`. A check started at the app's start stays quiet
  * when there is no update or it fails; one from the menu always answers.
- * A failed install goes back to the offer, with the reason.
+ * A failed install goes back to the offer, with the reason; so does a
+ * release page that did not open.
  */
 export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateState {
   switch (event.type) {
@@ -72,6 +74,10 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
     case 'installFailed':
       return isInstalling(state)
         ? { kind: 'available', info: state.info, failure: { action: 'install', code: event.code } }
+        : state;
+    case 'openPageFailed':
+      return state.kind === 'available'
+        ? { ...state, failure: { action: 'openPage', code: event.code } }
         : state;
     case 'dismissed':
       return isInstalling(state) ? state : initialUpdateState;

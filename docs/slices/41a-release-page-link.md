@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 41a – Link to the release page in the update notice
 
-Since 2026-11-08; plan approved on 2026-11-08, see [Plan](#plan).
+Since 2026-11-08; plan approved on 2026-11-08, see [Plan](#plan). Implemented on 2026-11-08, see [Implementation notes](#implementation-notes); what it established is in [Updates](../domain/updates.md). Waiting for the user's test on the Mac.
 
 ## Idea
 
@@ -69,3 +69,11 @@ For [slice 54](54-release-notes-markdown.md) (links in the notes), the URL check
 
 - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; `npm run lint`, `npm run typecheck -w ui`, `npm test`, `npm run e2e`.
 - On the Mac: a debug build with `SITO_UPDATE_ENDPOINT` pointing at a local `latest.json` that announces a higher version; „Pobierz” opens that version's release page in the browser. Then 🧪 for the user's test.
+
+## Implementation notes
+
+- **Deviation from the plan:** the page is opened with `tauri-plugin-opener`'s free function `tauri_plugin_opener::open_url`, and the plugin is **not registered**. Its Rust API needs no plugin, and without registration the webview does not even get the plugin's (denied) commands. Slice 54 can do the same.
+- `src-tauri/src/update/release_page.rs`: `release_page(version) -> Option<Url>` and `github_page(&Url) -> bool` (accepts any page in the repository, its root too).
+- UI: the offer's state holds `failure: { action: 'install' | 'openPage'; code }` (separate `refactor:` commit); `UpdateNotice` maps each action to its message with a `Record`, so a new action is a type error there.
+- Checks green on macOS: Rust fmt, clippy, tests; frontend lint, typecheck, Vitest, Playwright (60 tests).
+- **Not yet done:** the manual check on the Mac with `SITO_UPDATE_ENDPOINT` pointing at a local `latest.json` (see [Verification](#verification)); that is the user's test.

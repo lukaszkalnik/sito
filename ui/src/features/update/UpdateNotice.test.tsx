@@ -6,6 +6,7 @@ import {
   checkForUpdate,
   installUpdate,
   onCheckRequested,
+  openReleasePage,
   UpdateError,
   type InstallProgress,
   type UpdateInfo,
@@ -18,6 +19,7 @@ vi.mock('./api', async (importOriginal) => ({
   checkForUpdate: vi.fn(),
   installUpdate: vi.fn(),
   onCheckRequested: vi.fn(),
+  openReleasePage: vi.fn(),
 }));
 
 const info: UpdateInfo = {
@@ -27,6 +29,7 @@ const info: UpdateInfo = {
 };
 const found = { currentVersion: '0.14.0', update: info };
 const notFound = { currentVersion: '0.14.0', update: null };
+const foundManual = { ...found, update: { ...info, install: 'manual' as const } };
 
 /** Renders the notice and returns a function that picks „Sprawdź aktualizacje…”. */
 async function renderNotice(): Promise<() => void> {
@@ -147,10 +150,8 @@ describe('UpdateNotice', () => {
   });
 
   it('points to the releases page where Sito cannot install it', async () => {
-    vi.mocked(checkForUpdate).mockResolvedValue({
-      ...found,
-      update: { ...info, install: 'manual' },
-    });
+    vi.mocked(checkForUpdate).mockResolvedValue(foundManual);
+    vi.mocked(openReleasePage).mockResolvedValue();
     await renderNotice();
 
     expect(
@@ -159,5 +160,32 @@ describe('UpdateNotice', () => {
     expect(
       screen.queryByRole('button', { name: 'Zainstaluj i uruchom ponownie' }),
     ).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pobierz' }));
+
+    expect(openReleasePage).toHaveBeenCalledOnce();
+    // The offer stays, so its notes are still at hand.
+    expect(screen.getByRole('button', { name: 'Co nowego?' })).toBeInTheDocument();
+  });
+
+  it('says why the release page did not open', async () => {
+    vi.mocked(checkForUpdate).mockResolvedValue(foundManual);
+    vi.mocked(openReleasePage).mockRejectedValue(new UpdateError('openFailed'));
+    await renderNotice();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Pobierz' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Nie udało się otworzyć strony wydania. System nie otworzył przeglądarki.',
+    );
+  });
+
+  it('installs in the app without a release page button where it can', async () => {
+    vi.mocked(checkForUpdate).mockResolvedValue(found);
+    await renderNotice();
+
+    await screen.findByRole('button', { name: 'Zainstaluj i uruchom ponownie' });
+
+    expect(screen.queryByRole('button', { name: 'Pobierz' })).not.toBeInTheDocument();
   });
 });

@@ -70,6 +70,8 @@ export interface TauriMock {
   update?: { version: string; notes: string | null; install: 'inApp' | 'manual' };
   /** Progress messages streamed by `install_update`. Default: none. */
   installProgress?: unknown[];
+  /** Error thrown by `open_release_page`. Default: none, the page opens. */
+  openReleasePageError?: { code: string };
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -340,6 +342,9 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             (m.installProgress ?? []).forEach((message, index) => send?.({ index, message }));
             return new Promise(() => {});
           }
+          case 'open_release_page':
+            if (m.openReleasePageError !== undefined) throw m.openReleasePageError;
+            return null;
           case 'plugin:app|version':
             return '0.9.0';
           case 'get_undo_state':

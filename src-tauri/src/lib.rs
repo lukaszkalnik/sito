@@ -68,7 +68,8 @@ pub fn run() -> tauri::Result<()> {
             accept::unaccept_photo,
             accept::get_accepted_ids,
             update::check_for_update,
-            update::install_update
+            update::install_update,
+            update::open_release_page
         ])
         .run(tauri::generate_context!())
 }

@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { checkForUpdate, installUpdate, onCheckRequested, UpdateError } from './api';
+import {
+  checkForUpdate,
+  installUpdate,
+  onCheckRequested,
+  openReleasePage,
+  UpdateError,
+} from './api';
 import { initialUpdateState, updateReducer, type CheckTrigger } from './updateReducer';
 
 function codeOf(error: unknown) {
@@ -9,7 +15,8 @@ function codeOf(error: unknown) {
 
 /**
  * The update notice: checks for a newer version once when the main window
- * opens and again whenever the menu asks, and installs the update on demand.
+ * opens and again whenever the menu asks, and installs the update or opens
+ * its release page on demand.
  */
 export function useUpdate() {
   const [state, dispatch] = useReducer(updateReducer, initialUpdateState);
@@ -55,7 +62,15 @@ export function useUpdate() {
     );
   }, []);
 
+  // The offer stays after the page opens, so its notes are still at hand.
+  const openPage = useCallback(() => {
+    openReleasePage().catch((error: unknown) => {
+      console.error('Cannot open the release page', error);
+      dispatch({ type: 'openPageFailed', code: codeOf(error) });
+    });
+  }, []);
+
   const dismiss = useCallback(() => dispatch({ type: 'dismissed' }), []);
 
-  return { state, install, dismiss };
+  return { state, install, openPage, dismiss };
 }

@@ -67,3 +67,38 @@ test('says from the menu that this is the newest version', async ({ page }) => {
   await notice.getByRole('button', { name: 'Zamknij' }).click();
   await expect(notice).toBeEmpty();
 });
+
+test('opens the release page where Sito cannot install the update', async ({ page }) => {
+  await mockTauri(page, {
+    ...startScreen,
+    update: { version: '0.15.0', notes: null, install: 'manual' },
+  });
+  await page.goto('/');
+
+  const notice = page.getByRole('region', { name: 'Aktualizacja Sito' });
+  await expect(notice).toContainText('Pobierz ją ze strony wydań Sito na GitHubie.');
+  await expect(notice.getByRole('button', { name: 'Zainstaluj i uruchom ponownie' })).toHaveCount(
+    0,
+  );
+
+  await notice.getByRole('button', { name: 'Pobierz' }).click();
+  await expect
+    .poll(async () => (await invokedCommands(page)).some(({ cmd }) => cmd === 'open_release_page'))
+    .toBe(true);
+  await expect(notice).toContainText('Dostępna jest nowa wersja Sito: 0.15.0.');
+});
+
+test('says why the release page did not open', async ({ page }) => {
+  await mockTauri(page, {
+    ...startScreen,
+    update: { version: '0.15.0', notes: null, install: 'manual' },
+    openReleasePageError: { code: 'openFailed' },
+  });
+  await page.goto('/');
+
+  const notice = page.getByRole('region', { name: 'Aktualizacja Sito' });
+  await notice.getByRole('button', { name: 'Pobierz' }).click();
+  await expect(notice.getByRole('alert')).toHaveText(
+    'Nie udało się otworzyć strony wydania. System nie otworzył przeglądarki.',
+  );
+});

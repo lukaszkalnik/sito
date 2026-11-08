@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
-import type { UpdateInfo } from './api';
+import type { InstallKind, UpdateInfo } from './api';
 import { ReleaseNotesDialog } from './ReleaseNotesDialog';
 import { isShown, type FailedAction, type Failure, type UpdateState } from './updateReducer';
 import { useUpdate } from './useUpdate';
@@ -13,6 +13,7 @@ const PERCENT = new Intl.NumberFormat('pl-PL', { style: 'percent', maximumFracti
 /** The message key of each failed action; `Record` makes a new action a type error here. */
 const FAILURE_MESSAGE: Readonly<Record<FailedAction, string>> = {
   install: 'update.installFailed',
+  openPage: 'update.openPageFailed',
 };
 
 /** The message of `failure`: what failed and why. */
@@ -22,8 +23,28 @@ function failureText(failure: Failure, t: TFunction): string {
 
 interface Actions {
   readonly install: () => void;
+  readonly openPage: () => void;
   readonly dismiss: () => void;
   readonly showNotes: () => void;
+}
+
+/** The first button of an offer: install in the app, or get it from the release page. */
+function InstallButton({ install, actions }: { install: InstallKind; actions: Actions }) {
+  const { t } = useTranslation();
+  switch (install) {
+    case 'inApp':
+      return (
+        <button type="button" onClick={actions.install}>
+          {t('update.install')}
+        </button>
+      );
+    case 'manual':
+      return (
+        <button type="button" onClick={actions.openPage}>
+          {t('update.openPage')}
+        </button>
+      );
+  }
 }
 
 function Offer({
@@ -42,11 +63,7 @@ function Offer({
       {failure !== null && <p role="alert">{failureText(failure, t)}</p>}
       {info.install === 'manual' && <p>{t('update.manual')}</p>}
       <div className="update-notice-buttons">
-        {info.install === 'inApp' && (
-          <button type="button" onClick={actions.install}>
-            {t('update.install')}
-          </button>
-        )}
+        <InstallButton install={info.install} actions={actions} />
         {info.notes !== null && (
           <button type="button" onClick={actions.showNotes}>
             {t('update.whatsNew')}
@@ -114,9 +131,9 @@ function NoticeBody({ state, actions }: { state: UpdateState; actions: Actions }
  */
 export function UpdateNotice() {
   const { t } = useTranslation();
-  const { state, install, dismiss } = useUpdate();
+  const { state, install, openPage, dismiss } = useUpdate();
   const [notesOpen, setNotesOpen] = useState(false);
-  const actions: Actions = { install, dismiss, showNotes: () => setNotesOpen(true) };
+  const actions: Actions = { install, openPage, dismiss, showNotes: () => setNotesOpen(true) };
   const info = 'info' in state ? state.info : null;
   const body = <NoticeBody state={state} actions={actions} />;
   return (

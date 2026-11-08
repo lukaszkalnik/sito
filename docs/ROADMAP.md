@@ -47,7 +47,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 39 | [Opening a folder while another is still checked](slices/39-switch-folder-during-refresh.md) | ✅ |
 | 40 | [Keep the grid position per folder](slices/40-keep-grid-position.md) | ✅ |
 | 41 | [Update check on start](slices/41-update-check.md) | 🧪 |
-| 41a | [Link to the release page in the update notice](slices/41a-release-page-link.md) | 📝 |
+| 41a | [Link to the release page in the update notice](slices/41a-release-page-link.md) | 🧪 |
 | 43 | [Undo only rejections](slices/43-undo-rejections-only.md) | 📝 |
 | 48 | [Main window bar on small screens](slices/48-compact-toolbar.md) | 📝 |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | 📝 |

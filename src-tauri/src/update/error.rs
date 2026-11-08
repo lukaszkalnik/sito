@@ -15,6 +15,8 @@ pub enum UpdateError {
     NoUpdate,
     /// This system cannot install updates from within the app.
     Unsupported,
+    /// The system did not open the page in the browser.
+    OpenFailed,
     /// Unexpected failure inside the app.
     Internal,
 }
@@ -114,6 +116,10 @@ mod tests {
         assert_eq!(
             serde_json::to_value(UpdateError::BadSignature).ok(),
             Some(serde_json::json!({ "code": "badSignature" }))
+        );
+        assert_eq!(
+            serde_json::to_value(UpdateError::OpenFailed).ok(),
+            Some(serde_json::json!({ "code": "openFailed" }))
         );
     }
 }

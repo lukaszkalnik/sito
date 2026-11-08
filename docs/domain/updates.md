@@ -14,6 +14,7 @@ How Sito finds and installs a newer version of itself.
 - The check is a plain GET of `latest.json`; the download is the installer file from the release. Neither request carries anything about the user's photos. GitHub sees the IP address, as with any download from the releases page.
 - Requests go out from the Rust side only; the webview has no network access and the CSP is unchanged.
 - These two requests are, besides the planned model download, the only network access of Sito.
+- „Pobierz” on macOS hands the address of the release page to the system browser, which loads it; Sito itself sends no request. The address is built on the Rust side from the offered version and only ever points into Sito's GitHub repository; the webview has no permission to open addresses.
 
 ## The notice
 
@@ -22,7 +23,9 @@ A card at the bottom right of the main window, over the start screen and the gri
 | Situation | Notice |
 |---|---|
 | Check at start: no update, offline, GitHub unreachable | nothing (the error goes to the debug log) |
-| Update found | „Dostępna jest nowa wersja Sito: 0.15.0.” with „Zainstaluj i uruchom ponownie”, „Co nowego?” (when the release has notes) and „Nie teraz” |
+| Update found | „Dostępna jest nowa wersja Sito: 0.15.0.” with „Zainstaluj i uruchom ponownie” (macOS: „Pobierz ją ze strony wydań Sito na GitHubie.” and „Pobierz”), „Co nowego?” (when the release has notes) and „Nie teraz” |
+| „Pobierz” (macOS) | opens the release page of the offered version (`…/releases/tag/v0.15.0`) in the system browser; the offer stays |
+| Release page did not open | the offer again, with „Nie udało się otworzyć strony wydania. System nie otworzył przeglądarki.” |
 | „Nie teraz” | hidden until the next start or the next check from the menu |
 | „Co nowego?” | a dialog with the release notes: the release's CHANGELOG section, in English, as plain text |
 | Installing | „Pobieranie aktualizacji… 45%” (without a percentage when the size is unknown), then „Instalowanie aktualizacji…”; no buttons |
@@ -33,6 +36,6 @@ A card at the bottom right of the main window, over the start screen and the gri
 ## Installing
 
 - **Windows:** one click. Sito downloads the installer, checks its signature against the public key built into the app (an update signed with another key is refused), and runs it in passive mode: a small progress window, no questions. The per-user install needs no admin rights. Before the installer closes Sito, the window sizes are saved and a running reject or accept finishes; none starts after that. The installer then starts the new version.
-- **macOS:** the notice shows the version and its notes but says to download the new version from the releases page; installing in the app comes with signing ([slice 50](../slices/50-macos-code-signing.md)).
+- **macOS:** the notice shows the version and its notes, and „Pobierz” opens the release page of that version in the system browser, where the user downloads the DMG; installing in the app comes with signing ([slice 50](../slices/50-macos-code-signing.md)).
 - Only installs that already contain the updater can update themselves; versions before it are updated by running the installer by hand ([Releasing](../RELEASING.md#installing-on-windows)).
 - Updating is offered, never forced.

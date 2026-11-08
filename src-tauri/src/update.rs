@@ -1,9 +1,11 @@
 //! Update check and one-click install: asks GitHub for a newer release of
 //! Sito, and on request downloads its installer, verifies its signature
-//! against the public key built into the app, and runs it. All network access
-//! of the updater happens here, never in the webview.
+//! against the public key built into the app, and runs it, or opens its
+//! release page in the system browser. All network access of the updater
+//! happens here, never in the webview.
 
 mod error;
+mod release_page;
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
@@ -169,6 +171,30 @@ pub async fn install_update(
     .await
     .map_err(|_| UpdateError::Internal)?
     .map_err(|err| error::logged("install the update", &err))
+}
+
+/// Opens the GitHub release page of the update found by the last check in
+/// the system browser. The address is built here from the version, so the UI
+/// cannot make the app open anything else.
+///
+/// # Errors
+///
+/// [`UpdateError::NoUpdate`] without a found update and
+/// [`UpdateError::OpenFailed`] when the system does not open the browser.
+#[tauri::command]
+pub async fn open_release_page(state: State<'_, UpdateState>) -> Result<(), UpdateError> {
+    let version = state
+        .lock()
+        .as_ref()
+        .map(|update| update.version.clone())
+        .ok_or(UpdateError::NoUpdate)?;
+    let url = release_page::release_page(&version).ok_or(UpdateError::Internal)?;
+    // The opener's free function, not its plugin: the webview gets no
+    // command to open addresses itself.
+    tauri_plugin_opener::open_url(url.as_str(), None::<&str>).map_err(|err| {
+        log::warn!("cannot open {url}: {err}");
+        UpdateError::OpenFailed
+    })
 }
 
 /// Downloads `update`, sending the progress at most every [`PROGRESS_EVERY`].
