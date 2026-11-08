@@ -43,6 +43,7 @@ Platforms: developed on Windows, macOS later.
 - **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
 - **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands. Run them before pushing changes that touch the affected flow.
 - **Local tool locations (Windows dev machine):** all toolchains live under `D:\Lukasz\tools` (C: is nearly full): Rust (`RUSTUP_HOME`, `CARGO_HOME`), Node, GitHub CLI, uv, npm cache/global prefix (`npm_config_cache`, `npm_config_prefix`), Playwright browsers (`PLAYWRIGHT_BROWSERS_PATH`), VS Build Tools. Never install large tools or caches on C:.
+- **Local tool locations (macOS dev machine):** Rust comes from Homebrew's keg-only `rustup`, whose `cargo`/`rustc` proxies live in `/opt/homebrew/opt/rustup/bin` (cargo-installed tools such as `cargo-about` in `~/.cargo/bin`). If `cargo` is not on `PATH` in a non-interactive shell, prefix commands with `PATH="/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin:$PATH"` instead of searching for it.
 - **Low memory on the dev machine (7 GB RAM):** never run several heavy jobs at once (installers, Rust builds, browser tests). The user env var `CARGO_BUILD_JOBS=2` limits parallel rustc jobs locally (CI uses all cores).
 
 ## Code and architecture rules
