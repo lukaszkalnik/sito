@@ -124,6 +124,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 - Test behaviour, not implementation details. The pure domain layer carries most of the tests.
 - Frontend tests query by role, label or text (Testing Library), not by CSS class.
 - Tests are deterministic: no `sleep`, no real clock or randomness (inject or fake them), file system work in temp dirs, never on real photo folders.
+- **Always fix a flaky test** as soon as it shows up, in its own `fix:` or `test:` commit; never just rerun it until it passes. Find the cause first: a flaky test often hides a real race in the app, which then gets a deterministic regression test.
 
 ### Accessibility
 
