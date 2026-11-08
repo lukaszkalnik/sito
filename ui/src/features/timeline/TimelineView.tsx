@@ -2,7 +2,6 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
-import { onFirstClick } from '../../clicks/firstClick';
 import { useAcceptedIds } from '../accept/useAcceptedIds';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
@@ -12,6 +11,7 @@ import type { Series } from './api';
 import { openViewer, sendViewerContext } from '../viewer/api';
 import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
+import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
 import { MAX_GAP, MIN_GAP } from './gapSetting';
 import type { TimelineMode } from './layout';
@@ -228,16 +228,6 @@ function TimelineBody(props: TimelineBodyProps) {
         />
       );
   }
-}
-
-/** „Cofnij” in the bar: undoes the last rejection, accept or un-accept. */
-function UndoButton({ canUndo, onUndo }: { canUndo: boolean; onUndo: () => void }) {
-  const { t } = useTranslation();
-  return (
-    <button type="button" title={t('undo.hint')} disabled={!canUndo} onClick={onFirstClick(onUndo)}>
-      {t('undo.button')}
-    </button>
-  );
 }
 
 /** Full-window view of a finished scan: summary bar and the timeline grid. */

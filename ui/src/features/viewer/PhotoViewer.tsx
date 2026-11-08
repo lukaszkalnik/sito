@@ -6,6 +6,7 @@ import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import type { RejectDestination } from '../reject/destination';
 import { DestinationIcon } from '../reject/DestinationIcon';
 import { AcceptButton } from '../accept/AcceptButton';
+import { UndoButton } from '../reject/UndoButton';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { photoUrl, setWindowTitle, type PhotoDetails, type ViewerPhoto } from './api';
 import { fileSize, formatPixels, type FileSize } from './photoDetails';
@@ -179,15 +180,7 @@ function ViewerBar({
       <PhotoInfo entry={entry} details={photo.details} />
       <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
-      <button
-        type="button"
-        className="viewer-close"
-        title={t('undo.hint')}
-        disabled={!canUndo}
-        onClick={onFirstClick(onUndo)}
-      >
-        {t('undo.button')}
-      </button>
+      <UndoButton className="viewer-close" canUndo={canUndo} onUndo={onUndo} />
       <button type="button" className="viewer-close" onClick={onFirstClick(onClose)}>
         {t('viewer.close')}
       </button>

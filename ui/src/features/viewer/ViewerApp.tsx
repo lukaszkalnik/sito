@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { onFirstClick } from '../../clicks/firstClick';
 import { useAcceptedIds } from '../accept/useAcceptedIds';
 import { useToggleAccept } from '../accept/useToggleAccept';
 import { rejectErrorCode, rejectPhoto, type Undone } from '../reject/api';
@@ -17,6 +16,7 @@ import {
   type ViewerRequest,
 } from './api';
 import { Toast } from '../reject/Toast';
+import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
 import { LoadingSpinner } from './FullPhoto';
 import { PhotoViewer } from './PhotoViewer';
@@ -39,14 +39,7 @@ function EmptyViewer({ canUndo, undo }: Pick<UndoControls, 'canUndo' | 'undo'>) 
   return (
     <main className="viewer viewer--empty">
       <p className="viewer-error">{t('viewer.empty')}</p>
-      <button
-        type="button"
-        className="viewer-close"
-        disabled={!canUndo}
-        onClick={onFirstClick(() => void undo())}
-      >
-        {t('undo.button')}
-      </button>
+      <UndoButton className="viewer-close" canUndo={canUndo} onUndo={() => void undo()} />
     </main>
   );
 }
