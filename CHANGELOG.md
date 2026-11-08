@@ -2,6 +2,12 @@
 
 What changed in each release of Sito, from the user's point of view. The section of a version is published as its GitHub release notes.
 
+## v0.15.1 – 2026-11-08
+
+### Fixed
+
+- **Hidden macOS files are no longer shown as photos.** On drives formatted for both Windows and macOS (exFAT, FAT32) and on network drives, macOS writes a hidden `._` file next to every file, with the same name and extension. Sito listed these as photos without a picture or date, which inflated the photo count; on one Google Takeout drive that was about 19,000 extra tiles. They are now skipped, also in a folder that was opened with an older version.
+
 ## v0.15.0 – 2026-11-05
 
 ### New
