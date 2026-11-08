@@ -18,3 +18,4 @@ Restoring from the macOS trash, macOS-specific fixes. Signing and notarization m
 ## Builds on
 
 - Auto update ([slice 41](41-update-check.md), [slice 42](42-zero-click-update.md)): the update manifest already lists a macOS bundle; enabling the install path on macOS is part of [slice 50](50-macos-code-signing.md).
+- Undo from the trash ([slice 43](43-undo-rejections-only.md)): until macOS can restore from the trash, „Cofnij” skips trash moves there and is inactive with a tooltip when only those are left. Once restoring works, `TRASH_RESTORE` in `crates/core/src/trash.rs` becomes `Supported` and those entries are undoable again. One way to try: remember where macOS put each file in the Trash and move it back; check whether the Trash's privacy protection allows that without Full Disk Access.

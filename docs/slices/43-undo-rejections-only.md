@@ -78,11 +78,28 @@ Today „Cofnij” / Ctrl+Z is one stack per folder for rejections, accepts and 
 - `docs/domain/timeline.md`: no change needed (checked: it has no accept-undo mentions).
 - [slice 16](16-show-rejected.md): the note above. Slice 43 file: approved plan, then status updates. Roadmap in sync.
 
+### Amendment (2026-11-08): rejections into the macOS trash
+
+Sito cannot put a photo back from the macOS trash yet (the `trash` crate only restores on Windows and Linux; a way to do it is [slice 23](23-macos-polish.md)). Until then, decided by the user on 2026-11-08:
+
+- On macOS, „Cofnij” / Ctrl+Z **skips trash moves** and undoes the newest rejection into „Odrzucone”. The skipped entries stay in the log and are not marked undone, so they become undoable once slice 23 can restore them.
+- „Cofnij” is **inactive only if every rejection still to undo went to the trash**. It then shows the tooltip „Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie.” (`undo.trashUndoUnsupported`, reworded from „…z Kosza.”) instead of `undo.hint`. With no rejection at all it is inactive with the usual hint, as today.
+- Windows and Linux are unchanged.
+
+Changes on top of the plan above:
+
+- **core:** `last_undoable(under, rejections)` with `enum Rejections { All, FolderOnly }` (`FolderOnly` queries `kind = 'reject'`). `crates/core/src/trash.rs` gets a `TRASH_RESTORE: TrashRestore` const (`Supported` / `Unsupported`, set by `cfg`) next to `restore_from_trash`. Tests: with a folder and a newer trash rejection, `FolderOnly` returns the folder one and `All` the trash one; neither is marked undone by the lookup.
+- **src-tauri:** the `Bin` trait reports whether it can restore (the system bin from `TRASH_RESTORE`, `fake_bin` configurable), and `undo_in` and `get_undo_state` pick `Rejections` from it. `UndoStateDto` becomes a tagged enum `{ kind: "available" } | { kind: "none" } | { kind: "trashOnly" }`. `trashOnly` is when `FolderOnly` finds nothing but `All` does. `TrashUndoUnsupported` stays as the error code for a restore that is refused anyway. Tests with a non-restoring fake bin: folder, trash → undo restores the folder one; then the state is `trashOnly`; serialization of the three states.
+- **UI:** `api.ts` `undoState()` returns that union (validated, unknown → `none`) instead of `canUndo()`. `useUndo` exposes it. The „Cofnij” buttons in `TimelineView.tsx`, `PhotoViewer.tsx` and `ViewerApp.tsx` (`EmptyViewer`) take the state: enabled for `available`; for `trashOnly`, `aria-disabled="true"` with the tooltip as `title` and a click that does nothing, because a `disabled` button shows no tooltip in WebKit; for `none`, `disabled`. Since the three buttons repeat this, extract one `UndoButton` in `features/reject/` (separate `refactor:` commit first). Vitest for the three states (query by role and name, check `title`/`aria-disabled`). The e2e mock gains an option for a non-restoring trash; one Playwright test: rejected into the trash only → „Cofnij” inactive with the tooltip.
+- **Docs:** `docs/domain/rejecting.md` (the macOS bullet), and slice 23's file notes that its restore turns the skipped trash entries back on.
+
 ### Commits (on `main`, pushed after each)
 1. `docs: save the approved plan of slice 43` (slice file + slice 16 note). Then **pause** (milestone).
 2. `feat: undo only rejections, stop logging accepts` (core + tauri + UI + tests + domain docs).
-3. `refactor: rename undo_last back to undo_reject`.
-4. `docs: mark slice 43 ready for testing` (🧪, roadmap). Then pause.
+3. `refactor: share one UndoButton between the windows`.
+4. `feat: skip rejections into the macOS trash on undo` (the amendment).
+5. `refactor: rename undo_last back to undo_reject`.
+6. `docs: mark slice 43 ready for testing` (🧪, roadmap). Then pause.
 
 ### Verification
 - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
