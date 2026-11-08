@@ -126,7 +126,8 @@
 }
 
 .viewer-step:disabled,
-.viewer-close:disabled {
+.viewer-close:disabled,
+.viewer-close[aria-disabled='true'] {
   opacity: 0.25;
   cursor: default;
 }

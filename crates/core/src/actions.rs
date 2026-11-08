@@ -55,6 +55,16 @@ pub enum Placement {
     },
 }
 
+/// Which rejections undo may offer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Rejections {
+    /// Moves into the rejected folder and into the trash.
+    All,
+    /// Only moves into the rejected folder (where the trash cannot be
+    /// restored from); trash moves are skipped, not marked undone.
+    FolderOnly,
+}
+
 /// The action log, stored in one `SQLite` file.
 #[derive(Debug)]
 pub struct ActionLog {
@@ -177,14 +187,18 @@ impl ActionLog {
         Ok(())
     }
 
-    /// The newest rejection not yet undone whose photo came from inside
-    /// `under` (a folder and its subfolders), if any.
+    /// The newest of `rejections` not yet undone whose photo came from
+    /// inside `under` (a folder and its subfolders), if any.
     ///
     /// # Errors
     ///
     /// Returns an error if the log cannot be read.
-    pub fn last_undoable(&self, under: &Path) -> Result<Option<RejectAction>, LogError> {
-        self.last_row_under(under)?
+    pub fn last_undoable(
+        &self,
+        under: &Path,
+        rejections: Rejections,
+    ) -> Result<Option<RejectAction>, LogError> {
+        self.last_row_under(under, rejections)?
             .map(|row| self.reject_action(row))
             .transpose()
     }
@@ -214,13 +228,21 @@ impl ActionLog {
 
     /// The newest rejection entry not yet undone whose photo came from inside
     /// `under`.
-    fn last_row_under(&self, under: &Path) -> Result<Option<Row>, LogError> {
+    fn last_row_under(
+        &self,
+        under: &Path,
+        rejections: Rejections,
+    ) -> Result<Option<Row>, LogError> {
         let mut statement = self.conn.prepare(
             "SELECT id, kind, at, from_path, to_path, sidecar_from, sidecar_to FROM actions
              WHERE kind IN (?1, ?2) AND undone_at IS NULL
              ORDER BY id DESC",
         )?;
-        let kinds = params![KIND_REJECT, KIND_TRASH];
+        // `IN (?1, ?2)` with the folder kind twice leaves trash moves out.
+        let kinds = match rejections {
+            Rejections::All => params![KIND_REJECT, KIND_TRASH],
+            Rejections::FolderOnly => params![KIND_REJECT, KIND_REJECT],
+        };
         let rows = statement.query_map(kinds, |row| {
             let sidecar_from: Option<String> = row.get(5)?;
             let sidecar_to: Option<String> = row.get(6)?;

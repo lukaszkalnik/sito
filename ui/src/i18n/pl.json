@@ -111,7 +111,7 @@
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
     "failed": "Nie udało się cofnąć odrzucenia.",
     "missingFromTrash": "Nie można cofnąć: plik nie jest już w Koszu.",
-    "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza."
+    "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie."
   },
   "destination": {
     "label": "Odrzucone zdjęcia do:",

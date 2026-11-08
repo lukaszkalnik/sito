@@ -52,6 +52,10 @@ export interface TauriMock {
   accepted?: number[];
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
   rejected?: number[];
+  /** Ids among `rejected` that went into the trash. Default: none. */
+  trashed?: number[];
+  /** Whether undo can restore from the trash (not on macOS). Default: `supported`. */
+  trashRestore?: 'supported' | 'unsupported';
   /**
    * A background refresh after `start_scan` (when its summary says
    * `refreshing`): `scan-refreshed` with `summary` after `afterMs`.
@@ -112,6 +116,18 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
 
     // Ids of rejected photos, newest last; "Cofnij" undoes them newest first.
     const rejected: number[] = [...(m.rejected ?? [])];
+    // Ids of photos rejected into the trash.
+    const trashed = new Set<number>(m.trashed ?? []);
+    /** The newest rejection undo may offer, like the backend's `undoable_rejections`. */
+    const undoableIndex = () =>
+      m.trashRestore === 'unsupported'
+        ? rejected.findLastIndex((id) => !trashed.has(id))
+        : rejected.length - 1;
+    /** The backend's `UndoStateDto`. */
+    const undoState = () => {
+      if (undoableIndex() >= 0) return { kind: 'available' };
+      return { kind: rejected.length > 0 ? 'trashOnly' : 'none' };
+    };
     // Ids of accepted photos.
     const accepted = new Set<number>(m.accepted ?? []);
     // Event name → callback ids registered with `listen`.
@@ -295,12 +311,15 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'reject_photo': {
             const id = args.id as number;
             rejected.push(id);
+            if (args.destination === 'trash') trashed.add(id);
             emit('timeline-changed');
             return { name: nameOf(id) };
           }
           case 'undo_last': {
-            const id = rejected.pop();
-            if (id === undefined) return null;
+            const index = undoableIndex();
+            if (index < 0) return null;
+            const [id] = rejected.splice(index, 1);
+            trashed.delete(id);
             emit('timeline-changed');
             return { id, name: nameOf(id) };
           }
@@ -330,7 +349,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'plugin:app|version':
             return '0.9.0';
           case 'get_undo_state':
-            return { canUndo: rejected.length > 0 };
+            return undoState();
           case 'plugin:event|unlisten':
           case 'plugin:event|emit_to':
           case 'plugin:window|set_title':

@@ -246,7 +246,7 @@ export function TimelineView({
   const [mode, setMode] = useMode(path);
   const savedPosition = useFolderPosition(path);
   const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
-  const { canUndo, undo, toast } = useUndo(showRestored);
+  const { undoState, undo, toast } = useUndo(showRestored);
   const acceptedIds = useAcceptedIds(summary.scanId);
   useViewerContext(mode, gap);
 
@@ -261,7 +261,7 @@ export function TimelineView({
         <GapSlider gap={gap} onChange={changeGap} />
         <ModeToggle mode={mode} onChange={setMode} />
         <DestinationSetting />
-        <UndoButton canUndo={canUndo} onUndo={() => void undo()} />
+        <UndoButton state={undoState} onUndo={() => void undo()} />
         <button type="button" disabled={busy} onClick={onChooseAnother}>
           {t('scan.chooseAnother')}
         </button>

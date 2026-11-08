@@ -39,6 +39,23 @@ pub enum TrashError {
     RestoreUnsupported,
 }
 
+/// Whether files can be restored from the trash on a system.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrashRestore {
+    /// [`restore_from_trash`] puts files back.
+    Supported,
+    /// [`restore_from_trash`] always fails with [`TrashError::RestoreUnsupported`].
+    Unsupported,
+}
+
+/// Whether [`restore_from_trash`] works on this system: the `trash` crate
+/// restores only on Windows and Linux.
+pub const TRASH_RESTORE: TrashRestore = if cfg!(target_os = "macos") {
+    TrashRestore::Unsupported
+} else {
+    TrashRestore::Supported
+};
+
 /// What [`restore_from_trash`] did besides restoring the photo.
 #[derive(Debug, Default)]
 pub struct RestoredFromTrash {

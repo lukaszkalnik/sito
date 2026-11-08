@@ -12,9 +12,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::{Deserialize, Serialize};
-use sito_core::actions::{ActionLog, LogError, Placement, RejectAction};
+use sito_core::actions::{ActionLog, LogError, Placement, RejectAction, Rejections};
 use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
+use sito_core::trash::TrashRestore;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::error::{CommandError, off_main_thread};
@@ -60,6 +61,15 @@ impl ActionsState {
     pub(crate) fn log(&self) -> Result<&ActionLog, CommandError> {
         self.log.as_ref().ok_or(CommandError::Internal)
     }
+
+    /// The rejections undo may offer: trash moves only where the trash can
+    /// be restored from. Skipped ones stay in the log for a later version.
+    fn undoable_rejections(&self) -> Rejections {
+        match self.bin.restore() {
+            TrashRestore::Supported => Rejections::All,
+            TrashRestore::Unsupported => Rejections::FolderOnly,
+        }
+    }
 }
 
 /// Where a rejected photo goes.
@@ -93,9 +103,15 @@ pub struct UndoneDto {
 
 /// Whether "Cofnij" has something to undo in the current folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UndoStateDto {
-    can_undo: bool,
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum UndoStateDto {
+    /// A rejection can be undone.
+    Available,
+    /// No rejection is left to undo.
+    #[serde(rename = "none")]
+    Nothing,
+    /// Only rejections into a trash this system cannot restore from are left.
+    TrashOnly,
 }
 
 impl From<RejectError> for CommandError {
@@ -174,7 +190,7 @@ fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>,
         return Ok(None);
     };
     let action = log
-        .last_undoable(&scan.timeline.root)
+        .last_undoable(&scan.timeline.root, actions.undoable_rejections())
         .map_err(|err| log_failed(&err))?;
     action
         .map(|action| undo_reject(scan, actions, log, &action))
@@ -199,13 +215,10 @@ fn undo_reject(
         ),
     };
     if let Err(err) = undone {
-        if matches!(
-            err,
-            CommandError::Missing
-                | CommandError::MissingFromTrash
-                | CommandError::TrashUndoUnsupported
-        ) {
-            // It can never be undone here; skip it so the next "Cofnij" goes on.
+        // A refused trash restore (`TrashUndoUnsupported`) is not skipped: a
+        // later version may be able to restore it.
+        if matches!(err, CommandError::Missing | CommandError::MissingFromTrash) {
+            // It can never be undone; skip it so the next "Cofnij" goes on.
             log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
         }
         return Err(err);
@@ -225,13 +238,27 @@ fn undo_reject(
 pub fn get_undo_state(state: State<'_, AppState>, actions: State<'_, Actions>) -> UndoStateDto {
     let actions = actions.lock();
     let scan = state.scan();
-    let can_undo = match (actions.log.as_ref(), scan.as_ref()) {
-        (Some(log), Some(scan)) => log
-            .last_undoable(&scan.timeline.root)
-            .is_ok_and(|action| action.is_some()),
-        _ => false,
+    scan.as_ref().map_or(UndoStateDto::Nothing, |scan| {
+        undo_state(&actions, &scan.timeline.root)
+    })
+}
+
+/// [`get_undo_state`] for the folder `root`.
+fn undo_state(actions: &ActionsState, root: &Path) -> UndoStateDto {
+    let Some(log) = actions.log.as_ref() else {
+        return UndoStateDto::Nothing;
     };
-    UndoStateDto { can_undo }
+    let offered = |rejections| {
+        log.last_undoable(root, rejections)
+            .is_ok_and(|action| action.is_some())
+    };
+    if offered(actions.undoable_rejections()) {
+        UndoStateDto::Available
+    } else if offered(Rejections::All) {
+        UndoStateDto::TrashOnly
+    } else {
+        UndoStateDto::Nothing
+    }
 }
 
 /// Sends `event` to all windows.
@@ -467,10 +494,17 @@ mod tests {
             .unwrap(),
             json!({ "id": 3, "name": "IMG_1.jpg" })
         );
-        assert_eq!(
-            serde_json::to_value(UndoStateDto { can_undo: true }).unwrap(),
-            json!({ "canUndo": true })
-        );
+        let states = [
+            (UndoStateDto::Available, "available"),
+            (UndoStateDto::Nothing, "none"),
+            (UndoStateDto::TrashOnly, "trashOnly"),
+        ];
+        for (state, kind) in states {
+            assert_eq!(
+                serde_json::to_value(state).unwrap(),
+                json!({ "kind": kind })
+            );
+        }
     }
 
     #[test]
@@ -586,21 +620,45 @@ mod tests {
     }
 
     #[test]
-    fn a_trash_move_that_cannot_be_undone_here_is_reported_and_skipped() {
+    fn without_trash_restore_undo_skips_trash_moves() {
         let dir = gallery();
         let bin = TempDir::new().unwrap();
         let mut scan = scan(dir.path());
         let mut fake = FakeBin::new(bin.path());
-        fake.can_restore = false;
+        fake.restore = TrashRestore::Unsupported;
         let mut actions = started_with_bin(&bin.path().join("sito.db"), fake);
-        let id = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+        let root = scan.timeline.root.clone();
+        let older = id_of(&scan, OLDER);
+        let newer = id_of(&scan, NEWER);
+        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, newer, Destination::Trash).unwrap();
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::Available);
 
-        assert_eq!(
-            undo_in(&mut scan, &actions),
-            Err(CommandError::TrashUndoUnsupported)
-        );
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+
+        assert_eq!(undone.name, OLDER);
+        assert!(dir.path().join(OLDER).exists());
+        assert!(bin.path().join(NEWER).exists());
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::TrashOnly);
         assert_eq!(undo_in(&mut scan, &actions), Ok(None));
+        // Still in the log, for a version that can restore it.
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::TrashOnly);
+    }
+
+    #[test]
+    fn undo_state_follows_the_log() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let mut actions = started(&dir.path().join("sito.db"));
+        let root = scan.timeline.root.clone();
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::Nothing);
+
+        let id = id_of(&scan, NEWER);
+        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::Available);
+
+        undo_in(&mut scan, &actions).unwrap();
+        assert_eq!(undo_state(&actions, &root), UndoStateDto::Nothing);
     }
 
     #[test]

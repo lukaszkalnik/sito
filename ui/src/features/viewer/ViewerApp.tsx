@@ -34,12 +34,12 @@ const DONE_KEYS: Readonly<Record<RejectDestination, string>> = {
 type UndoControls = ReturnType<typeof useUndo>;
 
 /** Shown when every photo of the view was rejected: a message and "Cofnij". */
-function EmptyViewer({ canUndo, undo }: Pick<UndoControls, 'canUndo' | 'undo'>) {
+function EmptyViewer({ undoState, undo }: Pick<UndoControls, 'undoState' | 'undo'>) {
   const { t } = useTranslation();
   return (
     <main className="viewer viewer--empty">
       <p className="viewer-error">{t('viewer.empty')}</p>
-      <UndoButton className="viewer-close" canUndo={canUndo} onUndo={() => void undo()} />
+      <UndoButton className="viewer-close" state={undoState} onUndo={() => void undo()} />
     </main>
   );
 }
@@ -118,7 +118,7 @@ function ReadyViewer(props: ReadyViewerProps) {
       rejectTo={destination}
       acceptedIds={acceptedIds}
       onToggleAccept={() => void toggleAccept(photo.entry.id)}
-      canUndo={undo.canUndo}
+      undoState={undo.undoState}
       onUndo={() => void undo.undo()}
     />
   );
@@ -184,7 +184,7 @@ function LoadedViewer({
   return (
     <>
       {request.id === NO_PHOTO ? (
-        <EmptyViewer canUndo={undo.canUndo} undo={undo.undo} />
+        <EmptyViewer undoState={undo.undoState} undo={undo.undo} />
       ) : (
         <ViewerPage request={request} onShowId={onShowId} undo={undo} acceptedIds={acceptedIds} />
       )}

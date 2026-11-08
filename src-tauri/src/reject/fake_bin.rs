@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use sito_core::trash::{RestoredFromTrash, TrashError};
+use sito_core::trash::{RestoredFromTrash, TrashError, TrashRestore};
 
 use super::trash::Bin;
 
@@ -14,8 +14,8 @@ pub(super) struct FakeBin {
     pub dir: PathBuf,
     /// Whether the photos' drive has a trash.
     pub has_trash: bool,
-    /// Whether files can be restored (unlike on macOS).
-    pub can_restore: bool,
+    /// Whether files can be restored (not on macOS).
+    pub restore: TrashRestore,
 }
 
 impl FakeBin {
@@ -23,7 +23,7 @@ impl FakeBin {
         Self {
             dir: dir.to_path_buf(),
             has_trash: true,
-            can_restore: true,
+            restore: TrashRestore::Supported,
         }
     }
 
@@ -48,8 +48,12 @@ impl Bin for FakeBin {
         Ok(())
     }
 
+    fn restore(&self) -> TrashRestore {
+        self.restore
+    }
+
     fn take_back(&self, files: &[PathBuf], _at: i64) -> Result<RestoredFromTrash, TrashError> {
-        if !self.can_restore {
+        if self.restore == TrashRestore::Unsupported {
             return Err(TrashError::RestoreUnsupported);
         }
         let mut errors = Vec::new();

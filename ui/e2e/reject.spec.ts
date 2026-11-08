@@ -60,6 +60,37 @@ test('undoes a rejection from the main window', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
 });
 
+test('explains that a rejection into the trash cannot be undone on this system', async ({
+  page,
+}) => {
+  await servePixels(page);
+  await mockTauri(page, {
+    ...BASE,
+    rejected: [2, 1],
+    trashed: [1],
+    trashRestore: 'unsupported',
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  const undo = page.getByRole('button', { name: 'Cofnij' });
+
+  // The newer rejection went into the trash: undo skips it.
+  await undo.click();
+  await expect(page.getByTestId('toast')).toContainText('Przywrócono IMG_00028.jpg');
+  await expect(page.getByText('IMG_00029.jpg', { exact: true })).toHaveCount(0);
+
+  // Only the trash move is left: „Cofnij” looks inactive, and a click explains why.
+  await expect(undo).toHaveAttribute('aria-disabled', 'true');
+  // Playwright waits for aria-disabled buttons to become enabled; a user can click it.
+  await undo.click({ force: true });
+  await expect(page.getByRole('alert')).toContainText(
+    'Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie.',
+  );
+  await expect(page.getByText('IMG_00029.jpg', { exact: true })).toHaveCount(0);
+});
+
 test('scrolls to and highlights a photo restored from the main window', async ({ page }) => {
   await servePixels(page);
   // The rejected photo is near the end of the timeline, out of view.

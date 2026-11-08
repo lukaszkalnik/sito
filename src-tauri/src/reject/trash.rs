@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use sito_core::actions::ActionLog;
 use sito_core::reject::PhotoFiles;
-use sito_core::trash::{self, RestoredFromTrash, TrashError};
+use sito_core::trash::{self, RestoredFromTrash, TRASH_RESTORE, TrashError, TrashRestore};
 
 use super::{drive, log_failed};
 use crate::error::CommandError;
@@ -17,6 +17,8 @@ pub(super) trait Bin: Send + Debug {
     fn has_trash(&self, folder: &Path) -> bool;
     /// Moves `files` (a photo first) into the trash.
     fn put(&self, files: &[PathBuf]) -> Result<(), TrashError>;
+    /// Whether [`take_back`](Self::take_back) can restore files at all.
+    fn restore(&self) -> TrashRestore;
     /// Moves `files` (a photo first) back, as moved at `at` (Unix seconds).
     fn take_back(&self, files: &[PathBuf], at: i64) -> Result<RestoredFromTrash, TrashError>;
 }
@@ -32,6 +34,10 @@ impl Bin for SystemBin {
 
     fn put(&self, files: &[PathBuf]) -> Result<(), TrashError> {
         trash::move_to_trash(files)
+    }
+
+    fn restore(&self) -> TrashRestore {
+        TRASH_RESTORE
     }
 
     fn take_back(&self, files: &[PathBuf], at: i64) -> Result<RestoredFromTrash, TrashError> {

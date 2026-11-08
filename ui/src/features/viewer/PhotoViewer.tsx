@@ -6,6 +6,7 @@ import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import type { RejectDestination } from '../reject/destination';
 import { DestinationIcon } from '../reject/DestinationIcon';
 import { AcceptButton } from '../accept/AcceptButton';
+import type { UndoState } from '../reject/api';
 import { UndoButton } from '../reject/UndoButton';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { photoUrl, setWindowTitle, type PhotoDetails, type ViewerPhoto } from './api';
@@ -33,8 +34,8 @@ interface PhotoViewerProps {
   acceptedIds: ReadonlySet<number>;
   /** Accepts the shown photo, or takes its mark off. */
   onToggleAccept: () => void;
-  /** Whether "Cofnij" has an action to undo. */
-  canUndo: boolean;
+  /** What "Cofnij" can undo. */
+  undoState: UndoState;
   onUndo: () => void;
 }
 
@@ -160,7 +161,7 @@ function ViewerBar({
   onToggleAccept,
   onReject,
   rejectTo,
-  canUndo,
+  undoState,
   onUndo,
   onClose,
 }: { entry: TimelineEntry } & Pick<
@@ -170,7 +171,7 @@ function ViewerBar({
   | 'onToggleAccept'
   | 'onReject'
   | 'rejectTo'
-  | 'canUndo'
+  | 'undoState'
   | 'onUndo'
   | 'onClose'
 >) {
@@ -180,7 +181,7 @@ function ViewerBar({
       <PhotoInfo entry={entry} details={photo.details} />
       <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
-      <UndoButton className="viewer-close" canUndo={canUndo} onUndo={onUndo} />
+      <UndoButton className="viewer-close" state={undoState} onUndo={onUndo} />
       <button type="button" className="viewer-close" onClick={onFirstClick(onClose)}>
         {t('viewer.close')}
       </button>

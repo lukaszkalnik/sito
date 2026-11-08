@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { UndoState } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
 import { setWindowTitle, type ViewerPhoto } from './api';
 import '../../i18n';
@@ -47,7 +48,7 @@ function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPhoto {
 
 function viewerProps(
   photo: ViewerPhoto,
-  canUndo = false,
+  undoState: UndoState = 'none',
   acceptedIds: ReadonlySet<number> = new Set(),
 ) {
   return {
@@ -59,20 +60,20 @@ function viewerProps(
     rejectTo: 'folder' as const,
     acceptedIds,
     onToggleAccept: vi.fn(),
-    canUndo,
+    undoState,
     onUndo: vi.fn(),
   };
 }
 
-function renderViewer(photo: ViewerPhoto, canUndo = false) {
-  const props = viewerProps(photo, canUndo);
+function renderViewer(photo: ViewerPhoto, undoState: UndoState = 'none') {
+  const props = viewerProps(photo, undoState);
   render(<PhotoViewer {...props} />);
   return props;
 }
 
 /** The viewer on photo 3 of the series 1–3, with photo 3 accepted. */
 function render3Accepted() {
-  const props = viewerProps(pageOf(3), false, new Set([3]));
+  const props = viewerProps(pageOf(3), 'none', new Set([3]));
   render(<PhotoViewer {...props} />);
   return props;
 }
@@ -306,9 +307,24 @@ describe('PhotoViewer', () => {
     expect(screen.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
     cleanup();
 
-    const { onUndo } = renderViewer(pageOf(2), true);
-    await userEvent.click(screen.getByRole('button', { name: 'Cofnij' }));
+    const { onUndo } = renderViewer(pageOf(2), 'available');
+    const button = screen.getByRole('button', { name: 'Cofnij' });
+    expect(button).toBeEnabled();
+    expect(button).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(button);
 
+    expect(onUndo).toHaveBeenCalledOnce();
+  });
+
+  it('keeps an inactive-looking Cofnij clickable when only trash moves are left', async () => {
+    const { onUndo } = renderViewer(pageOf(2), 'trashOnly');
+    const button = screen.getByRole('button', { name: 'Cofnij' });
+    expect(button).toBeEnabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+
+    await userEvent.click(button);
+
+    // The toast explaining why comes from `useUndo`.
     expect(onUndo).toHaveBeenCalledOnce();
   });
 

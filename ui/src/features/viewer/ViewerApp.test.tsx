@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../i18n';
-import { canUndo, onTimelineChanged, rejectPhoto } from '../reject/api';
+import { onTimelineChanged, rejectPhoto, undoState } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
 import { getTimeline } from '../timeline/api';
 import {
@@ -23,7 +23,7 @@ vi.mock('../timeline/api', async (importActual) => ({
 }));
 vi.mock('../reject/api', async (importActual) => ({
   ...(await importActual<typeof import('../reject/api')>()),
-  canUndo: vi.fn(),
+  undoState: vi.fn(),
   onTimelineChanged: vi.fn(),
   rejectPhoto: vi.fn(),
 }));
@@ -79,7 +79,7 @@ describe('ViewerApp', () => {
     vi.mocked(onViewerShow).mockImplementation(noUnlisten);
     vi.mocked(onViewerContext).mockImplementation(noUnlisten);
     vi.mocked(onTimelineChanged).mockImplementation(noUnlisten);
-    vi.mocked(canUndo).mockResolvedValue(false);
+    vi.mocked(undoState).mockResolvedValue('none');
     vi.mocked(currentViewerRequest).mockResolvedValue({ id: 3, scanId: 1, mode: 'all', gap: 10 });
     vi.mocked(sendViewerShown).mockResolvedValue();
   });

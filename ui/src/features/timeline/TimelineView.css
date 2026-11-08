@@ -94,3 +94,9 @@
   background: var(--accent);
   color: #fff;
 }
+
+/* Looks like a disabled button but stays clickable, see `UndoButton`. */
+.timeline-bar button[aria-disabled='true'] {
+  color: GrayText;
+  cursor: default;
+}

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use sito_core::accept::AcceptChange;
-use sito_core::actions::ActionLog;
+use sito_core::actions::{ActionLog, Rejections};
 use tempfile::TempDir;
 
 fn root() -> PathBuf {
@@ -51,7 +51,7 @@ fn accepting_and_unaccepting_change_the_mark_without_logging() {
     log.set_accepted(&path, AcceptChange::Unaccepted).unwrap();
     assert_eq!(accepted(&log), HashSet::new());
 
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
     assert_eq!(action_rows(&db), 0);
 }
 
@@ -66,11 +66,14 @@ fn undo_skips_accepts_and_keeps_their_marks() {
     log.set_accepted(&photo("IMG_2.jpg"), AcceptChange::Accepted)
         .unwrap();
 
-    let action = log.last_undoable(&root()).unwrap().unwrap();
+    let action = log
+        .last_undoable(&root(), Rejections::All)
+        .unwrap()
+        .unwrap();
     assert_eq!(action.id, reject);
     log.mark_undone(reject).unwrap();
 
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
     // A rejected accepted photo keeps its mark, so it comes back accepted.
     assert_eq!(
         accepted(&log),
@@ -98,9 +101,15 @@ fn old_logged_accepts_are_not_offered_for_undo() {
         .unwrap();
     }
 
-    assert_eq!(log.last_undoable(&root()).unwrap().unwrap().id, reject);
+    assert_eq!(
+        log.last_undoable(&root(), Rejections::All)
+            .unwrap()
+            .unwrap()
+            .id,
+        reject
+    );
     log.mark_undone(reject).unwrap();
-    assert_eq!(log.last_undoable(&root()).unwrap(), None);
+    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
 }
 
 #[test]
@@ -158,7 +167,11 @@ fn upgrading_a_version_3_log_keeps_its_entries() {
 
     let log = ActionLog::open(&db).unwrap();
 
-    assert!(log.last_undoable(Path::new("a")).unwrap().is_some());
+    assert!(
+        log.last_undoable(Path::new("a"), Rejections::All)
+            .unwrap()
+            .is_some()
+    );
     log.set_accepted(Path::new("a/y.jpg"), AcceptChange::Accepted)
         .unwrap();
     assert_eq!(

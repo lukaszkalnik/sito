@@ -43,10 +43,20 @@ export async function undoLast(): Promise<Undone | null> {
   return invoke<Undone | null>('undo_last');
 }
 
-/** Whether there is a rejection to undo in the open folder. */
-export async function canUndo(): Promise<boolean> {
-  const state = await invoke<{ canUndo: boolean }>('get_undo_state');
-  return state.canUndo;
+const UNDO_STATES = ['available', 'none', 'trashOnly'] as const;
+
+/**
+ * Whether "Cofnij" can undo a rejection in the open folder: `available`,
+ * `none` left, or `trashOnly` (only rejections into a trash this system
+ * cannot restore from are left). Mirrors the `kind` of `UndoStateDto`.
+ */
+export type UndoState = (typeof UNDO_STATES)[number];
+
+/** What "Cofnij" can undo in the open folder; an unknown answer counts as `none`. */
+export async function undoState(): Promise<UndoState> {
+  const state = await invoke<unknown>('get_undo_state');
+  const kind = (state as { kind?: unknown } | null)?.kind;
+  return UNDO_STATES.find((known) => known === kind) ?? 'none';
 }
 
 /** Calls `handler` whenever photos leave or return to the timeline (in any window). */
