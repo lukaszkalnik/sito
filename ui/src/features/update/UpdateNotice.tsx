@@ -1,13 +1,24 @@
 import { useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import type { UpdateInfo } from './api';
 import { ReleaseNotesDialog } from './ReleaseNotesDialog';
-import { isShown, type UpdateState } from './updateReducer';
+import { isShown, type FailedAction, type Failure, type UpdateState } from './updateReducer';
 import { useUpdate } from './useUpdate';
 import './UpdateNotice.css';
 
 const PERCENT = new Intl.NumberFormat('pl-PL', { style: 'percent', maximumFractionDigits: 0 });
+
+/** The message key of each failed action; `Record` makes a new action a type error here. */
+const FAILURE_MESSAGE: Readonly<Record<FailedAction, string>> = {
+  install: 'update.installFailed',
+};
+
+/** The message of `failure`: what failed and why. */
+function failureText(failure: Failure, t: TFunction): string {
+  return t(FAILURE_MESSAGE[failure.action], { reason: t(`update.errors.${failure.code}`) });
+}
 
 interface Actions {
   readonly install: () => void;
@@ -17,22 +28,18 @@ interface Actions {
 
 function Offer({
   info,
-  installError,
+  failure,
   actions,
 }: {
   info: UpdateInfo;
-  installError: string | null;
+  failure: Failure | null;
   actions: Actions;
 }) {
   const { t } = useTranslation();
   return (
     <>
       <p>{t('update.available', { version: info.version })}</p>
-      {installError !== null && (
-        <p role="alert">
-          {t('update.installFailed', { reason: t(`update.errors.${installError}`) })}
-        </p>
-      )}
+      {failure !== null && <p role="alert">{failureText(failure, t)}</p>}
       {info.install === 'manual' && <p>{t('update.manual')}</p>}
       <div className="update-notice-buttons">
         {info.install === 'inApp' && (
@@ -76,7 +83,7 @@ function NoticeBody({ state, actions }: { state: UpdateState; actions: Actions }
     case 'checking':
       return <p>{t('update.checking')}</p>;
     case 'available':
-      return <Offer info={state.info} installError={state.installError} actions={actions} />;
+      return <Offer info={state.info} failure={state.failure} actions={actions} />;
     case 'upToDate':
       return (
         <Answer text={t('update.upToDate', { version: state.version })} onClose={actions.dismiss} />

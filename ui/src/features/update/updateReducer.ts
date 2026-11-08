@@ -3,6 +3,15 @@ import type { InstallProgress, UpdateErrorCode, UpdateInfo } from './api';
 /** What started a check: the app's start (quiet) or the menu (always answers). */
 export type CheckTrigger = 'start' | 'menu';
 
+/** What the user asked of an offered update that failed. */
+export type FailedAction = 'install';
+
+/** A failed action on an offered update, with its reason. */
+export interface Failure {
+  readonly action: FailedAction;
+  readonly code: UpdateErrorCode;
+}
+
 /** The update notice. `idle` shows nothing. */
 export type UpdateState =
   | { readonly kind: 'idle' }
@@ -10,8 +19,8 @@ export type UpdateState =
   | {
       readonly kind: 'available';
       readonly info: UpdateInfo;
-      /** Why the last install failed, or `null`. */
-      readonly installError: UpdateErrorCode | null;
+      /** The last failed action on the offer, or `null`. */
+      readonly failure: Failure | null;
     }
   | { readonly kind: 'upToDate'; readonly version: string }
   | { readonly kind: 'failed'; readonly code: UpdateErrorCode }
@@ -48,7 +57,7 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
       return isInstalling(state) ? state : { kind: 'checking', trigger: event.trigger };
     case 'found':
       return state.kind === 'checking'
-        ? { kind: 'available', info: event.info, installError: null }
+        ? { kind: 'available', info: event.info, failure: null }
         : state;
     case 'notFound':
       return answerOfCheck(state, { kind: 'upToDate', version: event.currentVersion });
@@ -62,7 +71,7 @@ export function updateReducer(state: UpdateState, event: UpdateEvent): UpdateSta
       return isInstalling(state) ? progressed(state.info, event.progress) : state;
     case 'installFailed':
       return isInstalling(state)
-        ? { kind: 'available', info: state.info, installError: event.code }
+        ? { kind: 'available', info: state.info, failure: { action: 'install', code: event.code } }
         : state;
     case 'dismissed':
       return isInstalling(state) ? state : initialUpdateState;

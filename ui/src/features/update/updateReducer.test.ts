@@ -19,7 +19,7 @@ describe('updateReducer', () => {
   it('offers an update found at the start', () => {
     const state = run({ type: 'checkStarted', trigger: 'start' }, { type: 'found', info });
 
-    expect(state).toEqual({ kind: 'available', info, installError: null });
+    expect(state).toEqual({ kind: 'available', info, failure: null });
     expect(isShown(state)).toBe(true);
   });
 
@@ -88,7 +88,11 @@ describe('updateReducer', () => {
       { type: 'installFailed', code: 'badSignature' },
     );
 
-    expect(state).toEqual({ kind: 'available', info, installError: 'badSignature' });
+    expect(state).toEqual({
+      kind: 'available',
+      info,
+      failure: { action: 'install', code: 'badSignature' },
+    });
   });
 
   it('is not interrupted by a check or a dismissal while installing', () => {
