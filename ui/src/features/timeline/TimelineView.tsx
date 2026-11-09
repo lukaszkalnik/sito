@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
@@ -13,7 +13,7 @@ import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
 import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
-import { MAX_GAP, MIN_GAP } from './gapSetting';
+import { GapSlider } from './GapSlider';
 import type { TimelineMode } from './layout';
 import type { Reveal } from './reveal';
 import { TimelineGrid } from './TimelineGrid';
@@ -66,48 +66,6 @@ function ModeToggle({
           {label}
         </button>
       ))}
-    </div>
-  );
-}
-
-/** Slider for the largest time gap between neighbouring photos of a series. */
-function GapSlider({ gap, onChange }: { gap: number; onChange: (gap: number) => void }) {
-  const { t } = useTranslation();
-  const id = useId();
-  return (
-    <div className="timeline-gap" title={t('gap.hint')}>
-      <label htmlFor={id}>{t('gap.label')}</label>
-      <button
-        type="button"
-        className="timeline-gap-step"
-        aria-label={t('gap.decrease')}
-        disabled={gap <= MIN_GAP}
-        onClick={() => onChange(gap - 1)}
-      >
-        −
-      </button>
-      <input
-        id={id}
-        type="range"
-        min={MIN_GAP}
-        max={MAX_GAP}
-        step={1}
-        value={gap}
-        aria-valuetext={t('gap.value', { seconds: gap })}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-      <button
-        type="button"
-        className="timeline-gap-step"
-        aria-label={t('gap.increase')}
-        disabled={gap >= MAX_GAP}
-        onClick={() => onChange(gap + 1)}
-      >
-        +
-      </button>
-      <span className="timeline-gap-value" aria-hidden="true">
-        {t('gap.value', { seconds: gap })}
-      </span>
     </div>
   );
 }
