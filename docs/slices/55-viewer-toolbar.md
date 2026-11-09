@@ -12,6 +12,12 @@ Asked by the user on 2026-11-09, while testing [slice 48](48-compact-toolbar.md)
 
 Found while testing (screenshot of a 1920 × 1080 Takeout photo): the bar shows name, date, resolution, file size, „data z Google Takeout” and the photo's folder in one line, and the folder is cut to „Zdjęcia Googl…”. The cut-off text has no tooltip and no hint that it is a folder, so the user could not tell what it was.
 
+In a narrower viewer window the facts even ran under „Zaakceptuj” and „Odrzuć”, drawn over them (the info line never shrank or clipped).
+
+## Fixed ahead of planning (2026-11-09)
+
+- The overlap: the info line now clips at its end (`overflow: hidden` on `.viewer-info`), and the folder gives way first, with an ellipsis, while the other facts keep their width (`PhotoViewer.css`). Regression test in `ui/e2e/viewer.spec.ts` („keeps the photo info clear of the buttons in a narrow window”). The facts cut off at the edge are still not reachable; that is part of this slice's plan.
+
 ## To decide when planning
 
 - **Photo facts:** which facts stay in the line and in what order, what gets a label or an icon (the folder especially), and full texts as tooltips where they are cut. Possibly two lines (name and folder above, date and facts below), like the path and summary in the main window bar.

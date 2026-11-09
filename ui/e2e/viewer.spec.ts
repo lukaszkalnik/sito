@@ -204,3 +204,16 @@ test('pans with Shift+arrows without stepping to another photo', async ({ page }
   await expect.poll(async () => (await shown.boundingBox())?.x).toBeLessThan(before?.x ?? 0);
   await expect(shown).toBeVisible();
 });
+
+test('keeps the photo info clear of the buttons in a narrow window', async ({ page }) => {
+  await openViewer(page, 1, 'series');
+  await expect(photo(page, 'IMG_00029.jpg')).toBeVisible();
+
+  await page.setViewportSize({ width: 700, height: 600 });
+
+  const info = await page.locator('.viewer-info').boundingBox();
+  const accept = await page.getByRole('button', { name: 'Zaakceptuj' }).boundingBox();
+  expect((info?.x ?? 0) + (info?.width ?? 0)).toBeLessThanOrEqual(accept?.x ?? 0);
+  // Text cut off at the edge is hidden, not drawn over the buttons.
+  await expect(page.locator('.viewer-info')).toHaveCSS('overflow', 'hidden');
+});

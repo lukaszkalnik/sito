@@ -22,10 +22,22 @@
   margin: 0;
   font-size: 0.85rem;
   white-space: nowrap;
+  /* In a narrow window the facts are cut off rather than run under the buttons. */
+  overflow: hidden;
+}
+
+/* The folder gives way first, with an ellipsis; the other facts keep their width. */
+.viewer-info > * {
+  flex: none;
 }
 
 .viewer-name {
   font-weight: 600;
+}
+
+.viewer-info > .viewer-folder {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .viewer-folder {
