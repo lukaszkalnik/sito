@@ -6,11 +6,8 @@ import { mockTauri } from './tauri-mock';
 const FOLDER = 'C:\\Users\\Łukasz\\Pictures\\Skany z albumów rodzinnych\\Wakacje nad morzem';
 const SUMMARY = { scanId: 3, photosFound: 1461, unreadableEntries: 2, withoutDate: 17 };
 
-/**
- * The smallest window width (`tauri.conf.json`), both sides of the breakpoint
- * (`TimelineView.css`) and a laptop screen.
- */
-const WIDTHS = [900, 1120, 1121, 1440];
+/** The smallest window width (`tauri.conf.json`), a small and a large laptop screen. */
+const WIDTHS = [900, 1280, 1440];
 
 async function open(page: Page, width: number) {
   // The trash destination is shown bold, the widest look of the bar.
@@ -37,10 +34,10 @@ async function partBoxes(page: Page) {
   return bar(page).evaluate((header) =>
     [
       ...header.querySelectorAll(
-        ':scope > h1, .timeline-bar-info > *, .timeline-bar-text > *, .timeline-bar-controls > *',
+        ':scope > h1, .folder-info > *, .folder-info-text > *, .timeline-bar-controls > *',
       ),
     ]
-      .filter((part) => !part.classList.contains('timeline-bar-text'))
+      .filter((part) => !part.classList.contains('folder-info-text'))
       .map((part) => {
         const { left, right, top, bottom } = part.getBoundingClientRect();
         return {
@@ -77,11 +74,21 @@ for (const width of WIDTHS) {
       await bar(page).screenshot({ path: testInfo.outputPath(`bar-${width}.png`) });
     });
 
-    test('leaves the path and summary readable', async ({ page }) => {
-      for (const line of [page.getByText(FOLDER), page.getByRole('status')]) {
-        const box = await line.boundingBox();
-        expect(box?.width).toBeGreaterThanOrEqual(300);
-      }
+    test('keeps the last folder of the path and the counts readable', async ({ page }) => {
+      // At the minimum width both lines are cut; their tooltips hold the full text.
+      test.skip(width < 1280, 'too narrow for both lines');
+      const cut = (text: string) =>
+        page
+          .getByText(text, { exact: true })
+          .evaluate((element) => element.scrollWidth > element.clientWidth);
+
+      expect(await cut('Wakacje nad morzem')).toBe(false);
+      expect(await cut('1461 zdjęć · 146 serii')).toBe(false);
+      await expect(page.getByTitle(FOLDER)).toBeVisible();
+    });
+
+    test('stays one row high', async ({ page }) => {
+      expect((await bar(page).boundingBox())?.height).toBeLessThan(70);
     });
 
     test('keeps its height while the folder is checked for changes', async ({ page }) => {

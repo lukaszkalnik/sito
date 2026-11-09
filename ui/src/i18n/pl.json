@@ -10,6 +10,7 @@
     "completing": "Uzupełnianie dat z EXIF: {{done, number}} z {{total, number}}.",
     "folder": "Folder: {{path}}",
     "result": "Znaleziono {{photos}}.",
+    "short": "{{photos}} · {{series}}",
     "noPhotos": "Nie znaleziono żadnych zdjęć.",
     "photoCount_one": "{{count, number}} zdjęcie",
     "photoCount_few": "{{count, number}} zdjęcia",

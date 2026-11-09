@@ -114,14 +114,26 @@ describe('TimelineView', () => {
     expect(screen.getByRole('status')).not.toHaveTextContent('Uzupełnianie dat');
   });
 
-  it('gives the summary line its full text as a tooltip', async () => {
+  it('shows the counts and gives the full summary as tooltip', async () => {
     mockedTimeline.mockResolvedValue(entries(2));
     mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
 
     const status = await screen.findByRole('status');
-    await vi.waitFor(() => expect(status).toHaveTextContent('1 seria (2 zdjęcia).'));
-    expect(status).toHaveAttribute('title', status.textContent);
+    const full = 'Znaleziono 2 zdjęcia. 1 seria (2 zdjęcia).';
+    await vi.waitFor(() => expect(status).toHaveAttribute('title', full));
+    expect(screen.getByText('2 zdjęcia · 1 seria')).toBeVisible();
+    // Screen readers get the full sentence.
+    expect(screen.getByText(full)).toHaveClass('visually-hidden');
+  });
+
+  it('shows the folder path whole as tooltip, its last folder as its own part', () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    renderView(2);
+
+    expect(screen.getByTitle('C:\\Zdjęcia')).toHaveTextContent('C:\\Zdjęcia');
+    expect(screen.getByText('Zdjęcia')).toBeInTheDocument();
   });
 
   it('regroups with the gap from the slider and remembers it for the folder', async () => {
@@ -196,7 +208,7 @@ describe('TimelineView', () => {
     renderView(2);
 
     expect(screen.getByRole('slider', { name: 'Odstęp w serii' })).toHaveValue('10');
-    await screen.findByText(/1 seria/);
+    await vi.waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 seria'));
     expect(mockedSeries).toHaveBeenCalledWith(10);
   });
 

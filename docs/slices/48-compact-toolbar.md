@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 48 – Main window bar on small screens
 
-Since 2026-11-07; planned and implemented 2026-11-09, next: testing by the user. Knowledge moved to [Timeline](../domain/timeline.md#main-window-bar) and [Rejecting](../domain/rejecting.md).
+Since 2026-11-07; planned and implemented 2026-11-09, tested by the user on the MacBook 2026-11-09. Knowledge moved to [Timeline](../domain/timeline.md#main-window-bar) and [Rejecting](../domain/rejecting.md).
 
 ## Idea
 
@@ -117,3 +117,4 @@ This is code shared by the timeline and reject features, so it goes in a module 
 
 - 2026-11-09, on the MacBook: the bar's icon buttons (folder, „Cofnij”, gap −/+) were hard to see, dark grey icons in a very light 1 px border (`--border`, meant for separators). Now buttons and dropdowns have a 1.5 px border in a new, darker token `--control-border` (`ui/src/index.css`, light and dark), and icon buttons draw their icon in the accent colour. Disabled ones stay faded; „Cofnij” with only trash moves left stays grey (`GrayText`).
 - 2026-11-09, in the viewer (not changed by this slice, found while testing it): in a narrow window the photo's info ran under „Zaakceptuj” and „Odrzuć”, since the info line never shrank or clipped. Now it clips at its end (`overflow: hidden` on `.viewer-info`) and the folder gives way first, with an ellipsis (`PhotoViewer.css`); regression test in `ui/e2e/viewer.spec.ts`. The rest of the viewer bar's clean-up is [slice 55](55-viewer-toolbar.md).
+- 2026-11-09, the second row in narrow windows: the user did not like the path and summary moving below the controls. The bar is now one row at every width (the breakpoint is gone). The path is cut in the middle, keeping its last folder (`FolderInfo.tsx`, `pathTail.ts`), and the summary line shows only the counts („34 296 zdjęć · 3600 serii”, new key `scan.short`), with the full sentence as tooltip and, visually hidden, for screen readers. `toolbar.spec.ts` now checks 900, 1,280 and 1,440 px for one row, no overlaps and, from 1,280 px, a readable last folder and counts. The decisions above about the second row are replaced by this.

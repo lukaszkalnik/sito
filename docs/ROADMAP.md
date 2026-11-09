@@ -49,7 +49,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 41 | [Update check on start](slices/41-update-check.md) | 🧪 |
 | 41a | [Link to the release page in the update notice](slices/41a-release-page-link.md) | ✅ |
 | 43 | [Undo only rejections](slices/43-undo-rejections-only.md) | ✅ |
-| 48 | [Main window bar on small screens](slices/48-compact-toolbar.md) | 🧪 |
+| 48 | [Main window bar on small screens](slices/48-compact-toolbar.md) | ✅ |
 | 55 | [Viewer bar on small screens](slices/55-viewer-toolbar.md) | 📝 |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |

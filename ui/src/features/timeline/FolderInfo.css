@@ -1,0 +1,39 @@
+.folder-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.folder-info-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* One line each, so the bar keeps its height; the full text is in the tooltip. */
+.folder-info-text p {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The start of the path gives way first; the last folder only once the start is gone. */
+.folder-info-text .folder-path {
+  display: flex;
+}
+
+.folder-path-head {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-path-tail {
+  flex: 0 0 auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

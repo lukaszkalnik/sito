@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { useAcceptedIds } from '../accept/useAcceptedIds';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
-import { ChooseFolderButton } from '../scan/ChooseFolderButton';
 import { ScanNotes } from '../scan/ScanNotes';
 import type { Completing } from '../scan/scanReducer';
-import type { Series } from './api';
 import { openViewer, sendViewerContext } from '../viewer/api';
 import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
 import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
+import { FolderInfo } from './FolderInfo';
 import { GapSlider } from './GapSlider';
 import type { TimelineMode } from './layout';
 import type { Reveal } from './reveal';
@@ -32,15 +30,6 @@ interface TimelineViewProps {
   completing: Completing | null;
   busy: boolean;
   onChooseAnother: () => void;
-}
-
-/** "128 serii (512 zdjęć)." for the summary line. */
-function seriesSummary(series: readonly Series[], t: TFunction): string {
-  const photos = series.reduce((sum, s) => sum + s.len, 0);
-  return t('series.summary', {
-    series: t('series.count', { count: series.length }),
-    photos: t('scan.photoCount', { count: photos }),
-  });
 }
 
 /**
@@ -73,55 +62,6 @@ function useViewerContext(mode: TimelineMode, gap: number) {
       // No viewer window is open; it gets the view when it opens.
     });
   }, [mode, gap]);
-}
-
-/** The summary line with photo and series counts; its full text is also its tooltip. */
-function ScanStatus({
-  summary,
-  timeline,
-}: {
-  summary: ScanSummary;
-  timeline: TimelineEntriesState;
-}) {
-  const { t } = useTranslation();
-  // Rejected photos leave the timeline, so the count follows it once loaded.
-  const photos = timeline.status === 'ready' ? timeline.entries.length : summary.photosFound;
-  const text = [
-    t('scan.result', { photos: t('scan.photoCount', { count: photos }) }),
-    timeline.status === 'ready' ? seriesSummary(timeline.series, t) : null,
-    summary.withoutDate > 0 ? t('scan.withoutDate', { count: summary.withoutDate }) : null,
-    summary.unreadableEntries > 0
-      ? t('scan.unreadable', { count: summary.unreadableEntries })
-      : null,
-  ]
-    .filter((part) => part !== null)
-    .join(' ');
-  return (
-    <p role="status" title={text}>
-      {text}
-    </p>
-  );
-}
-
-/** The folder button, then the folder path and the summary line. */
-function FolderInfo({
-  path,
-  summary,
-  timeline,
-  busy,
-  onChooseAnother,
-}: Pick<TimelineViewProps, 'path' | 'summary' | 'busy' | 'onChooseAnother'> & {
-  timeline: TimelineEntriesState;
-}) {
-  return (
-    <div className="timeline-bar-info">
-      <ChooseFolderButton busy={busy} onClick={onChooseAnother} />
-      <div className="timeline-bar-text">
-        <p title={path}>{path}</p>
-        <ScanStatus summary={summary} timeline={timeline} />
-      </div>
-    </div>
-  );
 }
 
 interface TimelineBodyProps {

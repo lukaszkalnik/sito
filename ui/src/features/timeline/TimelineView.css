@@ -20,26 +20,8 @@
   font-size: 1.25rem;
 }
 
-.timeline-bar-info {
+.timeline-bar > .folder-info {
   grid-area: info;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.timeline-bar-text {
-  flex: 1;
-  min-width: 0;
-}
-
-/* One line each, so the bar keeps its height; the full text is in the tooltip. */
-.timeline-bar-text p {
-  margin: 0;
-  font-size: 0.85rem;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 /* Bottom-aligned, so „Cofnij” (no caption) lines up with the captioned controls. */
@@ -48,20 +30,6 @@
   display: flex;
   align-items: flex-end;
   gap: 1rem;
-}
-
-/*
- * Below this width the controls (~670 px with the bold trash look) would leave
- * the path and summary less than ~300 px, so they move to a full-width second
- * row. The bar's height then depends only on the window width.
- */
-@media (max-width: 1120px) {
-  .timeline-bar {
-    grid-template-areas:
-      'title controls'
-      'info info';
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
 }
 
 .timeline-message {

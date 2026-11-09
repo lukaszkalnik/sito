@@ -158,7 +158,7 @@ describe('ScanScreen', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent(text);
     expect(await screen.findByText('1 seria (2 zdjęcia).', { exact: false })).toBeInTheDocument();
-    expect(screen.getByText('C:\\Zdjęcia')).toBeInTheDocument();
+    expect(screen.getByTitle('C:\\Zdjęcia')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Wybierz inny folder' })).toBeEnabled();
     expect(await screen.findByTestId('timeline')).toBeInTheDocument();
   });
