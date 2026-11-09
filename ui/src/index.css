@@ -3,6 +3,8 @@
   --text-h: #08060d;
   --bg: #fff;
   --border: #e5e4e7;
+  /* Borders of buttons and dropdowns, darker than `--border` so controls stand out. */
+  --control-border: #a8a6b0;
   --tile-bg: #eef2f2;
   --badge-bg: #fde68a;
   --badge-text: #713f12;
@@ -29,6 +31,7 @@
     --text-h: #f3f4f6;
     --bg: #16171d;
     --border: #2e303a;
+    --control-border: #5c5f6e;
     --tile-bg: #23262d;
     --badge-bg: #713f12;
     --badge-text: #fde68a;
