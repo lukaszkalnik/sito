@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 42 – Zero-click update
 
-Since 2026-10-31; plan in plan mode when the slice starts.
+Since 2026-10-31; plan when the slice starts.
 
 **Parked** by the user on 2026-10-31: [slice 41](41-update-check.md) (check on start, one-click install) comes first; this stage waits at the end of the roadmap until the user brings it back.
 

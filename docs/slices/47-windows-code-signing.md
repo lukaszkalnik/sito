@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 47 – Windows code signing
 
-Since 2026-11-07; plan in plan mode when the slice starts.
+Since 2026-11-07; plan when the slice starts.
 
 **Parked** by the user on 2026-11-07: the [Microsoft Store](52-microsoft-store.md) becomes the main way to install on Windows and gives a Microsoft-signed package, so the GitHub installer may stay unsigned as a second option. Revisit only if a cheap certificate in the user's own name becomes available, or the store route fails.
 

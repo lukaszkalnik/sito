@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 46 – Mark accidental photos
 
-Since 2026-11-07; plan in plan mode when the slice starts.
+Since 2026-11-07; plan when the slice starts.
 
 ## Idea
 

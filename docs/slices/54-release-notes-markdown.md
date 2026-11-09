@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 54 – Formatted release notes in „Co nowego?”
 
-Since 2026-11-08; plan in plan mode when the slice starts.
+Since 2026-11-08; plan when the slice starts.
 
 ## Idea
 

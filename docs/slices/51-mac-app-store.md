@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 51 – Mac App Store
 
-Since 2026-11-07; plan in plan mode when the slice starts.
+Since 2026-11-07; plan when the slice starts.
 
 **Postponed** by the user on 2026-11-07 until after the 1.0 release, together with [slice 50](50-macos-code-signing.md) (same paid developer account).
 

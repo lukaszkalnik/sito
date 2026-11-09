@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 50 – macOS code signing and notarization
 
-Since 2026-11-07; plan in plan mode when the slice starts. Split out of [slice 23](23-macos-polish.md), which keeps the other macOS fixes.
+Since 2026-11-07; plan when the slice starts. Split out of [slice 23](23-macos-polish.md), which keeps the other macOS fixes.
 
 **Postponed** by the user on 2026-11-07 until after the 1.0 release (more features, at least English and German UI, [slice 22](22-english-german-ui.md)): the Apple Developer Program costs 99 USD a year, worth paying only once Sito is ready for a wider audience. Until then the unsigned DMG stays, with the Privacy & Security steps in the release notes.
 

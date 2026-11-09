@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 38 – Files changed outside Sito
 
-Plan in plan mode when the slice starts.
+Plan when the slice starts.
 
 ## Context
 

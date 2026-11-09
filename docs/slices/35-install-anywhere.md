@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 35 – Install anywhere
 
-Since 2026-10-30; plan in plan mode when the slice starts.
+Since 2026-10-30; plan when the slice starts.
 
 ## Idea
 
