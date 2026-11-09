@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { THUMBNAIL_SLOTS } from '../src/features/timeline/thumbnailQueue';
 import { mockTauri } from './tauri-mock';
+import { showView } from './timeline-helpers';
 
 const PHOTOS = 10000;
 
@@ -36,7 +37,7 @@ async function openTimeline(page: Page) {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
   await expect(page.getByTestId('timeline')).toBeVisible();
 }
 

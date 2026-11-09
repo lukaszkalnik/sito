@@ -27,3 +27,13 @@ export async function photoY(page: Page, name: string) {
       : null;
   }, name);
 }
+
+/** The „Widok” dropdown of the main window bar. */
+export function viewPicker(page: Page) {
+  return page.getByRole('combobox', { name: 'Widok' });
+}
+
+/** Switches the timeline to the view named `name` („Serie”, „Wszystkie zdjęcia”). */
+export async function showView(page: Page, name: string) {
+  await viewPicker(page).selectOption({ label: name });
+}

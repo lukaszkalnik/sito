@@ -1,6 +1,6 @@
 # Rejecting
 
-- **Where a rejected photo goes** is chosen in the main window, before „Cofnij”: „Odrzucone zdjęcia do: [folderu „Odrzucone” | kosza]”. The default is the folder; the choice is remembered across restarts and shared by the main window and the viewer.
+- **Where a rejected photo goes** is chosen in the main window, before „Cofnij” (an icon button, see [Main window bar](timeline.md#main-window-bar)): a dropdown captioned „Odrzucone zdjęcia do:” with „folderu „Odrzucone”” and „kosza”; while the trash is chosen, caption and dropdown are red and bold. The default is the folder; the choice is remembered across restarts and shared by the main window and the viewer.
   - Choosing „kosza” asks first („Przenosić odrzucone zdjęcia do kosza?”; „Anuluj” has the focus and Escape cancels). Going back to the folder does not ask.
   - While the trash is chosen, the control (and its trash icon) is red and bold, so it is never chosen unnoticed. In the viewer, „Odrzuć” shows the same folder or trash icon before its text, and its hint and the toast („<name> → Kosz”) follow the choice; the icon changes as soon as the choice changes in the main window.
 - **Folder:** a rejected photo is moved into an `Odrzucone` subfolder of its own folder (Polish for "rejected"); it is never deleted.

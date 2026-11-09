@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 48 – Main window bar on small screens
 
-Since 2026-11-07; planned 2026-11-09, next: implement.
+Since 2026-11-07; planned and implemented 2026-11-09, next: testing by the user. Knowledge moved to [Timeline](../domain/timeline.md#main-window-bar) and [Rejecting](../domain/rejecting.md).
 
 ## Idea
 
@@ -106,3 +106,9 @@ This is code shared by the timeline and reject features, so it goes in a module 
 ## Related
 
 - [Slice 23](23-macos-polish.md) (macOS polish) notes that „Wybierz inny folder” does not look like a native macOS button; if this slice restyles the bar's buttons anyway, consider doing that part here.
+
+## Implementation notes (2026-11-09)
+
+- The controls measure about 670 px with the bold trash look, so at 1,101 px the path and summary got only 293 px. The breakpoint is therefore **1,120 px** (`TimelineView.css`); `toolbar.spec.ts` checks 900, 1,120, 1,121 and 1,440 px. The bar is 62 px high in one row and 111 px in two.
+- The slider stays 8rem.
+- In the viewer, „Cofnij” uses `viewer-close viewer-close--icon` and measures the same 30 px as „Zamknij”.

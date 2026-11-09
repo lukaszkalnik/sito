@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useAcceptedIds } from '../accept/useAcceptedIds';
 import type { Undone } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
+import { ChooseFolderButton } from '../scan/ChooseFolderButton';
 import { ScanNotes } from '../scan/ScanNotes';
 import type { Completing } from '../scan/scanReducer';
 import type { Series } from './api';
@@ -21,6 +22,7 @@ import { useFolderPosition, useGap, useMode } from './useFolderView';
 import { useFollowViewer } from './useFollowViewer';
 import type { SavedPosition } from './useSavedPosition';
 import { useTimelineEntries, type TimelineEntriesState } from './useTimelineEntries';
+import { ViewPicker } from './ViewPicker';
 import './TimelineView.css';
 
 interface TimelineViewProps {
@@ -39,35 +41,6 @@ function seriesSummary(series: readonly Series[], t: TFunction): string {
     series: t('series.count', { count: series.length }),
     photos: t('scan.photoCount', { count: photos }),
   });
-}
-
-/** Switch between the series view and the full timeline. */
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: TimelineMode;
-  onChange: (mode: TimelineMode) => void;
-}) {
-  const { t } = useTranslation();
-  const modes: [TimelineMode, string][] = [
-    ['series', t('view.series')],
-    ['all', t('view.all')],
-  ];
-  return (
-    <div className="timeline-mode" role="group" aria-label={t('view.label')}>
-      {modes.map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={mode === value}
-          onClick={() => onChange(value)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 /**
@@ -127,6 +100,27 @@ function ScanStatus({
     <p role="status" title={text}>
       {text}
     </p>
+  );
+}
+
+/** The folder button, then the folder path and the summary line. */
+function FolderInfo({
+  path,
+  summary,
+  timeline,
+  busy,
+  onChooseAnother,
+}: Pick<TimelineViewProps, 'path' | 'summary' | 'busy' | 'onChooseAnother'> & {
+  timeline: TimelineEntriesState;
+}) {
+  return (
+    <div className="timeline-bar-info">
+      <ChooseFolderButton busy={busy} onClick={onChooseAnother} />
+      <div className="timeline-bar-text">
+        <p title={path}>{path}</p>
+        <ScanStatus summary={summary} timeline={timeline} />
+      </div>
+    </div>
   );
 }
 
@@ -212,17 +206,17 @@ export function TimelineView({
     <main className="timeline-view">
       <header className="timeline-bar">
         <h1>{t('app.title')}</h1>
-        <div className="timeline-bar-info">
-          <p title={path}>{path}</p>
-          <ScanStatus summary={summary} timeline={timeline} />
+        <FolderInfo {...{ path, summary, timeline, busy, onChooseAnother }} />
+        <div className="timeline-bar-controls">
+          <GapSlider gap={gap} onChange={changeGap} />
+          <ViewPicker mode={mode} onChange={setMode} />
+          <DestinationSetting />
+          <UndoButton
+            className="control-icon-button"
+            state={undoState}
+            onUndo={() => void undo()}
+          />
         </div>
-        <GapSlider gap={gap} onChange={changeGap} />
-        <ModeToggle mode={mode} onChange={setMode} />
-        <DestinationSetting />
-        <UndoButton state={undoState} onUndo={() => void undo()} />
-        <button type="button" disabled={busy} onClick={onChooseAnother}>
-          {t('scan.chooseAnother')}
-        </button>
       </header>
       <TimelineBody
         timeline={timeline}

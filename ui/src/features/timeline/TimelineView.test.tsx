@@ -63,7 +63,23 @@ function grouping(series: Series[], count: number): Grouping {
   return { order: Array.from({ length: count }, (_, i) => i), series };
 }
 
-function renderView(photos: number, completing: Completing | null = null) {
+/** The „Widok” dropdown. */
+function viewPicker() {
+  return screen.getByRole('combobox', { name: 'Widok' });
+}
+
+async function showAll() {
+  await userEvent.selectOptions(viewPicker(), 'Wszystkie zdjęcia');
+}
+
+function renderView(
+  photos: number,
+  completing: Completing | null = null,
+  {
+    busy = false,
+    onChooseAnother = () => {},
+  }: { busy?: boolean; onChooseAnother?: () => void } = {},
+) {
   return render(
     <TimelineView
       path="C:\Zdjęcia"
@@ -75,8 +91,8 @@ function renderView(photos: number, completing: Completing | null = null) {
         refreshing: false,
       }}
       completing={completing}
-      busy={false}
-      onChooseAnother={() => {}}
+      busy={busy}
+      onChooseAnother={onChooseAnother}
     />,
   );
 }
@@ -166,7 +182,7 @@ describe('TimelineView', () => {
     renderView(4);
     expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'series', gap: 10 });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Wszystkie zdjęcia' }));
+    await showAll();
     expect(sendViewerContext).toHaveBeenLastCalledWith({ mode: 'all', gap: 10 });
 
     await userEvent.click(screen.getByRole('button', { name: 'Zmniejsz odstęp' }));
@@ -202,15 +218,12 @@ describe('TimelineView', () => {
     mockedTimeline.mockResolvedValue(entries(4));
     mockedSeries.mockResolvedValue(grouping(pairs(1), 4));
     renderView(4);
-    const seriesButton = screen.getByRole('button', { name: 'Serie' });
-    const allButton = screen.getByRole('button', { name: 'Wszystkie zdjęcia' });
-    expect(seriesButton).toHaveAttribute('aria-pressed', 'true');
-    expect(allButton).toHaveAttribute('aria-pressed', 'false');
+    expect(viewPicker()).toHaveValue('series');
+    expect(screen.getByRole('option', { name: 'Serie' })).toHaveProperty('selected', true);
 
-    await userEvent.click(allButton);
+    await showAll();
 
-    expect(seriesButton).toHaveAttribute('aria-pressed', 'false');
-    expect(allButton).toHaveAttribute('aria-pressed', 'true');
+    expect(viewPicker()).toHaveValue('all');
     expect(await screen.findByTestId('timeline')).toBeInTheDocument();
   });
 
@@ -222,7 +235,7 @@ describe('TimelineView', () => {
     expect(await screen.findByText('Nie znaleziono serii zdjęć.')).toBeInTheDocument();
     expect(screen.queryByTestId('timeline')).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Wszystkie zdjęcia' }));
+    await showAll();
 
     expect(await screen.findByTestId('timeline')).toBeInTheDocument();
     expect(screen.queryByText('Nie znaleziono serii zdjęć.')).toBeNull();
@@ -233,15 +246,26 @@ describe('TimelineView', () => {
     mockedTimeline.mockResolvedValue(entries(4));
     mockedSeries.mockResolvedValue(grouping(pairs(1), 4));
     const first = renderView(4);
-    await userEvent.click(screen.getByRole('button', { name: 'Wszystkie zdjęcia' }));
+    await showAll();
     first.unmount();
 
     renderView(4);
 
-    expect(screen.getByRole('button', { name: 'Wszystkie zdjęcia' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(viewPicker()).toHaveValue('all');
     expect(loadFolderView('D:\\Inne').mode).toBe('series');
+  });
+
+  it('chooses another folder with the folder button, disabled while busy', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    const onChooseAnother = vi.fn();
+    const view = renderView(2, null, { onChooseAnother });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Wybierz inny folder' }));
+    expect(onChooseAnother).toHaveBeenCalledOnce();
+
+    view.unmount();
+    renderView(2, null, { busy: true });
+    expect(screen.getByRole('button', { name: 'Wybierz inny folder' })).toBeDisabled();
   });
 });

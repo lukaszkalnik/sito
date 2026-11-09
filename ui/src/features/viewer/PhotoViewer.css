@@ -62,6 +62,16 @@
   font-size: 0.85rem;
 }
 
+/* An icon-only `.viewer-close`, as tall as „Zamknij” (one line of text plus padding and border). */
+.viewer-close--icon {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(0.85rem * 1.5 + 0.5rem + 2px);
+  padding: 0 0.5rem;
+}
+
 .viewer-reject {
   /* With the bar's gap about one button wide, so „Cofnij” is not hit by mistake. */
   margin-right: 4rem;

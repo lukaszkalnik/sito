@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { BASE, openViewer, photo, servePixels } from './gallery';
 import { invokedCommands, mockTauri } from './tauri-mock';
+import { showView } from './timeline-helpers';
 
 test('rejects the shown photo, continues with the next one and undoes from the toast', async ({
   page,
@@ -47,7 +48,7 @@ test('undoes a rejection from the main window', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
   await expect(page.getByText('IMG_00030.jpg', { exact: true })).toBeVisible();
   await expect(page.getByText('IMG_00029.jpg', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('status')).toContainText('Znaleziono 29 zdjęć.');
@@ -73,7 +74,7 @@ test('explains that a rejection into the trash cannot be undone on this system',
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
   const undo = page.getByRole('button', { name: 'Cofnij' });
 
   // The newer rejection went into the trash: undo skips it.

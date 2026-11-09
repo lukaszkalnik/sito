@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Field } from '../../controls/Field';
 import type { RejectDestination } from './destination';
 import { DestinationIcon } from './DestinationIcon';
 import { TrashConfirmDialog } from './TrashConfirmDialog';
@@ -32,19 +33,25 @@ export function DestinationPicker({
 
   return (
     <>
-      <label
-        className={`reject-destination${destination === 'trash' ? ' reject-destination--trash' : ''}`}
+      <Field
+        caption={t('destination.label')}
+        className={destination === 'trash' ? 'reject-destination--trash' : undefined}
       >
-        <DestinationIcon destination={destination} />
-        <span>{t('destination.label')}</span>
-        <select
-          value={destination}
-          onChange={(event) => choose(event.target.value === 'trash' ? 'trash' : 'folder')}
-        >
-          <option value="folder">{t('destination.folder')}</option>
-          <option value="trash">{t('destination.trash')}</option>
-        </select>
-      </label>
+        {(id) => (
+          <div className="reject-destination">
+            <DestinationIcon destination={destination} />
+            <select
+              id={id}
+              className="control-select"
+              value={destination}
+              onChange={(event) => choose(event.target.value === 'trash' ? 'trash' : 'folder')}
+            >
+              <option value="folder">{t('destination.folder')}</option>
+              <option value="trash">{t('destination.trash')}</option>
+            </select>
+          </div>
+        )}
+      </Field>
       <TrashConfirmDialog
         open={confirming}
         onConfirm={confirm}

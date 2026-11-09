@@ -5,25 +5,36 @@
 }
 
 .timeline-bar {
-  display: flex;
+  display: grid;
+  grid-template-areas: 'title info controls';
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border);
 }
 
 .timeline-bar h1 {
+  grid-area: title;
   margin: 0;
   font-size: 1.25rem;
 }
 
 .timeline-bar-info {
+  grid-area: info;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.timeline-bar-text {
   flex: 1;
   min-width: 0;
 }
 
 /* One line each, so the bar keeps its height; the full text is in the tooltip. */
-.timeline-bar-info p {
+.timeline-bar-text p {
   margin: 0;
   font-size: 0.85rem;
   overflow: hidden;
@@ -31,36 +42,29 @@
   text-overflow: ellipsis;
 }
 
+/* Bottom-aligned, so „Cofnij” (no caption) lines up with the captioned controls. */
+.timeline-bar-controls {
+  grid-area: controls;
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+/*
+ * Below this width the controls (~670 px with the bold trash look) would leave
+ * the path and summary less than ~300 px, so they move to a full-width second
+ * row. The bar's height then depends only on the window width.
+ */
+@media (max-width: 1120px) {
+  .timeline-bar {
+    grid-template-areas:
+      'title controls'
+      'info info';
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 .timeline-message {
   padding: 2rem;
   text-align: center;
-}
-
-.timeline-mode {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.timeline-mode button {
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: inherit;
-  padding: 0.35rem 0.75rem;
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.timeline-mode button[aria-pressed='true'] {
-  background: var(--accent);
-  color: #fff;
-}
-
-/* Looks like a disabled button but stays clickable, see `UndoButton`. */
-.timeline-bar button[aria-disabled='true'] {
-  color: GrayText;
-  cursor: default;
 }

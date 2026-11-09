@@ -1,0 +1,73 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.field-caption {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+/* One look for the buttons and dropdowns of the main window bar. */
+.control-button,
+.control-select,
+.control-icon-button {
+  box-sizing: border-box;
+  height: 1.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.control-button {
+  padding: 0 0.75rem;
+}
+
+.control-select {
+  padding: 0 0.4rem;
+}
+
+/* `select` options get the system colours, so they stay readable in dark mode. */
+.control-select option {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.control-icon-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  padding: 0;
+}
+
+.control-button:focus-visible,
+.control-select:focus-visible,
+.control-icon-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.control-button:disabled,
+.control-select:disabled,
+.control-icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Looks like a disabled button but stays clickable, see `UndoButton`. */
+.control-button[aria-disabled='true'],
+.control-icon-button[aria-disabled='true'] {
+  color: GrayText;
+  cursor: default;
+}

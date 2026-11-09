@@ -39,7 +39,11 @@ function EmptyViewer({ undoState, undo }: Pick<UndoControls, 'undoState' | 'undo
   return (
     <main className="viewer viewer--empty">
       <p className="viewer-error">{t('viewer.empty')}</p>
-      <UndoButton className="viewer-close" state={undoState} onUndo={() => void undo()} />
+      <UndoButton
+        className="viewer-close viewer-close--icon"
+        state={undoState}
+        onUndo={() => void undo()}
+      />
     </main>
   );
 }

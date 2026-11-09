@@ -50,7 +50,7 @@ describe('DestinationPicker', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(picker()).toHaveValue('trash');
     expect(loadDestination()).toBe('trash');
-    expect(picker().closest('label')).toHaveClass('reject-destination--trash');
+    expect(picker().closest('.field')).toHaveClass('reject-destination--trash');
   });
 
   it('switches back to the folder without asking', async () => {

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { invokedCommands, mockTauri, type TauriMock } from './tauri-mock';
-import { photoY, topPhoto } from './timeline-helpers';
+import { photoY, showView, topPhoto, viewPicker } from './timeline-helpers';
 
 const PHOTOS = 10000;
 
@@ -28,7 +28,7 @@ test('shows only series by default, with their count', async ({ page }) => {
   await openTimeline(page, EVERY_TENTH);
 
   await expect(page.getByRole('status')).toContainText('1000 serii (3000 zdjęć).');
-  await expect(page.getByRole('button', { name: 'Serie' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(viewPicker(page)).toHaveValue('series');
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
     '3 zdjęcia · 11:20:00–12:00:00',
   );
@@ -41,7 +41,7 @@ test('shows only series by default, with their count', async ({ page }) => {
 test('marks series inside the full timeline', async ({ page }) => {
   await openTimeline(page, EVERY_TENTH);
 
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
 
   await expect(page.getByText('IMG_09997.jpg')).toBeVisible();
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
@@ -73,7 +73,7 @@ test('explains when there are no series', async ({ page }) => {
   await expect(page.getByText('Nie znaleziono serii zdjęć.')).toBeVisible();
   await expect(page.getByRole('status')).toContainText('0 serii (0 zdjęć).');
 
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
 
   await expect(page.getByTestId('timeline')).toBeVisible();
 });
@@ -85,11 +85,11 @@ test('keeps the scroll position when switching views', async ({ page }) => {
   const inSeries = await topPhoto(page);
   expect(inSeries.name).not.toBe('');
 
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
 
   await expect.poll(() => photoY(page, inSeries.name)).toBe(inSeries.y);
 
-  await page.getByRole('button', { name: 'Serie' }).click();
+  await showView(page, 'Serie');
 
   await expect.poll(() => photoY(page, inSeries.name)).toBe(inSeries.y);
 });
@@ -98,7 +98,7 @@ test('opens a photo in the viewer with the current view and gap', async ({ page 
   await openTimeline(page, EVERY_TENTH);
 
   await page.getByRole('button', { name: 'Otwórz IMG_09999.jpg' }).click();
-  await page.getByRole('button', { name: 'Wszystkie zdjęcia' }).click();
+  await showView(page, 'Wszystkie zdjęcia');
   await page.getByRole('button', { name: 'Otwórz IMG_09997.jpg' }).click();
 
   const opened = (await invokedCommands(page)).filter((c) => c.cmd === 'open_viewer');

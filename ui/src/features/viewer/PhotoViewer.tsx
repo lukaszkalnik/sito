@@ -181,7 +181,7 @@ function ViewerBar({
       <PhotoInfo entry={entry} details={photo.details} />
       <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
-      <UndoButton className="viewer-close" state={undoState} onUndo={onUndo} />
+      <UndoButton className="viewer-close viewer-close--icon" state={undoState} onUndo={onUndo} />
       <button type="button" className="viewer-close" onClick={onFirstClick(onClose)}>
         {t('viewer.close')}
       </button>

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import { invokedCommands, mockTauri } from './tauri-mock';
-import { photoY, topPhoto } from './timeline-helpers';
+import { photoY, topPhoto, viewPicker } from './timeline-helpers';
 
 const SUMMARY = { scanId: 7, photosFound: 30, unreadableEntries: 0, withoutDate: 0 };
 
@@ -70,10 +70,7 @@ test('reopens a folder in its last view and at its last photo', async ({ page })
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
 
-  await expect(page.getByRole('button', { name: 'Wszystkie zdjęcia' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(viewPicker(page)).toHaveValue('all');
   // Its row is at the top, wherever it is in the row.
   await expect.poll(() => photoY(page, 'IMG_00700.jpg')).toBe(0);
 

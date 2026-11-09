@@ -43,7 +43,7 @@ This slice is the first of three per-photo marks; [slice 45](45-bad-exposure.md)
 - the background analysis pass (decode once, run every measure on the same pixels, cache the results);
 - the badge, the viewer bar mark, the marked-only review and dismissing, all keyed by kind with their strings in `pl.json`;
 - the view dropdown as a list of views (a discriminated union in the UI, one entry per mark kind), so slices 45 and 46 only add their entries. Whether there is one view per kind or one „Oznaczone” view with all kinds is decided when planning (one per kind keeps the dropdown long but each review focused). Other views could join it later, e.g. accepted photos ([slice 32](32-accept-photo.md)) or rejected ones ([slice 16](16-show-rejected.md)).
-  [Slice 48](48-compact-toolbar.md) (main window bar on small screens) comes first and already turns „Serie / Wszystkie zdjęcia” into this dropdown; this slice then only adds its view.
+  [Slice 48](48-compact-toolbar.md) built this dropdown („Widok”, `ViewPicker.tsx`) from `VIEW_LABELS` in `ui/src/features/timeline/views.ts`, a `Record<TimelineMode, …>`: this slice adds its mode to `TimelineMode` (`layout.ts`) and one entry there, and TypeScript requires it. `TimelineMode` is still a string union; once a view needs data (a mark kind), turn it into a discriminated union with a `kind`.
 
 Slice 17 can then reuse the same sharpness measure and cache to compare photos within a series.
 
