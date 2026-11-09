@@ -112,3 +112,7 @@ This is code shared by the timeline and reject features, so it goes in a module 
 - The controls measure about 670 px with the bold trash look, so at 1,101 px the path and summary got only 293 px. The breakpoint is therefore **1,120 px** (`TimelineView.css`); `toolbar.spec.ts` checks 900, 1,120, 1,121 and 1,440 px. The bar is 62 px high in one row and 111 px in two.
 - The slider stays 8rem.
 - In the viewer, „Cofnij” uses `viewer-close viewer-close--icon` and measures the same 30 px as „Zamknij”.
+
+## Fixes from testing
+
+- 2026-11-09, on the MacBook: the bar's icon buttons (folder, „Cofnij”, gap −/+) were hard to see, dark grey icons in a very light 1 px border (`--border`, meant for separators). Now buttons and dropdowns have a 1.5 px border in a new, darker token `--control-border` (`ui/src/index.css`, light and dark), and icon buttons draw their icon in the accent colour. Disabled ones stay faded; „Cofnij” with only trash moves left stays grey (`GrayText`).
