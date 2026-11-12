@@ -48,6 +48,12 @@ export interface TauriMock {
   order?: number[];
   /** Request returned by `current_viewer_request` in the viewer window. Default: none. */
   viewerRequest?: { id: number; scanId: number; mode: 'series' | 'all'; gap: number };
+  /** Fields replacing those of the photo shown by `get_viewer_photo`. Default: none. */
+  viewerEntry?: {
+    name?: string;
+    relativeDir?: string;
+    timeSource?: 'exif' | 'file' | 'takeout' | 'takeoutCorrected';
+  };
   /** Ids of photos already accepted. Default: none. */
   accepted?: number[];
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
@@ -240,7 +246,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       }
       const idAt = (p: number | undefined) => (p === undefined ? null : entries[p].id);
       return {
-        entry: entries[position],
+        entry: { ...entries[position], ...m.viewerEntry },
         previous: idAt(previous),
         next: idAt(next),
         series: own ? entries.slice(own.start, own.start + own.len) : [],

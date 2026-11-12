@@ -13,7 +13,7 @@ Restoring from the macOS trash, macOS-specific fixes. Signing and notarization m
 ## Notes
 
 - Viewer zoom ([slice 13](13-viewer-zoom.md)): WebView2 sends a touchpad pinch as Ctrl+wheel, which the viewer handles. WKWebView sends a pinch as `gesturestart`/`gesturechange`/`gestureend` events instead, so pinch-to-zoom needs those handled on macOS.
-- Main window bar (noted by the user on 2026-11-07): „Wybierz inny folder” does not look like a native macOS button. [Slice 48](48-compact-toolbar.md) restyled the main window bar: „Wybierz inny folder” and „Cofnij” are icon buttons, „Widok” is a dropdown, and all its buttons and dropdowns share one bordered look. What is left here: check that look on macOS, and the viewer bar's buttons, which slice 48 left alone ([slice 55](55-viewer-toolbar.md) plans to rework the viewer bar).
+- Main window bar (noted by the user on 2026-11-07): „Wybierz inny folder” does not look like a native macOS button. [Slice 48](48-compact-toolbar.md) restyled the main window bar: „Wybierz inny folder” and „Cofnij” are icon buttons, „Widok” is a dropdown, and all its buttons and dropdowns share one bordered look. [Slice 55](55-viewer-toolbar.md) gave the viewer bar the same look (in dark values). What is left here: check that look on macOS, in both bars.
 
 ## Builds on
 

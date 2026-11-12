@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 55 – Viewer bar on small screens
 
-Since 2026-11-09; planned with the user 2026-11-12.
+Since 2026-11-09; planned with the user and implemented 2026-11-12, ready for testing. Knowledge moved to [Viewer](../domain/timeline.md#viewer).
 
 ## Idea
 
@@ -111,3 +111,11 @@ The viewer's buttons have their own dark look (`viewer-close` in `PhotoViewer.cs
 ## Builds on
 
 - [Slice 48](48-compact-toolbar.md): `Field` (caption above a control), `controls.css`, the icon buttons (`UndoButton`, `UndoIcon`, `ChooseFolderButton`), the middle-cut path (`pathTail.ts`, `FolderInfo.tsx`) and the toolbar e2e checks.
+
+## Implementation notes (2026-11-12)
+
+- **Breakpoint 780 px** (`ViewerBar.css`), not 750: with the photo accepted, „Cofnij akceptację” (156 px) is the widest label, and the info then gets 281 px at 751 px but 310 px at 781 px (349 px for a photo not accepted). `viewer-toolbar.spec.ts` checks 480, 780, 781, 900 and 1,440 px, and ≥ 300 px of info with the photo accepted above the breakpoint.
+- The bar is 54 px high (two lines at line height 1.4), the same at every width and for a plain camera photo.
+- The viewer sets `color-scheme: dark` besides the dark token values, so system colours (the greyed „Cofnij” with only trash moves left, `GrayText`) are dark-mode ones too.
+- `DestinationIcon`'s folder is a closed folder, a different drawing from `FolderIcon` (open folder), so it stays as it is.
+- The facts line is built from the strings in `PhotoInfo.tsx` (`factTexts`), each in its own span with „ · ” between them, so the tooltip and the shown text are the same.

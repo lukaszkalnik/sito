@@ -2,8 +2,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.25rem 0.75rem;
-  border: 1px solid #1e8e3e;
+  /* The shared control height and border (`controls/controls.css`), in green. */
+  box-sizing: border-box;
+  height: 1.75rem;
+  padding: 0 0.75rem;
+  border: 1.5px solid #1e8e3e;
   border-radius: 6px;
   background: transparent;
   color: inherit;

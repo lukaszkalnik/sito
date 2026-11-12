@@ -16,7 +16,9 @@ export function AcceptButton({ accepted, onToggle }: { accepted: boolean; onTogg
       onClick={onFirstClick(onToggle)}
     >
       <CheckIcon />
-      {t(accepted ? 'accept.undoButton' : 'accept.button')}
+      <span className="bar-button-label">
+        {t(accepted ? 'accept.undoButton' : 'accept.button')}
+      </span>
     </button>
   );
 }

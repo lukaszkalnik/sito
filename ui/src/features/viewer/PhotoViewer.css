@@ -5,31 +5,23 @@
   height: 100vh;
   background: #111;
   color: #eee;
+  /* The dark values of the tokens in `index.css`, so the shared controls
+     (`controls/controls.css`) and system colours are dark here whatever the
+     system theme. */
+  color-scheme: dark;
+  --text: #c9c6cf;
+  --bg: #16171d;
+  --control-border: #5c5f6e;
+  --accent: #60a5fa;
 }
 
-.viewer-close,
 .viewer-step {
-  border: 1px solid #444;
+  border: 1px solid var(--control-border);
   border-radius: 6px;
   background: #1c1c1c;
   color: inherit;
   font: inherit;
   cursor: pointer;
-}
-
-.viewer-close {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
-}
-
-/* An icon-only `.viewer-close`, as tall as „Zamknij” (one line of text plus padding and border). */
-.viewer-close--icon {
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: calc(0.85rem * 1.5 + 0.5rem + 2px);
-  padding: 0 0.5rem;
 }
 
 .viewer-body {
@@ -67,9 +59,7 @@
   right: 0.5rem;
 }
 
-.viewer-step:disabled,
-.viewer-close:disabled,
-.viewer-close[aria-disabled='true'] {
+.viewer-step:disabled {
   opacity: 0.25;
   cursor: default;
 }
@@ -124,16 +114,6 @@
   background: rgb(0 0 0 / 0.65);
   font-size: 0.85rem;
   cursor: default;
-}
-
-.viewer-zoom button {
-  padding: 0.15rem 0.6rem;
-  border: 1px solid #444;
-  border-radius: 4px;
-  background: #1c1c1c;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
 }
 
 /* Loads behind the shown photo and replaces it once ready. */

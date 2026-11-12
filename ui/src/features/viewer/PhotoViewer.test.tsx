@@ -260,6 +260,7 @@ describe('PhotoViewer', () => {
 
     expect(screen.queryByRole('navigation')).toBeNull();
     expect(screen.getByText('folder główny')).toBeInTheDocument();
+    expect(screen.getByTitle('Folder: folder główny')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Poprzednie zdjęcie' })).toBeDisabled();
   });
 
@@ -332,9 +333,38 @@ describe('PhotoViewer', () => {
     const { onClose } = renderViewer(pageOf(2));
 
     await userEvent.keyboard('{Escape}');
-    await userEvent.click(screen.getByRole('button', { name: 'Zamknij' }));
+    const close = screen.getByRole('button', { name: 'Zamknij' });
+    expect(close).toHaveAttribute('title', 'Zamknij (Esc)');
+    await userEvent.click(close);
 
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('names the folder in its tooltip and for screen readers, cut before its last part', () => {
+    renderViewer(
+      pageOf(2, { entry: { ...entry(2), relativeDir: 'Takeout/Zdjęcia Google/Zdjęcia z 2023' } }),
+    );
+
+    const folder = screen.getByTitle('Folder: Takeout/Zdjęcia Google/Zdjęcia z 2023');
+    expect(folder).toHaveTextContent('Takeout/Zdjęcia Google/Zdjęcia z 2023');
+    expect(screen.getByText('Zdjęcia z 2023')).toBeInTheDocument();
+    expect(folder.parentElement).toHaveTextContent('Folder:Takeout/Zdjęcia Google/Zdjęcia z 2023');
+  });
+
+  it('puts the date, resolution, size and date source on one line, whole in its tooltip', () => {
+    renderViewer(pageOf(2, { entry: entry(2, 'takeout') }));
+
+    expect(
+      screen.getByTitle(
+        /^sobota, 1 czerwca 2024, 12:00:07 · 5472 × 3648 · 7,5 MB · data z Google Takeout$/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('gives the name its own tooltip, for when it is cut', () => {
+    renderViewer(pageOf(2));
+
+    expect(screen.getByText('IMG_2.jpg')).toHaveAttribute('title', 'IMG_2.jpg');
   });
 });
 

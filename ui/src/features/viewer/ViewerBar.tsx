@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
+import '../../controls/controls.css';
 import { AcceptButton } from '../accept/AcceptButton';
 import type { UndoState } from '../reject/api';
 import type { RejectDestination } from '../reject/destination';
@@ -8,6 +9,7 @@ import { DestinationIcon } from '../reject/DestinationIcon';
 import { UndoButton } from '../reject/UndoButton';
 import type { TimelineEntry } from '../timeline/api';
 import type { PhotoDetails } from './api';
+import { CloseIcon } from './CloseIcon';
 import { PhotoInfo } from './PhotoInfo';
 import './ViewerBar.css';
 
@@ -44,7 +46,7 @@ function RejectButton({ rejectTo, onReject }: Pick<ViewerBarProps, 'rejectTo' | 
       onClick={onFirstClick(onReject)}
     >
       <DestinationIcon destination={rejectTo} />
-      {t('reject.button')}
+      <span className="bar-button-label">{t('reject.button')}</span>
     </button>
   );
 }
@@ -67,9 +69,15 @@ export function ViewerBar({
       <PhotoInfo entry={entry} details={details} />
       <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
-      <UndoButton className="viewer-close viewer-close--icon" state={undoState} onUndo={onUndo} />
-      <button type="button" className="viewer-close" onClick={onFirstClick(onClose)}>
-        {t('viewer.close')}
+      <UndoButton className="control-icon-button" state={undoState} onUndo={onUndo} />
+      <button
+        type="button"
+        className="control-icon-button"
+        aria-label={t('viewer.close')}
+        title={t('viewer.closeHint')}
+        onClick={onFirstClick(onClose)}
+      >
+        <CloseIcon />
       </button>
     </header>
   );
