@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 55 – Viewer bar on small screens
 
-Since 2026-11-09; planned with the user and implemented 2026-11-12, ready for testing. Knowledge moved to [Viewer](../domain/timeline.md#viewer).
+Since 2026-11-09; planned with the user and implemented 2026-11-12, tested by the user 2026-11-12. Knowledge moved to [Viewer](../domain/timeline.md#viewer).
 
 ## Idea
 
