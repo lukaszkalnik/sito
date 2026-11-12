@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { ChooseFolderButton } from '../scan/ChooseFolderButton';
 import type { ScanSummary } from '../scan/api';
+import { CutPath } from '../../paths/CutPath';
 import type { Series } from './api';
-import { splitPathTail } from './pathTail';
 import type { TimelineEntriesState } from './useTimelineEntries';
 import './FolderInfo.css';
 
@@ -61,17 +61,6 @@ function ScanStatus({
   );
 }
 
-/** The folder path, cut in the middle so its last folder stays readable; the full path is the tooltip. */
-function FolderPath({ path }: { path: string }) {
-  const { head, tail } = splitPathTail(path);
-  return (
-    <p className="folder-path" title={path}>
-      <span className="folder-path-head">{head}</span>
-      <span className="folder-path-tail">{tail}</span>
-    </p>
-  );
-}
-
 /** The folder button, then the folder path and the summary line. */
 export function FolderInfo({
   path,
@@ -90,7 +79,9 @@ export function FolderInfo({
     <div className="folder-info">
       <ChooseFolderButton busy={busy} onClick={onChooseAnother} />
       <div className="folder-info-text">
-        <FolderPath path={path} />
+        <p>
+          <CutPath path={path} />
+        </p>
         <ScanStatus summary={summary} timeline={timeline} />
       </div>
     </div>

@@ -18,22 +18,3 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-
-/* The start of the path gives way first; the last folder only once the start is gone. */
-.folder-info-text .folder-path {
-  display: flex;
-}
-
-.folder-path-head {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.folder-path-tail {
-  flex: 0 0 auto;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}

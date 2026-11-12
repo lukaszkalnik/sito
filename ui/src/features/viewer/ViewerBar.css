@@ -1,0 +1,34 @@
+.viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+}
+
+.viewer-reject {
+  /* With the bar's gap about one button wide, so „Cofnij” is not hit by mistake. */
+  margin-right: 4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #c0392b;
+  border-radius: 6px;
+  background: #c0392b;
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewer-reject:hover {
+  border-color: #962d22;
+  background: #962d22;
+}
+
+/* Offset, so the ring stands apart from the red fill. */
+.viewer-reject:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

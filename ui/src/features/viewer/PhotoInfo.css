@@ -1,0 +1,44 @@
+.viewer-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  /* In a narrow window the facts are cut off rather than run under the buttons. */
+  overflow: hidden;
+}
+
+/* The folder gives way first, with an ellipsis; the other facts keep their width. */
+.viewer-info > * {
+  flex: none;
+}
+
+.viewer-name {
+  font-weight: 600;
+}
+
+.viewer-info > .viewer-folder {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.viewer-folder {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.viewer-format {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  color: var(--badge-text);
+  font-size: 0.75rem;
+}
+
+.viewer-date-source {
+  font-style: italic;
+  opacity: 0.7;
+}
