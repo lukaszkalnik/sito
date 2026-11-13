@@ -3,6 +3,7 @@
 mod about;
 mod accept;
 mod error;
+mod navigation;
 mod protocol;
 mod reject;
 mod scan;
@@ -26,6 +27,7 @@ pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(navigation::init())
         // Remembers the size and position of both windows across launches. The
         // windows are placed by `window_fit::show_placed` instead of the plugin, whose
         // own restore runs later on the main thread and would move a shown window.

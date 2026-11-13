@@ -119,6 +119,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 - No network access except the checksum-verified model download and the signature-verified update check and download (Rust side only, see `docs/domain/updates.md`).
 - Tauri capabilities and the CSP stay minimal; every new permission or allowed source needs a stated reason.
+- The webview never navigates away from the app (`src-tauri/src/navigation.rs` refuses it); a link opens in the system browser, from the Rust side, with an address built or checked there. Commands and protocols take ids of the current scan, never paths (opening a folder is the one exception).
 - Logs stay on the machine (the logger only runs in debug builds) and never contain image data.
 - **Workflows:** every action is pinned to a full commit SHA with its version in a comment; every workflow declares `permissions`, as narrow as its jobs need; secrets go only to the step that needs them; release builds use `--locked` and restore no cache. Workflows pass `zizmor .github` (a CI job); `${{ }}` expressions never go straight into `run:` scripts, they come in through `env:`.
 
