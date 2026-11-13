@@ -5755,7 +5755,7 @@ Used by:
   pin-project-lite 0.2.17 (https://crates.io/crates/pin-project-lite/0.2.17)
   proc-macro2 1.0.107 (https://crates.io/crates/proc-macro2/1.0.107)
   quote 1.0.47 (https://crates.io/crates/quote/1.0.47)
-  rustix 1.1.5 (https://crates.io/crates/rustix/1.1.5)
+  rustix 1.1.6 (https://crates.io/crates/rustix/1.1.6)
   semver 1.0.28 (https://crates.io/crates/semver/1.0.28)
   serde-untagged 0.1.9 (https://crates.io/crates/serde-untagged/0.1.9)
   serde 1.0.229 (https://crates.io/crates/serde/1.0.229)

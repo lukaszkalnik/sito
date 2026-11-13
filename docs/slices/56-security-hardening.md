@@ -45,7 +45,7 @@ At review time `npm audit --omit=dev` reported 0 vulnerabilities. `cargo audit` 
 Fix:
 
 - A CI job running `cargo audit` (RustSec) or `cargo deny check advisories`, and `npm audit --omit=dev`, on every push and on a weekly schedule, so a new advisory shows up without a commit.
-- Update `rustix` to 1.1.6 or newer (`cargo update -p rustix@1.1.5`). The Linux-only and build-time warnings need nothing; the CI job should not fail on them (it fails on vulnerabilities, or lists these as accepted with the reason).
+- ~~Update `rustix` to 1.1.6 or newer.~~ Done on 2026-11-13, ahead of the rest of the slice: only the `rustix` entry of `Cargo.lock` changed. (`cargo update -p rustix@1.1.5` also moved eleven crates to older `windows-sys` versions already in the lockfile, so the entry was changed by hand and checked with `cargo metadata --locked`.) The Linux-only and build-time warnings need nothing; the CI job should not fail on them (it fails on vulnerabilities, or lists these as accepted with the reason).
 
 ### 3. A move can overwrite a file (medium: unlikely, but not reversible)
 
