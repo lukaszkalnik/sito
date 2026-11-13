@@ -1,0 +1,22 @@
+# Keeps the commit pins of the workflow actions current (docs/RELEASING.md,
+# "Pinned actions"). Cargo and npm dependencies are updated by hand; the Audit
+# workflow reports the urgent ones.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # A release must be a week old before it is proposed, so a hijacked
+    # release has time to be noticed and withdrawn.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']
+    ignore:
+      # v1 writes api.github.com download addresses into `latest.json`, which
+      # changes where installed apps fetch updates from. Move to it by hand,
+      # with a tested update (docs/RELEASING.md).
+      - dependency-name: tauri-apps/tauri-action
+        update-types: ['version-update:semver-major']

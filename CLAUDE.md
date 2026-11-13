@@ -30,7 +30,7 @@ Platforms: developed on Windows, macOS later.
 - **Linters and static checks** must pass before every commit:
   - Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` (clippy pedantic is enabled workspace-wide)
   - Frontend: oxlint (`--deny-warnings`), Prettier, `tsc -b`
-- **Commit and push every self-contained change, directly on `main`.** No feature branches or pull requests: always commit on `main` and push to `main`. One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
+- **Commit and push every self-contained change, directly on `main`.** No feature branches or pull requests: always commit on `main` and push to `main`. The one exception is Dependabot's monthly pull request updating the pinned workflow actions, which the user reviews and merges on GitHub (see `docs/RELEASING.md`, Pinned actions). One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
 - **Pause at process milestones so the context can be cleared.** At each point below, stop before starting the next piece of work and offer the user the chance to clear the context:
   - a plan is written into its slice file and approved by the user (before implementing it);
   - testing of a slice is finished (the user's OK). Do not pause when a slice becomes ready for testing (status 🧪): start the debug build and let the user test it in the same session, which keeps the context for fixes from testing. A slice may stay 🧪 for a long time when the user cannot test it yet (e.g. it needs a release or another machine); that does not block other slices, and the next prompt need not mention it;
@@ -118,6 +118,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 - No network access except the checksum-verified model download and the signature-verified update check and download (Rust side only, see `docs/domain/updates.md`).
 - Tauri capabilities and the CSP stay minimal; every new permission or allowed source needs a stated reason.
 - Logs stay on the machine (the logger only runs in debug builds) and never contain image data.
+- **Workflows:** every action is pinned to a full commit SHA with its version in a comment; every workflow declares `permissions`, as narrow as its jobs need; secrets go only to the step that needs them; release builds use `--locked` and restore no cache. Workflows pass `zizmor .github` (a CI job); `${{ }}` expressions never go straight into `run:` scripts, they come in through `env:`.
 
 ### Testing
 

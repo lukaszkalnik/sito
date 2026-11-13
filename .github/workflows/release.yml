@@ -8,6 +8,9 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -16,23 +19,26 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     permissions:
-      contents: write
+      contents: write # tauri-action creates the draft release and uploads to it
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
-            args: ''
+            # `--locked`: cargo refuses a lockfile that does not match Cargo.toml.
+            args: '-- --locked'
             # The installer and its update signature (`.sig`).
             bundles: target/release/bundle/nsis/*-setup.exe*
           - os: macos-latest
-            args: '--target universal-apple-darwin'
+            args: '--target universal-apple-darwin -- --locked'
             bundles: target/universal-apple-darwin/release/bundle/dmg/*.dmg
     runs-on: ${{ matrix.os }}
     env:
       IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check that the tag matches the Cargo.toml version
         if: env.IS_TAG == 'true'
@@ -72,19 +78,21 @@ jobs:
             echo 'SITO_NOTES_END'
           } >> "$GITHUB_OUTPUT"
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
+          toolchain: stable
           targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      # No Rust or npm cache here: the signed build starts from the sources
+      # and the lockfiles alone, so nothing a cache holds can end up in it.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
+          package-manager-cache: false
       - run: npm ci
 
       # macOS signing and notarization come later (slice 23). The updater
       # signing key signs the update bundles and their `latest.json` entries.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # action-v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -151,7 +159,7 @@ jobs:
 
       - name: Upload installers (manual runs)
         if: env.IS_TAG != 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sito-${{ matrix.os }}
           path: ${{ matrix.bundles }}
@@ -163,9 +171,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # publishes the draft release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The updater reads `latest.json` of the newest published release; a
       # broken one stays in the draft instead of reaching installed apps.
       - name: Check the update manifest

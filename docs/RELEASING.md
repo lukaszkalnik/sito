@@ -28,6 +28,23 @@ gh run download <run-id> --name sito-windows-latest --dir D:\Lukasz\tools\instal
 
 Publishing is what ships the update: installed apps read `latest.json` of the newest published release on their next start (see [Updates](domain/updates.md)). A draft is never offered.
 
+## Pinned actions
+
+The Release workflow holds the update signing key and publishes what every installed Sito offers as an update, so nothing in it may change unnoticed:
+
+- Every action in `.github/workflows/` is pinned to a full commit SHA, with its version in a comment (`# v7.0.1`). A tag can be moved by the action's owner (or by whoever takes the repository over); a commit cannot. `dtolnay/rust-toolchain` has no releases: it is pinned to a commit of its `master` branch and installs `toolchain: stable`.
+- Every workflow starts with `permissions: contents: read`; only the two release jobs get `contents: write`. Checkouts do not keep the token (`persist-credentials: false`).
+- The release build restores no cache and builds with `--locked`, so it is made from the sources and the committed lockfiles alone.
+- `zizmor` (the `workflows` job of CI) fails on a workflow that breaks these rules. Run it locally with `zizmor .github` (`brew install zizmor`). A finding that does not apply is silenced in `.github/zizmor.yml` with the reason.
+
+**Updating the pins:** Dependabot (`.github/dependabot.yml`) opens one pull request a month with all action updates, changing each SHA and its version comment together. These pull requests are the one exception to working on `main` only. Before merging one:
+
+1. Read the release notes of each updated action for changes that affect the workflows.
+2. Check that each new SHA is the commit of the tagged release: `gh api repos/<owner>/<action>/git/ref/tags/<tag>` (for an annotated tag, follow it with `gh api repos/<owner>/<action>/git/tags/<sha>`).
+3. Wait for CI to be green, merge, then run the Release workflow by hand (see [Test build](#test-build-no-release)) to see that the installer still builds.
+
+**`tauri-action` stays on v0** (Dependabot ignores its major updates): v1 writes `api.github.com` asset addresses into `latest.json` instead of the release download addresses, which changes where installed apps fetch an update from. Move to v1 by hand, together with a tested update from a published release.
+
 ## Update signing key
 
 Updates are signed with a minisign key pair, separate from code signing. The public key is in `plugins.updater.pubkey` of `src-tauri/tauri.conf.json` and built into every app; the app installs only updates signed with the matching private key.
