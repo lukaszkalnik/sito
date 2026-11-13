@@ -1,3 +1,16 @@
+/* The picker and its sizer share one grid cell, see `TrashLookSizer`. */
+.reject-destination-slot {
+  display: grid;
+}
+
+.reject-destination-slot > * {
+  grid-area: 1 / 1;
+}
+
+.reject-destination-sizer {
+  visibility: hidden;
+}
+
 .reject-destination {
   display: flex;
   align-items: center;

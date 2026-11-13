@@ -33,31 +33,67 @@ export function DestinationPicker({
 
   return (
     <>
-      <Field
-        caption={t('destination.label')}
-        className={destination === 'trash' ? 'reject-destination--trash' : undefined}
-      >
-        {(id) => (
-          <div className="reject-destination">
-            <DestinationIcon destination={destination} />
-            <select
-              id={id}
-              className="control-select"
-              value={destination}
-              onChange={(event) => choose(event.target.value === 'trash' ? 'trash' : 'folder')}
-            >
-              <option value="folder">{t('destination.folder')}</option>
-              <option value="trash">{t('destination.trash')}</option>
-            </select>
-          </div>
-        )}
-      </Field>
+      <div className="reject-destination-slot">
+        <TrashLookSizer />
+        <Field
+          caption={t('destination.label')}
+          className={destination === 'trash' ? 'reject-destination--trash' : undefined}
+        >
+          {(id) => (
+            <div className="reject-destination">
+              <DestinationIcon destination={destination} />
+              <select
+                id={id}
+                className="control-select"
+                value={destination}
+                onChange={(event) => choose(event.target.value === 'trash' ? 'trash' : 'folder')}
+              >
+                <DestinationOptions />
+              </select>
+            </div>
+          )}
+        </Field>
+      </div>
       <TrashConfirmDialog
         open={confirming}
         onConfirm={confirm}
         onCancel={() => setConfirming(false)}
       />
     </>
+  );
+}
+
+function DestinationOptions() {
+  const { t } = useTranslation();
+  return (
+    <>
+      <option value="folder">{t('destination.folder')}</option>
+      <option value="trash">{t('destination.trash')}</option>
+    </>
+  );
+}
+
+/**
+ * An invisible copy of the picker in its bold trash look, stacked under the
+ * real one. It keeps the picker as wide as its widest look, so switching the
+ * destination does not shift the controls next to it.
+ */
+function TrashLookSizer() {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="field reject-destination--trash reject-destination-sizer"
+      aria-hidden="true"
+      inert
+    >
+      <span className="field-caption">{t('destination.label')}</span>
+      <div className="reject-destination">
+        <DestinationIcon destination="trash" />
+        <select className="control-select" tabIndex={-1} defaultValue="trash">
+          <DestinationOptions />
+        </select>
+      </div>
+    </div>
   );
 }
 

@@ -172,6 +172,26 @@ test('switches rejecting to the trash after a confirmation, and remembers it', a
   await expect(page.getByRole('combobox', { name: 'Odrzucone zdjęcia do:' })).toHaveValue('trash');
 });
 
+test('keeps the other bar controls in place when the destination changes', async ({ page }) => {
+  await mockTauri(page, BASE);
+  await page.setViewportSize({ width: 1400, height: 800 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  const view = page.getByRole('combobox', { name: 'Widok' });
+  const before = await view.boundingBox();
+
+  await page
+    .getByRole('combobox', { name: 'Odrzucone zdjęcia do:' })
+    .selectOption({ label: 'kosza' });
+  await page.getByRole('button', { name: 'Tak, do kosza' }).click();
+  await expect(page.getByRole('combobox', { name: 'Odrzucone zdjęcia do:' })).toHaveCSS(
+    'font-weight',
+    '700',
+  );
+
+  expect(await view.boundingBox()).toEqual(before);
+});
+
 test('rejects into the trash from the viewer once the trash is chosen', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('sito.rejectDestination', 'trash'));
   await openViewer(page, 1);
