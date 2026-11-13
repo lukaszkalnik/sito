@@ -145,6 +145,12 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
 
 ### When the steps are done
 
+- `CLAUDE.md`, section "Security and privacy" (and "Safe file operations" for the move): the rules this slice establishes, so later work keeps them. Each step adds its own rule in its commit:
+  - Step 1: workflow actions are pinned to a full commit SHA with the version in a comment; every workflow declares `permissions`, as narrow as its jobs need; secrets go only to the step that needs them; release builds use `--locked`.
+  - Step 2: run `cargo audit` and `npm audit --omit=dev` after changing dependencies; a reported vulnerability is fixed or the release waits.
+  - Step 3: files are moved only through the exclusive move, never with a bare `fs::rename`; a destination folder that is a link is refused.
+  - Step 4: a file from the gallery is never read whole without a size limit; parsers check every offset and count against the file.
+  - Step 5: the webview never navigates away from the app, and links open in the system browser from the Rust side; commands and protocols take ids of the current scan, never paths (opening a folder is the one exception).
 - `docs/domain/security.md` (new, linked from the index): what protects the user today, taken from "What the review found in good shape" plus what this slice adds (no-overwrite moves, size limits, CSP, navigation guard, pinned release pipeline, audits).
 - `docs/domain/rejecting.md`: the exclusive move, its gap on volumes without support, and the refused „Odrzucone” link.
 - Status 🧪; the user tests step 5 in the debug build.
