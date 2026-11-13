@@ -43,6 +43,7 @@ fn read_photo(photo: &Photo, cache: &ThumbnailCache) -> Response<Vec<u8>> {
             log::warn!("cannot show {}: {err}", photo.path.display());
             let status = match err {
                 DisplayError::Io { .. } => StatusCode::NOT_FOUND,
+                DisplayError::TooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
                 DisplayError::Raw { .. }
                 | DisplayError::Convert { .. }
                 | DisplayError::NotAPhoto(_) => StatusCode::UNSUPPORTED_MEDIA_TYPE,

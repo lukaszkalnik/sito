@@ -7,6 +7,7 @@ use std::path::Path;
 use super::RawError;
 use super::format::RawFormat;
 use super::maker_note;
+use crate::limited_read::{LimitedReadError, MAX_JPEG_BYTES, read_limited};
 use crate::tiff::{Ifd, MAX_BLOCK, TiffReader};
 
 /// Bytes of a candidate read to check that it is a displayable JPEG.
@@ -45,11 +46,12 @@ impl Candidate {
 ///
 /// # Errors
 ///
-/// Fails if the file cannot be read or holds no usable preview.
+/// Fails if the file cannot be read, holds no usable preview, or is a JPEG
+/// too large to show ([`RawError::TooLarge`]).
 pub fn read_preview(path: &Path, format: RawFormat) -> Result<Vec<u8>, RawError> {
     let mut file = BufReader::new(File::open(path)?);
     if is_jpeg(&mut file) {
-        return Ok(std::fs::read(path)?);
+        return read_whole_jpeg(path);
     }
     let candidates = if format.is_tiff_based() {
         tiff_candidates(&mut file)
@@ -148,6 +150,14 @@ fn pixels(file: &mut BufReader<File>, candidate: Candidate) -> Option<u64> {
         jpeg_decoder::CodingProcess::DctSequential | jpeg_decoder::CodingProcess::DctProgressive
     );
     displayable.then(|| u64::from(info.width) * u64::from(info.height))
+}
+
+/// The whole file at `path`, a JPEG under a RAW name.
+fn read_whole_jpeg(path: &Path) -> Result<Vec<u8>, RawError> {
+    read_limited(path, MAX_JPEG_BYTES).map_err(|err| match err {
+        LimitedReadError::Io(source) => RawError::Io(source),
+        LimitedReadError::TooLarge { .. } => RawError::TooLarge,
+    })
 }
 
 /// Whether the file starts like a JPEG (some files with RAW extensions are).

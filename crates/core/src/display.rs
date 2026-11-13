@@ -1,8 +1,9 @@
 //! The image the viewer shows for a photo: a JPEG a browser can display,
 //! whatever the photo's file format.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use crate::limited_read::{LimitedReadError, MAX_JPEG_BYTES, read_limited};
 use crate::raw::{RawError, read_preview, with_orientation};
 use crate::scan::{PhotoKind, photo_kind};
 use crate::thumbnail::{ThumbnailCache, ThumbnailError};
@@ -20,6 +21,9 @@ pub enum DisplayError {
         #[source]
         source: std::io::Error,
     },
+    /// The file is too large to be read whole for viewing.
+    #[error("{0} is too large to show")]
+    TooLarge(PathBuf),
     /// The RAW file has no usable preview.
     #[error("cannot show {path}")]
     Raw {
@@ -54,16 +58,10 @@ pub fn display_jpeg(photo: &Photo, cache: &ThumbnailCache) -> Result<Vec<u8>, Di
     let path = photo.path.as_path();
     let orientation = photo.orientation();
     match photo_kind(path) {
-        Some(PhotoKind::Jpeg) => std::fs::read(path).map_err(|source| DisplayError::Io {
-            path: path.to_path_buf(),
-            source,
-        }),
+        Some(PhotoKind::Jpeg) => read_jpeg(path),
         Some(PhotoKind::Raw(format)) => read_preview(path, format)
             .map(|preview| with_orientation(preview, orientation))
-            .map_err(|source| DisplayError::Raw {
-                path: path.to_path_buf(),
-                source,
-            }),
+            .map_err(|source| raw_error(path, source)),
         Some(PhotoKind::Tiff) => {
             cache
                 .display_jpeg_for(photo)
@@ -73,6 +71,28 @@ pub fn display_jpeg(photo: &Photo, cache: &ThumbnailCache) -> Result<Vec<u8>, Di
                 })
         }
         None => Err(DisplayError::NotAPhoto(path.to_path_buf())),
+    }
+}
+
+/// The JPEG at `path`, whole.
+fn read_jpeg(path: &Path) -> Result<Vec<u8>, DisplayError> {
+    read_limited(path, MAX_JPEG_BYTES).map_err(|err| match err {
+        LimitedReadError::Io(source) => DisplayError::Io {
+            path: path.to_path_buf(),
+            source,
+        },
+        LimitedReadError::TooLarge { .. } => DisplayError::TooLarge(path.to_path_buf()),
+    })
+}
+
+/// Why the RAW file at `path` cannot be shown.
+fn raw_error(path: &Path, source: RawError) -> DisplayError {
+    match source {
+        RawError::TooLarge => DisplayError::TooLarge(path.to_path_buf()),
+        RawError::Io(_) | RawError::NoPreview => DisplayError::Raw {
+            path: path.to_path_buf(),
+            source,
+        },
     }
 }
 
@@ -134,6 +154,40 @@ mod tests {
         assert!(matches!(
             show(&photo(path, 1)),
             Err(DisplayError::Raw { .. })
+        ));
+    }
+
+    /// A file just over the size limit that starts like a JPEG. It is
+    /// sparse: only its length is set, nothing large is written.
+    fn oversized_jpeg(dir: &tempfile::TempDir, name: &str) -> PathBuf {
+        use std::io::Write;
+
+        let path = dir.path().join(name);
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.write_all(&[0xFF, 0xD8, 0xFF]).unwrap();
+        file.set_len(MAX_JPEG_BYTES + 1).unwrap();
+        path
+    }
+
+    #[test]
+    fn a_jpeg_over_the_size_limit_is_not_read() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = oversized_jpeg(&dir, "huge.jpg");
+
+        assert!(matches!(
+            show(&photo(path.clone(), 1)),
+            Err(DisplayError::TooLarge(refused)) if refused == path
+        ));
+    }
+
+    #[test]
+    fn a_jpeg_with_a_raw_name_over_the_size_limit_is_not_read() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = oversized_jpeg(&dir, "huge.orf");
+
+        assert!(matches!(
+            show(&photo(path.clone(), 1)),
+            Err(DisplayError::TooLarge(refused)) if refused == path
         ));
     }
 }

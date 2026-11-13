@@ -22,6 +22,9 @@ pub enum RawError {
     /// The file could not be read.
     #[error("cannot read the RAW file")]
     Io(#[from] std::io::Error),
+    /// The file is a JPEG too large to be read whole for viewing.
+    #[error("the file is too large to show")]
+    TooLarge,
     /// The file holds no JPEG preview a browser can show.
     #[error("the RAW file has no usable preview")]
     NoPreview,

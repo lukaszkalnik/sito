@@ -5,6 +5,8 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
+use crate::limited_read::{LimitedReadError, read_limited};
+
 /// What Sito takes from a Takeout date file: the capture time and the photo's
 /// original name. Every other field (places, descriptions, people) is never
 /// read.
@@ -16,12 +18,19 @@ pub struct Sidecar {
     pub title: Option<String>,
 }
 
+/// Largest date file read: Takeout writes a few kilobytes, so a `.json` file
+/// beyond this is something else.
+pub const MAX_SIDECAR_BYTES: u64 = 1024 * 1024;
+
 /// Why a date file could not be used.
 #[derive(Debug, thiserror::Error)]
 pub enum SidecarError {
     /// The file could not be read.
     #[error("cannot read the date file")]
     Io(#[from] std::io::Error),
+    /// The file is larger than any date file ([`MAX_SIDECAR_BYTES`]).
+    #[error("the date file is too large")]
+    TooLarge,
     /// The file is not a Takeout date file.
     #[error("not a Takeout date file")]
     Format(#[from] serde_json::Error),
@@ -47,10 +56,15 @@ struct RawTime {
 ///
 /// # Errors
 ///
-/// Fails if the file cannot be read, is not JSON of the expected shape, or
-/// has no capture time (Takeout writes `0` for unknown).
+/// Fails if the file cannot be read, is larger than [`MAX_SIDECAR_BYTES`], is
+/// not JSON of the expected shape, or has no capture time (Takeout writes `0`
+/// for unknown).
 pub fn read_sidecar(path: &Path) -> Result<Sidecar, SidecarError> {
-    parse_sidecar(&std::fs::read(path)?)
+    let json = read_limited(path, MAX_SIDECAR_BYTES).map_err(|err| match err {
+        LimitedReadError::Io(source) => SidecarError::Io(source),
+        LimitedReadError::TooLarge { .. } => SidecarError::TooLarge,
+    })?;
+    parse_sidecar(&json)
 }
 
 fn parse_sidecar(json: &[u8]) -> Result<Sidecar, SidecarError> {
@@ -112,5 +126,18 @@ mod tests {
             parse_sidecar(b"[1, 2]"),
             Err(SidecarError::Format(_))
         ));
+    }
+
+    #[test]
+    fn a_file_over_the_size_limit_is_not_read() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("huge.json");
+        // Sparse: only the length is set.
+        std::fs::File::create(&path)
+            .unwrap()
+            .set_len(MAX_SIDECAR_BYTES + 1)
+            .unwrap();
+
+        assert!(matches!(read_sidecar(&path), Err(SidecarError::TooLarge)));
     }
 }

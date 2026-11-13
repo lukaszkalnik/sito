@@ -10,6 +10,7 @@ pub mod actions;
 pub mod decode;
 pub mod dimensions;
 pub mod display;
+mod limited_read;
 pub mod metadata;
 pub mod navigation;
 pub mod photo_cache;
