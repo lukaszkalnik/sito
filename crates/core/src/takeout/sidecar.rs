@@ -1,5 +1,12 @@
 //! Reading a Takeout date file.
 
+// Bytes from files are untrusted here: nothing may index or compute its
+// way into a panic.
+#![cfg_attr(
+    not(test),
+    warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)
+)]
+
 use std::path::Path;
 
 use chrono::{DateTime, Utc};

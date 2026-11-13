@@ -56,13 +56,16 @@ fn olympus<R: Read + Seek>(
     let settings = note.ifd(settings_offset).ok()?;
     let start = note.number(settings.get(tag::OLYMPUS_PREVIEW_START)?)?;
     let len = note.number(settings.get(tag::OLYMPUS_PREVIEW_LENGTH)?)?;
-    Some(Candidate::at(u64::from(offset) + u64::from(start), len))
+    Some(Candidate::at(
+        u64::from(offset).checked_add(u64::from(start))?,
+        len,
+    ))
 }
 
 /// Older Olympus maker notes: the file's byte order and offsets; a preview
 /// by start and length, or a small thumbnail as a value.
 fn olympus_old<R: Read + Seek>(tiff: &mut TiffReader<R>, offset: u32) -> Vec<Candidate> {
-    let Ok(main) = tiff.ifd(offset + 8) else {
+    let Some(Ok(main)) = offset.checked_add(8).map(|ifd| tiff.ifd(ifd)) else {
         return Vec::new();
     };
     let mut found = Vec::new();
@@ -91,7 +94,7 @@ fn nikon<R: Read + Seek>(
     header: &[u8],
 ) -> Option<Candidate> {
     let endian = endian_of(header.get(10..12)?)?;
-    let base = offset + 10;
+    let base = offset.checked_add(10)?;
     let mut note = tiff.nested(base, endian);
     let first = u32::from_be_bytes(header.get(14..18)?.try_into().ok()?);
     let first = match endian {
@@ -103,7 +106,10 @@ fn nikon<R: Read + Seek>(
     let preview = note.ifd(preview_offset).ok()?;
     let start = note.number(preview.get(tag::JPEG_OFFSET)?)?;
     let len = note.number(preview.get(tag::JPEG_LENGTH)?)?;
-    Some(Candidate::at(u64::from(base) + u64::from(start), len))
+    Some(Candidate::at(
+        u64::from(base).checked_add(u64::from(start))?,
+        len,
+    ))
 }
 
 fn endian_of(mark: &[u8]) -> Option<Endian> {

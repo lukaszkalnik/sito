@@ -123,8 +123,8 @@ fn raf_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
         return Vec::new();
     }
     let be = |at: usize| {
-        let bytes = header.get(at..at + 4)?;
-        Some(u32::from_be_bytes(bytes.try_into().ok()?))
+        let bytes = header.get(at..)?.first_chunk::<4>()?;
+        Some(u32::from_be_bytes(*bytes))
     };
     match (be(84), be(88)) {
         (Some(offset), Some(len)) => vec![Candidate::at(u64::from(offset), len)],
@@ -149,7 +149,9 @@ fn pixels(file: &mut BufReader<File>, candidate: Candidate) -> Option<u64> {
         info.coding_process,
         jpeg_decoder::CodingProcess::DctSequential | jpeg_decoder::CodingProcess::DctProgressive
     );
-    displayable.then(|| u64::from(info.width) * u64::from(info.height))
+    displayable
+        .then(|| u64::from(info.width).checked_mul(u64::from(info.height)))
+        .flatten()
 }
 
 /// The whole file at `path`, a JPEG under a RAW name.

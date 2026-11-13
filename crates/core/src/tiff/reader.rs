@@ -161,7 +161,8 @@ impl<R: Read + Seek> TiffReader<R> {
     /// given byte order, e.g. a maker note with offsets of its own.
     pub fn nested(&mut self, base: u32, endian: Endian) -> TiffReader<&mut R> {
         TiffReader {
-            base: self.base + u64::from(base),
+            // A base past the end of the file makes every read fail.
+            base: self.base.saturating_add(u64::from(base)),
             endian,
             file_len: self.file_len,
             reader: &mut self.reader,
@@ -184,7 +185,12 @@ impl<R: Read + Seek> TiffReader<R> {
         if count == 0 || count > MAX_ENTRIES {
             return Err(TiffError::Invalid);
         }
-        let bytes = self.bytes(offset + 2, u32::from(count) * 12 + 4)?;
+        let entries_at = offset.checked_add(2).ok_or(TiffError::Invalid)?;
+        let len = u32::from(count)
+            .checked_mul(12)
+            .and_then(|entries| entries.checked_add(4))
+            .ok_or(TiffError::Invalid)?;
+        let bytes = self.bytes(entries_at, len)?;
         let entries = bytes
             .as_chunks::<12>()
             .0
@@ -196,8 +202,10 @@ impl<R: Read + Seek> TiffReader<R> {
                 field: [raw[8], raw[9], raw[10], raw[11]],
             })
             .collect();
-        let tail = &bytes[bytes.len() - 4..];
-        let next = self.endian.u32([tail[0], tail[1], tail[2], tail[3]]);
+        let next = bytes
+            .last_chunk::<4>()
+            .map(|tail| self.endian.u32(*tail))
+            .ok_or(TiffError::Invalid)?;
         Ok(Ifd { entries, next })
     }
 
@@ -285,8 +293,13 @@ impl<R: Read + Seek> TiffReader<R> {
     ///
     /// Fails if the range lies outside the file or exceeds [`MAX_BLOCK`].
     pub fn bytes(&mut self, offset: u32, len: u32) -> Result<Vec<u8>, TiffError> {
-        let start = self.base + u64::from(offset);
-        let end = start + u64::from(len);
+        let start = self
+            .base
+            .checked_add(u64::from(offset))
+            .ok_or(TiffError::Invalid)?;
+        let end = start
+            .checked_add(u64::from(len))
+            .ok_or(TiffError::Invalid)?;
         if u64::from(len) > MAX_BLOCK || end > self.file_len {
             return Err(TiffError::Invalid);
         }
@@ -299,7 +312,8 @@ impl<R: Read + Seek> TiffReader<R> {
     fn value_bytes(&mut self, entry: Entry) -> Result<Vec<u8>, TiffError> {
         let len = entry.byte_len().ok_or(TiffError::Invalid)?;
         if len <= 4 {
-            return Ok(entry.field[..len as usize].to_vec());
+            let value = entry.field.get(..len as usize).ok_or(TiffError::Invalid)?;
+            return Ok(value.to_vec());
         }
         self.bytes(self.endian.u32(entry.field), len)
     }
@@ -396,5 +410,33 @@ mod tests {
         assert!(tiff.ifd(10_000).is_err());
         assert!(tiff.bytes(60, 100).is_err());
         assert_eq!(tiff.walk(10_000), Vec::new());
+    }
+
+    #[test]
+    fn offsets_at_the_end_of_the_number_range_are_refused_not_computed() {
+        let (mut tiff, _) = TiffReader::open(Cursor::new(sample(Endian::Little))).unwrap();
+
+        assert!(matches!(tiff.ifd(u32::MAX), Err(TiffError::Invalid)));
+        assert!(matches!(tiff.ifd(u32::MAX - 1), Err(TiffError::Invalid)));
+        assert!(matches!(
+            tiff.bytes(u32::MAX, u32::MAX),
+            Err(TiffError::Invalid)
+        ));
+        assert_eq!(tiff.walk(u32::MAX), Vec::new());
+    }
+
+    #[test]
+    fn a_nested_structure_past_the_end_of_the_file_reads_nothing() {
+        let (tiff, _) = TiffReader::open(Cursor::new(sample(Endian::Little))).unwrap();
+        // The largest base a file can name, in a reader that already has one.
+        let mut tiff = TiffReader {
+            base: u64::MAX,
+            ..tiff
+        };
+
+        let mut note = tiff.nested(u32::MAX, Endian::Big);
+
+        assert!(matches!(note.ifd(12), Err(TiffError::Invalid)));
+        assert!(matches!(note.bytes(0, 1), Err(TiffError::Invalid)));
     }
 }

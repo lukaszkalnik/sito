@@ -2,6 +2,13 @@
 //! them. RAW data itself is never developed; a file without a usable
 //! preview cannot be shown.
 
+// Bytes from files are untrusted here: nothing may index or compute its
+// way into a panic (inherited by the submodules).
+#![cfg_attr(
+    not(test),
+    warn(clippy::indexing_slicing, clippy::arithmetic_side_effects)
+)]
+
 mod format;
 mod maker_note;
 mod orientation;

@@ -14,10 +14,14 @@ pub fn with_orientation(jpeg: Vec<u8>, orientation: Orientation) -> Vec<u8> {
     if orientation == Orientation::NORMAL || !jpeg.starts_with(&SOI) || has_exif(&jpeg) {
         return jpeg;
     }
-    let mut out = Vec::with_capacity(jpeg.len() + 40);
+    let Some(image) = jpeg.get(SOI.len()..) else {
+        return jpeg;
+    };
+    let segment = exif_segment(orientation);
+    let mut out = Vec::with_capacity(jpeg.len().saturating_add(segment.len()));
     out.extend_from_slice(&SOI);
-    out.extend_from_slice(&exif_segment(orientation));
-    out.extend_from_slice(&jpeg[2..]);
+    out.extend_from_slice(&segment);
+    out.extend_from_slice(image);
     out
 }
 
@@ -34,27 +38,30 @@ fn exif_segment(orientation: Orientation) -> Vec<u8> {
     tiff.extend_from_slice(&[0, 0]);
     tiff.extend_from_slice(&0u32.to_be_bytes());
 
-    let payload_len = 6 + tiff.len();
-    let segment_len = u16::try_from(payload_len + 2).unwrap_or(u16::MAX);
+    let mut payload = b"Exif\0\0".to_vec();
+    payload.extend_from_slice(&tiff);
+    // The length counts its own two bytes.
+    let segment_len = u16::try_from(payload.len().saturating_add(2)).unwrap_or(u16::MAX);
     let mut segment = vec![0xFF, APP1];
     segment.extend_from_slice(&segment_len.to_be_bytes());
-    segment.extend_from_slice(b"Exif\0\0");
-    segment.extend_from_slice(&tiff);
+    segment.extend_from_slice(&payload);
     segment
 }
 
 /// Whether one of the segments before the image data is an EXIF APP1.
 fn has_exif(jpeg: &[u8]) -> bool {
-    let mut at = 2;
-    while let Some(&[0xFF, marker, high, low]) = jpeg.get(at..at + 4) {
+    let mut rest = jpeg.get(SOI.len()..).unwrap_or_default();
+    while let Some((&[0xFF, marker, high, low], body)) = rest.split_first_chunk::<4>() {
         // Start of scan: no more header segments.
         if marker == 0xDA {
             return false;
         }
-        if marker == APP1 && jpeg.get(at + 4..at + 10) == Some(b"Exif\0\0") {
+        if marker == APP1 && body.starts_with(b"Exif\0\0") {
             return true;
         }
-        at += 2 + usize::from(u16::from_be_bytes([high, low]));
+        // The length counts its own two bytes, which are already taken.
+        let body_len = usize::from(u16::from_be_bytes([high, low])).saturating_sub(2);
+        rest = body.get(body_len..).unwrap_or_default();
     }
     false
 }
@@ -85,5 +92,22 @@ mod tests {
             with_orientation(with_exif.clone(), Orientation::from_exif(6)),
             with_exif
         );
+    }
+
+    #[test]
+    fn broken_segments_end_the_search_without_exif() {
+        let turned = Orientation::from_exif(6);
+        // A segment length of 0 (less than its own two bytes), a segment
+        // longer than the file, a file that ends inside a segment header.
+        let broken: [&[u8]; 4] = [
+            b"\xFF\xD8\xFF\xE0\x00\x00\xFF\xE0\x00\x00",
+            b"\xFF\xD8\xFF\xE0\xFF\xFFab",
+            b"\xFF\xD8\xFF\xE1\x00",
+            b"\xFF\xD8",
+        ];
+        for jpeg in broken {
+            assert!(!has_exif(jpeg));
+            assert!(has_exif(&with_orientation(jpeg.to_vec(), turned)));
+        }
     }
 }

@@ -92,14 +92,16 @@ fn parse_date_time(text: &str) -> Option<NaiveDateTime> {
 /// `+02:00` → that offset.
 fn parse_offset(text: &str) -> Option<FixedOffset> {
     let text = text.trim();
-    let (sign, rest) = match text.as_bytes().first()? {
-        b'+' => (1, &text[1..]),
-        b'-' => (-1, &text[1..]),
-        _ => return None,
+    let (sign, rest) = if let Some(rest) = text.strip_prefix('+') {
+        (1, rest)
+    } else {
+        (-1, text.strip_prefix('-')?)
     };
     let (hours, minutes) = rest.split_once(':')?;
-    let seconds = hours.parse::<i32>().ok()? * 3600 + minutes.parse::<i32>().ok()? * 60;
-    FixedOffset::east_opt(sign * seconds)
+    let hours = hours.parse::<i32>().ok()?.checked_mul(3600)?;
+    let minutes = minutes.parse::<i32>().ok()?.checked_mul(60)?;
+    let seconds = hours.checked_add(minutes)?.checked_mul(sign)?;
+    FixedOffset::east_opt(seconds)
 }
 
 #[cfg(test)]
@@ -114,5 +116,12 @@ mod tests {
         assert_eq!(parse_offset("+02:00"), FixedOffset::east_opt(7200));
         assert_eq!(parse_offset("-05:30"), FixedOffset::west_opt(19800));
         assert_eq!(parse_offset("02:00"), None);
+    }
+
+    #[test]
+    fn an_offset_too_large_to_compute_is_no_offset() {
+        assert_eq!(parse_offset("+2147483647:00"), None);
+        assert_eq!(parse_offset("-600000:2147483647"), None);
+        assert_eq!(parse_offset("+99:00"), None);
     }
 }

@@ -100,6 +100,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 ### Scale and performance
 
 - Assume galleries of 50 000+ photos. Never hold all decoded images in memory; stream or batch work.
+- Modules that parse bytes from files (`tiff`, `raw`, `takeout/sidecar.rs`) turn on `clippy::indexing_slicing` and `clippy::arithmetic_side_effects` outside their tests: use `get(..)` and `checked_*` arithmetic, so a crafted file ends in an error, never in a panic or a wrapped number. A new parser module does the same.
 - A file from the gallery is never read whole without a size limit (`read_limited` in `crates/core/src/limited_read.rs`): its name says nothing about its size. Parsers check every offset and count against the file's length and cap block sizes.
 - Keep IPC payloads small: send IDs and metadata, never image bytes (images go through the `thumb:`/`photo:` protocols).
 - Long lists in the UI are virtualized. Long jobs are cancellable and throttle their progress events.
