@@ -30,6 +30,7 @@ What protects the user's photos and machine today. Sito's main input is untruste
 ## The release pipeline
 
 - Every action in the GitHub workflows is pinned to a commit; workflows run with a read-only token unless a job needs more; the signed build restores no cache and uses the committed lockfiles (`--locked`). A checker (`zizmor`) in CI keeps the workflows that way. See [Releasing](../RELEASING.md#pinned-actions).
+- GitHub scans the code (CodeQL) on every push and weekly, and refuses a push that contains a key or token (secret scanning with push protection).
 - The shipped Rust crates and npm packages are checked against the advisory databases on every push and weekly ([Releasing](../RELEASING.md#security-checks)).
 
 ## Known gaps

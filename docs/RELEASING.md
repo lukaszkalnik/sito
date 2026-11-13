@@ -48,6 +48,8 @@ The Release workflow holds the update signing key and publishes what every insta
 ## Security checks
 
 - **Audit workflow** (`.github/workflows/audit.yml`): `cargo audit` and `npm audit --omit=dev` on every push to `main` and every Monday. It fails on a known vulnerability in a shipped dependency; GitHub emails the repository owner when a scheduled run fails. Do not release while it is red.
+- **CodeQL** (GitHub's default setup, a repository setting with no workflow file): scans the Rust, JavaScript/TypeScript and workflow code on pushes and weekly. Results are under Security → Code scanning; fix a real finding, dismiss another one there with a reason.
+- **Secret scanning with push protection** ("Secret Protection" under Settings → Code security): GitHub refuses a push that contains a key or token, which guards the update signing key above all. Alerts are under Security → Secret scanning.
 
 ## Update signing key
 
