@@ -10,4 +10,5 @@ What Sito works on and how it behaves **today**, independent of how the code is 
 | [Accepting](accepting.md) | Marking the keepers of a series |
 | [Timeline and viewer](timeline.md) | How the grid and the viewer show and load photos: tile shapes, the viewer bar and strip, thumbnail order, spinners, staying responsive |
 | [Updates](updates.md) | Checking for a newer version, the update notice, installing it, what goes over the network |
+| [Security](security.md) | What protects the photos and the machine: webview limits, parser and size limits, safe moves, the release pipeline |
 | [Licenses](licenses.md) | Sito's license and the third-party notices shown in the app |

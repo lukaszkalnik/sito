@@ -51,7 +51,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 43 | [Undo only rejections](slices/43-undo-rejections-only.md) | ✅ |
 | 48 | [Main window bar on small screens](slices/48-compact-toolbar.md) | ✅ |
 | 55 | [Viewer bar on small screens](slices/55-viewer-toolbar.md) | ✅ |
-| 56 | [Security hardening](slices/56-security-hardening.md) | 📝 |
+| 56 | [Security hardening](slices/56-security-hardening.md) | 🧪 |
 | 57 | [Fuzz the file parsers](slices/57-fuzz-parsers.md) | 📝 |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | 📝 |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | 📝 |
