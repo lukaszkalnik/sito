@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 56 – Security hardening
 
-Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan when the slice starts.
+Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written on 2026-11-13, waiting for approval.
 
 ## Idea
 
@@ -93,12 +93,67 @@ Recorded so a later review can start from here; details are in the code and the 
 
 Known and tracked elsewhere: the installers are not code-signed ([slice 47](47-windows-code-signing.md), [slice 50](50-macos-code-signing.md)); thumbnails of photos stay in the cache folder until it is cleaned ([slice 15](15-settings.md)).
 
-## To decide when planning
+## Plan
 
-- **Order and split:** finding 1 is a change to two workflow files and stands alone; it could ship first, before the next release. Findings 3 and 4 are code in `core` with tests. Finding 5 needs a check of the running app on both platforms (a too-strict CSP shows up as missing styles or images).
-- **Dependabot or pins updated by hand** (finding 1), given that the project uses no pull requests.
-- **`cargo audit` or `cargo deny`** (finding 2): `cargo deny` could also take over the license check from `cargo-about`'s accepted list, but the notices file still needs `cargo-about`.
-- **Testing finding 3:** the race cannot be produced reliably; test the primitive itself (a move onto an existing file fails and leaves both files as they were).
+Written on 2026-11-13; waiting for the user's approval. Five steps, one commit each, in this order. Steps 1 and 2 touch only workflows, steps 3 and 4 only `core` and its error mapping, step 5 the Tauri layer and the configuration.
+
+### Step 1 – Pin the workflow actions (finding 1)
+
+- In `release.yml` and `ci.yml`, replace every `uses: owner/action@tag` with the full commit SHA of the newest release of that action, keeping the version as a comment (`# v4.2.2`). Look the SHAs up with `gh api repos/<owner>/<action>/git/ref/tags/<tag>` (for an annotated tag, follow it to its commit).
+- `dtolnay/rust-toolchain@stable` is a branch that installs the stable toolchain. Pin the action to a commit of its `master` branch and pass `toolchain: stable`, so the action is fixed and the toolchain still follows stable.
+- `ci.yml`: add `permissions: contents: read` at the top.
+- `release.yml`: add the same at the top; the two jobs keep their own `contents: write`.
+- `release.yml`: `args` of `tauri-action` become `-- --locked` (Windows) and `--target universal-apple-darwin -- --locked` (macOS), so cargo refuses a lockfile that does not match.
+- `docs/RELEASING.md`: a short section on the pins: why, and how to update one.
+- **Updating the pins:** by hand, a few times a year or when an action announces a fix; no Dependabot, since it works through pull requests and the project uses none. (Open for the user to overrule: Dependabot limited to `github-actions`, monthly, grouped into one pull request.)
+- **Check:** CI is green on the push. Then a manual run of the Release workflow (`workflow_dispatch`): it builds and smoke-tests the installer and uploads it as an artifact, without publishing anything.
+
+### Step 2 – Audit job (finding 2)
+
+- New workflow `.github/workflows/audit.yml`, on push to `main`, weekly (`schedule`) and by hand. One job on `ubuntu-latest`, `permissions: contents: read`:
+  - `cargo audit` (installed with the pinned `taiki-e/install-action`, a fixed `cargo-audit` version). It fails on vulnerabilities and only prints warnings such as "unmaintained", which fits the Linux-only warnings listed under finding 2.
+  - `npm ci` and `npm audit --omit=dev`.
+- A failed scheduled run sends GitHub's usual email to the repository owner; nothing else is needed.
+- `CLAUDE.md`: add `cargo audit` to the commands and one line to the Dependencies rules (run it after changing Rust dependencies).
+
+### Step 3 – Moves that cannot overwrite (finding 3)
+
+- New private module `crates/core/src/reject/exclusive.rs` with `move_exclusive(from, to) -> io::Result<()>`: moves a file and fails with `AlreadyExists` if `to` exists, in one system call.
+  - Windows: `MoveFileExW` with no flags (without `MOVEFILE_REPLACE_EXISTING` it refuses an existing destination; without `MOVEFILE_COPY_ALLOWED` it stays a same-drive move, as today). Paths go through as wide strings, so long and non-ASCII paths work.
+  - macOS: `renamex_np` with `RENAME_EXCL`. Volumes that do not support it (exFAT and FAT cards, some network shares) answer `ENOTSUP`; only then fall back to today's check followed by `fs::rename`. The gap stays on those volumes and is documented.
+  - Linux (tests and development only): `renameat2` with `RENAME_NOREPLACE`, same fallback.
+  - The calls are declared through `windows-sys` and `libc`, both already in `Cargo.lock`, each `unsafe` block with `#[expect(unsafe_code, reason = "...")]` like `src-tauri/src/reject/drive.rs`. No new crate: `renamore` does this, but it is a small crate of unknown upkeep and the code is about thirty lines per system.
+- `move_file` in `reject.rs` calls it and maps `AlreadyExists` to `RejectError::Occupied`. The `exists()` checks stay for choosing free names and for early, clear errors.
+- **„Odrzucone” must be a real folder:** `prepare` checks `symlink_metadata`; a symlink or a Windows junction gives the new `RejectError::RejectedDirIsLink`, mapped to a new command error code with a Polish message in `pl.json` (wording to settle while implementing, e.g. „Folder „Odrzucone” jest skrótem do innego miejsca. Usuń skrót, aby odrzucać zdjęcia do folderu.”).
+- **Tests** (unit, in temp folders): a move onto an existing file fails and leaves both files with their contents; a move to a free name works, also with a Polish name; rejecting with a symlinked „Odrzucone” is refused and moves nothing (Unix test; the junction case is covered by the same check).
+- Restoring from the system trash is not affected: the `trash` crate does that move.
+
+### Step 4 – Size limits (finding 4)
+
+- `display.rs`: `MAX_DISPLAY_BYTES` (512 MB; the largest JPEG the format allows is far smaller in practice) checked from the file's metadata before reading. Over it: new `DisplayError::TooLarge`, answered by `photo://` with `413`; the viewer already shows its error text for a photo that does not load.
+- `raw/preview.rs`: the same limit for a RAW-named file that is really a JPEG.
+- `takeout/sidecar.rs`: `MAX_SIDECAR_BYTES` (1 MB); over it: a `SidecarError`, which the scan already treats like an unreadable date file (the photo keeps its EXIF time).
+- **Tests:** each limit with a sparse file just over it (created with `set_len`, so nothing large is written).
+
+### Step 5 – CSP and navigation guard (finding 5)
+
+- `tauri.conf.json`: remove `asset:` and `http://asset.localhost`; remove `data:` from `img-src` (nothing in `ui/src` uses a data address; confirm in the running app); add `object-src 'none'; base-uri 'none'; form-action 'none'`.
+- `style-src`: try `style-src 'self'; style-src-attr 'unsafe-inline'`. `ui/index.html` has an inline `<style>` block; Tauri adds a hash for it at build time, and if that does not hold, the block moves into a CSS file. If either webview (WebView2, WKWebView) rejects `style-src-attr`, keep `style-src 'self' 'unsafe-inline'` and note why.
+- New `src-tauri/src/navigation.rs`: a small Tauri plugin (`tauri::plugin::Builder::on_navigation`), which covers both windows, including the viewer created at run time. It allows only the app's own origin (`tauri://localhost`, `http://tauri.localhost`, and the dev server address in debug builds) and logs a refused address. The pure part, `is_app_page(url)`, gets unit tests (the app pages, a web page, a look-alike host, another scheme).
+- **Check in the app** (debug build on macOS; Windows when a Windows session or a release allows): styles, thumbnails, viewer photo, zoom, licenses dialog and update notice look as before; the webview console shows no CSP errors.
+
+### When the steps are done
+
+- `docs/domain/security.md` (new, linked from the index): what protects the user today, taken from "What the review found in good shape" plus what this slice adds (no-overwrite moves, size limits, CSP, navigation guard, pinned release pipeline, audits).
+- `docs/domain/rejecting.md`: the exclusive move, its gap on volumes without support, and the refused „Odrzucone” link.
+- Status 🧪; the user tests step 5 in the debug build.
+
+### What the user tests
+
+1. Open a folder, scroll the grid, open the viewer, zoom, step through photos: everything looks and works as before.
+2. Reject a photo into „Odrzucone” and undo it; reject into the trash.
+3. „Pomoc → Licencje…” and „Pomoc → Sprawdź aktualizacje…” work.
+4. On GitHub: the CI and Audit runs are green; the manual Release run built an installer.
 
 ## Related
 
