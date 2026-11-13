@@ -32,5 +32,6 @@ Either way, **never render the notes as HTML** (`dangerouslySetInnerHTML`): they
 ## Related
 
 - [Slice 41](41-update-check.md): built the notice and the dialog.
+- [Slice 56](56-security-hardening.md): its navigation guard keeps a link from loading a web page into the app window; links here must go to the system browser or stay text.
 - [Slice 42](42-zero-click-update.md): zero-click update may show the notes after the restart instead of before it; it reuses this renderer.
 - [Slice 49](49-promo-website.md): the promo website shows the changelog too and could share the subset rules (not the code; the site is built separately).
