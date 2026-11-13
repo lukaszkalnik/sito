@@ -33,12 +33,19 @@ Fix:
 
 Sito's main input is untrusted files: photos from anywhere, decoded by `image`, `jpeg-decoder`, `nom-exif` and the TIFF code, and JSON date files. A vulnerability in one of these crates is the most likely way a crafted photo could harm the app. Nothing checks the dependencies against the advisory databases today; the license check (`cargo-about`) does not.
 
-At review time `npm audit --omit=dev` reported 0 vulnerabilities. The Rust side was **not checked**: `cargo-audit` is not installed on the review machine.
+At review time `npm audit --omit=dev` reported 0 vulnerabilities. `cargo audit` (0.23.0, 554 crates in `Cargo.lock`, run on 2026-11-13) reported **no vulnerabilities** and six warnings:
+
+| Crate | Warning | Shipped? |
+|---|---|---|
+| `rustix` 1.1.5 | unsound ([RUSTSEC-2026-0486](https://rustsec.org/advisories/RUSTSEC-2026-0486)): xattr functions with a zero-length buffer; fixed in 1.1.6 | macOS only, through `tauri-plugin-updater` (`tempfile`, and `tar` → `xattr`) |
+| `glib` 0.18.5 | unsound ([RUSTSEC-2024-0429](https://rustsec.org/advisories/RUSTSEC-2024-0429)) | no: Linux only |
+| `zvariant`, `zvariant_derive`, `zbus_names` | unmaintained | no: Linux only |
+| `proc-macro-error` 1.0.4 | unmaintained | no: build time only |
 
 Fix:
 
 - A CI job running `cargo audit` (RustSec) or `cargo deny check advisories`, and `npm audit --omit=dev`, on every push and on a weekly schedule, so a new advisory shows up without a commit.
-- Run it once when the slice starts and handle what it reports.
+- Update `rustix` to 1.1.6 or newer (`cargo update -p rustix@1.1.5`). The Linux-only and build-time warnings need nothing; the CI job should not fail on them (it fails on vulnerabilities, or lists these as accepted with the reason).
 
 ### 3. A move can overwrite a file (medium: unlikely, but not reversible)
 
