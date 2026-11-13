@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 56 – Security hardening
 
-Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written and approved by the user on 2026-11-13 (with Dependabot for the action pins). All six steps implemented on 2026-11-13 (see [Implementation notes](#implementation-notes)); waiting for the user's test and for CodeQL and secret scanning to be switched on. What it established is in [Security](../domain/security.md), [Rejecting](../domain/rejecting.md), [Releasing](../RELEASING.md) and `CLAUDE.md`.
+Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written and approved by the user on 2026-11-13 (with Dependabot for the action pins). All six steps implemented on 2026-11-13 (see [Implementation notes](#implementation-notes)); tested by the user in the bundled debug build on macOS on 2026-11-13 (CI, the Audit workflow and the manual Release run were green). **Still open:** CodeQL and secret scanning with push protection are not switched on; the user does that under Settings → Code security, after which `docs/RELEASING.md` (Security checks) gets a line saying they are on and where the results show. What it established is in [Security](../domain/security.md), [Rejecting](../domain/rejecting.md), [Releasing](../RELEASING.md) and `CLAUDE.md`.
 
 ## Idea
 
@@ -184,7 +184,7 @@ Where the work differs from the plan, and what is still open.
 
 - **Step 1, action versions:** every action is pinned to its newest release (`checkout` v7.0.1, `setup-node` v7.1.0, `upload-artifact` v7.0.2, `rust-cache` v2.9.3, `install-action` v2.90.3), except `tauri-action`, which stays on the newest v0 (`action-v0.6.2`). Its v1.0.0 writes `api.github.com` asset addresses into `latest.json` instead of the release download addresses, which changes where installed apps fetch updates from and cannot be tested without publishing a release. Dependabot ignores its major updates; moving to v1 is a change of its own, with a tested update.
 - **Step 1, zizmor findings fixed:** checkouts no longer keep the token (`persist-credentials: false`), and the release build restores no Rust or npm cache (zizmor's cache-poisoning finding: a cache could carry something into the signed build). Release builds are slower for it (a full Rust build each time). Dependabot waits until a release is a week old (`cooldown`). No `.github/zizmor.yml` was needed: nothing is silenced.
-- **Step 1, check:** the manual Release run on the pinned workflow built the installers and smoke-tested the Windows one.
+- **Step 1, check:** the manual Release run on the pinned workflow built both installers and smoke-tested the Windows one.
 - **Step 2, CodeQL and secret scanning:** not switched on yet. They are repository settings the user turns on (Settings → Code security); the `gh` token of the development session cannot read or change them. `docs/RELEASING.md` gets its line about them once they are on.
 - **Step 3, Windows call:** `MoveFileExW` is declared by hand, as `GetDriveTypeW` is in `src-tauri/src/reject/drive.rs`, instead of through `windows-sys`, so `core` gains no Windows dependency (`libc` is a direct dependency on Unix). Paths are made verbatim (`\\?\C:\…`, `\\?\UNC\…`) before the call: a plain wide string alone would still be limited to 260 characters.
 - **Step 4:** the limit lives in one place, `read_limited` in `crates/core/src/limited_read.rs`; it also stops reading if the file grows after its size was checked.
