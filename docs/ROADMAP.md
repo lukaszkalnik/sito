@@ -72,6 +72,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 31 | [Load the grid lazily](slices/31-lazy-grid.md) | 📝 |
 | 35 | [Install anywhere](slices/35-install-anywhere.md) | 📝 |
 | 42 | [Zero-click update](slices/42-zero-click-update.md) | 📝 |
+| 58 | [Move the release build to tauri-action v1](slices/58-tauri-action-v1.md) | 📝 |
 | 53 | [Rename to FotoSito / PhotoSieve](slices/53-rename-fotosito.md) | 📝 |
 | 49 | [Promo website](slices/49-promo-website.md) | 📝 |
 | 52 | [Microsoft Store](slices/52-microsoft-store.md) | 📝 |

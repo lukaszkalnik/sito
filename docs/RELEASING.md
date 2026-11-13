@@ -43,7 +43,7 @@ The Release workflow holds the update signing key and publishes what every insta
 2. Check that each new SHA is the commit of the tagged release: `gh api repos/<owner>/<action>/git/ref/tags/<tag>` (for an annotated tag, follow it with `gh api repos/<owner>/<action>/git/tags/<sha>`).
 3. Wait for CI to be green, merge, then run the Release workflow by hand (see [Test build](#test-build-no-release)) to see that the installer still builds.
 
-**`tauri-action` stays on v0** (Dependabot ignores its major updates): v1 writes `api.github.com` asset addresses into `latest.json` instead of the release download addresses, which changes where installed apps fetch an update from. Move to v1 by hand, together with a tested update from a published release.
+**`tauri-action` stays on v0** (Dependabot ignores its major updates): v1 writes `api.github.com` asset addresses into `latest.json` instead of the release download addresses, which changes where installed apps fetch an update from. Moving to v1 is [slice 58](slices/58-tauri-action-v1.md), together with a tested update from a published release.
 
 ## Security checks
 
