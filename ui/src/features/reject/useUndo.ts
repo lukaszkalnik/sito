@@ -62,6 +62,7 @@ const UNDO_ERROR_KEYS: Readonly<Record<RejectErrorCode, string>> = {
   missingFromTrash: 'undo.missingFromTrash',
   trashUndoUnsupported: 'undo.trashUndoUnsupported',
   noTrash: 'undo.failed',
+  rejectedDirIsLink: 'undo.failed',
   io: 'undo.failed',
   internal: 'undo.failed',
 };

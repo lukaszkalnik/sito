@@ -95,7 +95,8 @@
     "failed": "Nie udało się odrzucić zdjęcia.",
     "hintTrash": "Przenieś zdjęcie do kosza (Delete)",
     "doneTrash": "{{name}} → Kosz",
-    "noTrash": "Ten dysk nie ma kosza – wybierz folder „Odrzucone”."
+    "noTrash": "Ten dysk nie ma kosza – wybierz folder „Odrzucone”.",
+    "rejectedDirIsLink": "Folder „Odrzucone” jest skrótem do innego miejsca. Usuń skrót, aby odrzucać zdjęcia do folderu."
   },
   "accept": {
     "button": "Zaakceptuj",

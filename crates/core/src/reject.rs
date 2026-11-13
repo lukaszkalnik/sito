@@ -11,6 +11,7 @@ use thiserror::Error;
 
 use crate::scan::REJECTED_DIR;
 
+mod exclusive;
 mod files;
 
 pub use files::{Companion, PhotoFiles};
@@ -31,6 +32,10 @@ pub enum RejectError {
     /// Another file now has the original name, so moving back would overwrite it.
     #[error("{0} already exists")]
     Occupied(PathBuf),
+    /// The [`REJECTED_DIR`] folder is a symbolic link or a junction, so
+    /// photos moved into it would leave the gallery.
+    #[error("{0} is a link, not a folder")]
+    RejectedDirIsLink(PathBuf),
     /// The file system refused the move.
     #[error("cannot move {from} to {to}")]
     Io {
@@ -98,19 +103,14 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
 ///
 /// # Errors
 ///
-/// Returns an error if `path` has no folder or file name, or the folder cannot
-/// be created.
+/// Returns an error if `path` has no folder or file name, the folder cannot
+/// be created, or it is a link ([`RejectError::RejectedDirIsLink`]).
 pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
     let no_parent = || RejectError::NoParent(path.to_path_buf());
     let parent = path.parent().ok_or_else(no_parent)?;
     let name = path.file_name().ok_or_else(no_parent)?;
     let dir = parent.join(REJECTED_DIR);
-    let created_dir = !dir.is_dir();
-    fs::create_dir_all(&dir).map_err(|source| RejectError::Io {
-        from: path.to_path_buf(),
-        to: dir.clone(),
-        source,
-    })?;
+    let created_dir = ensure_rejected_dir(path, &dir)?;
 
     let files = PhotoFiles::find(path);
     let mut names = vec![name];
@@ -136,6 +136,23 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
         created_dir,
         extra,
     })
+}
+
+/// Creates the [`REJECTED_DIR`] folder `dir` for the photo at `path` unless
+/// it is there; `true` if it was created. A symbolic link or a junction of
+/// that name is refused: it would take the photos to wherever it points.
+fn ensure_rejected_dir(path: &Path, dir: &Path) -> Result<bool, RejectError> {
+    let existing = fs::symlink_metadata(dir).ok();
+    if existing.as_ref().is_some_and(fs::Metadata::is_symlink) {
+        return Err(RejectError::RejectedDirIsLink(dir.to_path_buf()));
+    }
+    let created = !existing.is_some_and(|metadata| metadata.is_dir());
+    fs::create_dir_all(dir).map_err(|source| RejectError::Io {
+        from: path.to_path_buf(),
+        to: dir.to_path_buf(),
+        source,
+    })?;
+    Ok(created)
 }
 
 /// The move of the date file `sidecar` of a photo file that goes to `target`
@@ -287,10 +304,17 @@ fn numbered_name(name: &OsStr, n: u32) -> OsString {
     numbered
 }
 
+/// Moves `from` to `to` without ever replacing a file: a `to` that exists
+/// at the moment of the move is [`RejectError::Occupied`].
 fn move_file(from: &Path, to: &Path) -> Result<(), RejectError> {
-    fs::rename(from, to).map_err(|source| RejectError::Io {
-        from: from.to_path_buf(),
-        to: to.to_path_buf(),
-        source,
+    exclusive::move_exclusive(from, to).map_err(|source| {
+        if source.kind() == std::io::ErrorKind::AlreadyExists {
+            return RejectError::Occupied(to.to_path_buf());
+        }
+        RejectError::Io {
+            from: from.to_path_buf(),
+            to: to.to_path_buf(),
+            source,
+        }
     })
 }

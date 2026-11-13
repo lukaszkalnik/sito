@@ -21,6 +21,8 @@ pub enum CommandError {
     /// The photo's drive has no trash (removable and network drives), so
     /// moving it there would delete it.
     NoTrash,
+    /// The „Odrzucone” folder is a link to another place.
+    RejectedDirIsLink,
     /// This system cannot restore files from the trash.
     TrashUndoUnsupported,
     /// Unexpected failure inside the app.

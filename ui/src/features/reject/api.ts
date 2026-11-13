@@ -23,6 +23,7 @@ const REJECT_ERROR_CODES = [
   'missing',
   'missingFromTrash',
   'noTrash',
+  'rejectedDirIsLink',
   'trashUndoUnsupported',
   'io',
   'internal',

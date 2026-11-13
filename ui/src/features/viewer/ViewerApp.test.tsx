@@ -184,6 +184,19 @@ describe('ViewerApp', () => {
     );
   });
 
+  it('explains an „Odrzucone” folder that is a link', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    vi.mocked(rejectPhoto).mockRejectedValue({ code: 'rejectedDirIsLink' });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Odrzuć' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Folder „Odrzucone” jest skrótem do innego miejsca. Usuń skrót, aby odrzucać zdjęcia do folderu.',
+    );
+  });
+
   it('closes once on a double-click of „Zamknij”', async () => {
     vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
     // Still closing when the second click arrives.

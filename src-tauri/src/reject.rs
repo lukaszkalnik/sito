@@ -119,6 +119,7 @@ impl From<RejectError> for CommandError {
         match err {
             RejectError::Occupied(_) => Self::Occupied,
             RejectError::Missing(_) => Self::Missing,
+            RejectError::RejectedDirIsLink(_) => Self::RejectedDirIsLink,
             RejectError::NoParent(_) | RejectError::Io { .. } => Self::Io,
         }
     }
@@ -513,6 +514,10 @@ mod tests {
         let cases = [
             (RejectError::Occupied(path.clone()), "occupied"),
             (RejectError::Missing(path.clone()), "missing"),
+            (
+                RejectError::RejectedDirIsLink(path.clone()),
+                "rejectedDirIsLink",
+            ),
             (RejectError::NoParent(path), "io"),
         ];
         for (err, code) in cases {

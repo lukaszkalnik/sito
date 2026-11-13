@@ -92,6 +92,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 ### Safe file operations
 
 - Files are only ever **moved**, never deleted or overwritten. If the destination name exists, pick a new name.
+- Files of the gallery are moved only through the exclusive move (`crates/core/src/reject/exclusive.rs`), which refuses an existing destination in the same system call; never with a bare `fs::rename`, which replaces it. Checking `exists()` first is for picking a free name, not the guarantee. A destination folder that is a symbolic link or a junction is refused.
 - A move across drives (where `rename` fails) must copy, verify the copy (size + hash), and only then remove the original; otherwise fail visibly.
 - Write the undo log entry **before** the move, in the same SQLite transaction as related changes, so a crash never leaves an untracked move.
 - Handle paths as `Path`/`PathBuf`, never via lossy string conversion; support non-ASCII (Polish) names and long Windows paths.

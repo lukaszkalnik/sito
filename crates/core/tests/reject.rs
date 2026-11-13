@@ -433,3 +433,20 @@ fn photo_files_leave_out_a_date_file_shared_by_an_original_and_its_edited_copy()
     assert_eq!(PhotoFiles::find(&copy).all(), [copy]);
     assert_eq!(PhotoFiles::find(&photo).all(), [photo]);
 }
+
+#[cfg(unix)]
+#[test]
+fn refuses_an_odrzucone_that_is_a_link() {
+    let dir = TempDir::new().unwrap();
+    let elsewhere = TempDir::new().unwrap();
+    let photo = dir.path().join("IMG_1.jpg");
+    write(&photo, "photo");
+    let link = dir.path().join("Odrzucone");
+    std::os::unix::fs::symlink(elsewhere.path(), &link).unwrap();
+
+    let err = reject(&photo).unwrap_err();
+
+    assert!(matches!(err, RejectError::RejectedDirIsLink(path) if path == link));
+    assert_eq!(fs::read_to_string(&photo).unwrap(), "photo");
+    assert_eq!(fs::read_dir(elsewhere.path()).unwrap().count(), 0);
+}

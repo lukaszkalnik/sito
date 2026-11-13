@@ -53,6 +53,14 @@ interface ReadyViewerProps {
   acceptedIds: ReadonlySet<number>;
 }
 
+/** The translation key of the message for a failed rejection. */
+function rejectErrorKey(error: unknown): string {
+  const code = rejectErrorCode(error);
+  if (code === 'noTrash') return 'reject.noTrash';
+  if (code === 'rejectedDirIsLink') return 'reject.rejectedDirIsLink';
+  return 'reject.failed';
+}
+
 /**
  * Rejects the photo shown and shows the one the backend picked for after it,
  * reporting the outcome in a toast. Ignores calls while one is running.
@@ -69,8 +77,7 @@ function useReject({ photo, onShowId, undo }: ReadyViewerProps, destination: Rej
       onShowId(photo.afterReject ?? NO_PHOTO);
       showToast({ text: t(DONE_KEYS[destination], { name: rejected.name }), kind: 'undoable' });
     } catch (error) {
-      const key = rejectErrorCode(error) === 'noTrash' ? 'reject.noTrash' : 'reject.failed';
-      showToast({ text: t(key), kind: 'error' });
+      showToast({ text: t(rejectErrorKey(error)), kind: 'error' });
     } finally {
       rejecting.current = false;
     }
