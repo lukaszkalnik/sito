@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 56 – Security hardening
 
-Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written on 2026-11-13, waiting for approval.
+Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written and approved by the user on 2026-11-13 (with Dependabot for the action pins); not started.
 
 ## Idea
 
@@ -25,7 +25,7 @@ The same holds for `ci.yml` (`taiki-e/install-action@v2` and the others), with l
 Fix:
 
 - Pin every action in both workflows to a full commit SHA, with the version in a comment.
-- Add `.github/dependabot.yml` for the `github-actions` ecosystem, so the pins get update proposals instead of going stale. (Dependabot opens pull requests; the project otherwise works on `main` only, so decide whether to accept that or to update the pins by hand.)
+- Add `.github/dependabot.yml` for the `github-actions` ecosystem, so the pins get update proposals instead of going stale.
 - Add `permissions: contents: read` at the top of `ci.yml`.
 - Build with the lockfile as committed: pass `--locked` to the cargo build of the release (`args: -- --locked` of `tauri-action`), as CI already does for clippy and tests.
 
@@ -95,7 +95,7 @@ Known and tracked elsewhere: the installers are not code-signed ([slice 47](47-w
 
 ## Plan
 
-Written on 2026-11-13; waiting for the user's approval. Five steps, one commit each, in this order. Steps 1 and 2 touch only workflows, steps 3 and 4 only `core` and its error mapping, step 5 the Tauri layer and the configuration.
+Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 2 touch only workflows, steps 3 and 4 only `core` and its error mapping, step 5 the Tauri layer and the configuration.
 
 ### Step 1 – Pin the workflow actions (finding 1)
 
@@ -104,8 +104,9 @@ Written on 2026-11-13; waiting for the user's approval. Five steps, one commit e
 - `ci.yml`: add `permissions: contents: read` at the top.
 - `release.yml`: add the same at the top; the two jobs keep their own `contents: write`.
 - `release.yml`: `args` of `tauri-action` become `-- --locked` (Windows) and `--target universal-apple-darwin -- --locked` (macOS), so cargo refuses a lockfile that does not match.
-- `docs/RELEASING.md`: a short section on the pins: why, and how to update one.
-- **Updating the pins:** by hand, a few times a year or when an action announces a fix; no Dependabot, since it works through pull requests and the project uses none. (Open for the user to overrule: Dependabot limited to `github-actions`, monthly, grouped into one pull request.)
+- `docs/RELEASING.md`: a short section on the pins: why they are there and how Dependabot updates them.
+- **Updating the pins:** Dependabot (decided by the user on 2026-11-13). New `.github/dependabot.yml` with only the `github-actions` ecosystem, checked monthly, all updates grouped into one pull request. Dependabot keeps the SHA pin and its version comment in step. No `cargo` or `npm` entries: those dependencies stay updated by hand, and the audit job of step 2 reports the urgent ones.
+- These pull requests are the one exception to working on `main` only: the user reviews and merges them on GitHub once CI is green. `CLAUDE.md` (Development workflow) gets a line saying so, and `docs/RELEASING.md` says what to look at before merging one (the action's release notes, and that the new SHA belongs to the tagged release).
 - **Check:** CI is green on the push. Then a manual run of the Release workflow (`workflow_dispatch`): it builds and smoke-tests the installer and uploads it as an artifact, without publishing anything.
 
 ### Step 2 – Audit job (finding 2)
