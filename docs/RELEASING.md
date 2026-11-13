@@ -45,6 +45,10 @@ The Release workflow holds the update signing key and publishes what every insta
 
 **`tauri-action` stays on v0** (Dependabot ignores its major updates): v1 writes `api.github.com` asset addresses into `latest.json` instead of the release download addresses, which changes where installed apps fetch an update from. Move to v1 by hand, together with a tested update from a published release.
 
+## Security checks
+
+- **Audit workflow** (`.github/workflows/audit.yml`): `cargo audit` and `npm audit --omit=dev` on every push to `main` and every Monday. It fails on a known vulnerability in a shipped dependency; GitHub emails the repository owner when a scheduled run fails. Do not release while it is red.
+
 ## Update signing key
 
 Updates are signed with a minisign key pair, separate from code signing. The public key is in `plugins.updater.pubkey` of `src-tauri/tauri.conf.json` and built into every app; the app installs only updates signed with the matching private key.

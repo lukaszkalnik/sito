@@ -137,6 +137,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 - Add dependencies sparingly; check each license (it ends up in the third-party notices) and prefer well-maintained crates/packages.
 - Commit lockfiles (`Cargo.lock`, `package-lock.json`).
 - Every shipped dependency's license must be on a reviewed list: `about.toml` (Rust, checked by `cargo-about` in CI) and `ALLOWED_NPM_LICENSES` in `ui/build/thirdPartyNotices.ts` (npm, checked by every frontend build). Add a license there only after checking its terms. After changing Rust dependencies, run `npm run notices:rust` and commit `ui/notices/rust-crates.txt`; CI fails if it is stale.
+- After changing dependencies, run `cargo audit` and `npm audit --omit=dev` (the Audit workflow also runs them on every push and weekly). A reported vulnerability is fixed, or the release waits.
 
 ### Rust best practices
 
@@ -245,4 +246,6 @@ npm test                             # Vitest unit tests (ui)
 npm run e2e                          # Playwright e2e tests (ui, starts Vite)
 npm run build                        # frontend production build
 npm run notices:rust                 # regenerate Rust license notices (needs `cargo install cargo-about --features cli`)
+cargo audit                          # known vulnerabilities in Rust dependencies (needs `cargo install cargo-audit`)
+npm audit --omit=dev                 # the same for the shipped npm packages
 ```
