@@ -95,7 +95,7 @@ Known and tracked elsewhere: the installers are not code-signed ([slice 47](47-w
 
 ## Plan
 
-Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 2 touch only workflows, steps 3 and 4 only `core` and its error mapping, step 5 the Tauri layer and the configuration.
+Approved on 2026-11-13; the scanners in steps 1 and 2 and step 6 were added the same day at the user's request. Six steps, one commit each, in this order. Steps 1 and 2 touch only workflows and repository settings, steps 3 and 4 `core` and its error mapping, step 5 the Tauri layer and the configuration, step 6 the parser modules of `core`.
 
 ### Step 1 – Pin the workflow actions (finding 1)
 
@@ -107,6 +107,7 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
 - `docs/RELEASING.md`: a short section on the pins: why they are there and how Dependabot updates them.
 - **Updating the pins:** Dependabot (decided by the user on 2026-11-13). New `.github/dependabot.yml` with only the `github-actions` ecosystem, checked monthly, all updates grouped into one pull request. Dependabot keeps the SHA pin and its version comment in step. No `cargo` or `npm` entries: those dependencies stay updated by hand, and the audit job of step 2 reports the urgent ones.
 - These pull requests are the one exception to working on `main` only: the user reviews and merges them on GitHub once CI is green. `CLAUDE.md` (Development workflow) gets a line saying so, and `docs/RELEASING.md` says what to look at before merging one (the action's release notes, and that the new SHA belongs to the tagged release).
+- **zizmor** (static checker for GitHub workflows): a `workflows` job in `ci.yml` runs it on `.github/workflows/` and fails on a finding, so an unpinned action, a missing `permissions` block or a `${{ }}` expression inside a `run:` script cannot come back. Fix what it reports in the existing workflows in this step (the release workflow passes `github.ref_name` and step outputs around; any that reach a script go through `env:`). A finding that does not apply is silenced in `.github/zizmor.yml` with the reason.
 - **Check:** CI is green on the push. Then a manual run of the Release workflow (`workflow_dispatch`): it builds and smoke-tests the installer and uploads it as an artifact, without publishing anything.
 
 ### Step 2 – Audit job (finding 2)
@@ -115,6 +116,9 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
   - `cargo audit` (installed with the pinned `taiki-e/install-action`, a fixed `cargo-audit` version). It fails on vulnerabilities and only prints warnings such as "unmaintained", which fits the Linux-only warnings listed under finding 2.
   - `npm ci` and `npm audit --omit=dev`.
 - A failed scheduled run sends GitHub's usual email to the repository owner; nothing else is needed.
+- **CodeQL** (GitHub's code scanner, free for public repositories): turn on the default setup for Rust, JavaScript/TypeScript and Actions. It runs on pushes and weekly on GitHub's side, with no workflow file, and reports under Security → Code scanning. Go through its first results: fix real ones, dismiss the others on GitHub with a reason.
+- **Secret scanning with push protection** (also free for public repositories): turn it on, so a push that contains a key or token is refused. This guards the update signing key above all.
+- Both are repository settings. Changing them needs the user's go-ahead at that moment: either the user switches them on under Settings → Code security, or Claude does it with `gh api` after asking. `docs/RELEASING.md` records that they are on and where the results show.
 - `CLAUDE.md`: add `cargo audit` to the commands and one line to the Dependencies rules (run it after changing Rust dependencies).
 
 ### Step 3 – Moves that cannot overwrite (finding 3)
@@ -143,6 +147,16 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
 - New `src-tauri/src/navigation.rs`: a small Tauri plugin (`tauri::plugin::Builder::on_navigation`), which covers both windows, including the viewer created at run time. It allows only the app's own origin (`tauri://localhost`, `http://tauri.localhost`, and the dev server address in debug builds) and logs a refused address. The pure part, `is_app_page(url)`, gets unit tests (the app pages, a web page, a look-alike host, another scheme).
 - **Check in the app** (debug build on macOS; Windows when a Windows session or a release allows): styles, thumbnails, viewer photo, zoom, licenses dialog and update notice look as before; the webview console shows no CSP errors.
 
+### Step 6 – Stricter clippy lints in the parsers
+
+The parsers of untrusted bytes get two lints that the rest of the code does not need: `clippy::indexing_slicing` (a `bytes[i]` or `bytes[a..b]` that can panic) and `clippy::arithmetic_side_effects` (a `+`, `-` or `*` that can overflow: a panic in debug builds, a silent wrap in release builds).
+
+- Where: `crates/core/src/tiff/`, `crates/core/src/raw/` and `crates/core/src/takeout/sidecar.rs`, as `#![warn(...)]` at the top of each module (CI turns warnings into errors). Not workspace-wide: in UI-facing code such as layout arithmetic they would mostly be noise.
+- Fix every finding: `get(..)` with an error instead of indexing, `checked_add` / `checked_mul` (or `u64` arithmetic where the operands are `u32`) instead of bare operators. A known spot is `offset + 2` in `TiffReader::ifd`. A crafted file must end in `TiffError::Invalid` or "no preview", never in a panic.
+- Tests: one regression test per fixed spot that a crafted input reached (e.g. an IFD offset of `u32::MAX`).
+- Test modules are exempt (`#[cfg(not(test))]` on the lint attribute, or an `allow` on the test module), since fixtures are built with plain indexing.
+- [Slice 57](57-fuzz-parsers.md) then fuzzes the same modules; what the lints cannot see (hangs, huge allocations, logic errors) is its part.
+
 ### When the steps are done
 
 - `CLAUDE.md`, section "Security and privacy" (and "Safe file operations" for the move): the rules this slice establishes, so later work keeps them. Each step adds its own rule in its commit:
@@ -150,6 +164,8 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
   - Step 2: run `cargo audit` and `npm audit --omit=dev` after changing dependencies; a reported vulnerability is fixed or the release waits.
   - Step 3: files are moved only through the exclusive move, never with a bare `fs::rename`; a destination folder that is a link is refused.
   - Step 4: a file from the gallery is never read whole without a size limit; parsers check every offset and count against the file.
+  - Step 1 also: workflows pass zizmor; expressions never go straight into `run:` scripts.
+  - Step 6: modules that parse bytes from files turn on `clippy::indexing_slicing` and `clippy::arithmetic_side_effects`.
   - Step 5: the webview never navigates away from the app, and links open in the system browser from the Rust side; commands and protocols take ids of the current scan, never paths (opening a folder is the one exception).
 - `docs/domain/security.md` (new, linked from the index): what protects the user today, taken from "What the review found in good shape" plus what this slice adds (no-overwrite moves, size limits, CSP, navigation guard, pinned release pipeline, audits).
 - `docs/domain/rejecting.md`: the exclusive move, its gap on volumes without support, and the refused „Odrzucone” link.
@@ -160,10 +176,11 @@ Approved on 2026-11-13. Five steps, one commit each, in this order. Steps 1 and 
 1. Open a folder, scroll the grid, open the viewer, zoom, step through photos: everything looks and works as before.
 2. Reject a photo into „Odrzucone” and undo it; reject into the trash.
 3. „Pomoc → Licencje…” and „Pomoc → Sprawdź aktualizacje…” work.
-4. On GitHub: the CI and Audit runs are green; the manual Release run built an installer.
+4. On GitHub: the CI and Audit runs are green; the manual Release run built an installer; Security → Code scanning shows CodeQL results and no open alert.
 
 ## Related
 
 - [Slice 41](41-update-check.md): built the updater and its signing.
+- [Slice 57](57-fuzz-parsers.md): fuzzing of the parsers, after step 6 here.
 - [Slice 54](54-release-notes-markdown.md): links in release notes; builds on the navigation guard of finding 5.
 - [Slice 38](38-files-changed-outside.md): also about other programs changing files under Sito; finding 3 is the part that can lose a file.
