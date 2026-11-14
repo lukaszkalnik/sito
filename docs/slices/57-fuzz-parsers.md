@@ -4,7 +4,7 @@ status: 🚧 in progress
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1 and 2 done (2026-11-14). Next: step 3.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Next: step 4, the first long run on the Mac.
 
 ## Idea
 
