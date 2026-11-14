@@ -4,7 +4,7 @@ status: ✅ done
 
 # Slice 56 – Security hardening
 
-Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written and approved by the user on 2026-11-13 (with Dependabot for the action pins). All six steps implemented on 2026-11-13 (see [Implementation notes](#implementation-notes)); tested by the user in the bundled debug build on macOS on 2026-11-13 (CI, the Audit workflow and the manual Release run were green). Secret scanning with push protection and the CodeQL default setup were switched on by the user on 2026-11-13. **Still open:** going through CodeQL's first results (Security → Code scanning): fix real ones, dismiss the others on GitHub with a reason. What it established is in [Security](../domain/security.md), [Rejecting](../domain/rejecting.md), [Releasing](../RELEASING.md) and `CLAUDE.md`.
+Since 2026-11-13; findings of a security review of the whole app at commit `a3933f9`. Plan written and approved by the user on 2026-11-13 (with Dependabot for the action pins). All six steps implemented on 2026-11-13 (see [Implementation notes](#implementation-notes)); tested by the user in the bundled debug build on macOS on 2026-11-13 (CI, the Audit workflow and the manual Release run were green). Secret scanning with push protection and the CodeQL default setup were switched on by the user on 2026-11-13. CodeQL's first analyses (Rust, JavaScript/TypeScript, Python, Actions, at `454dce3`) reported no results, and secret scanning no alerts (checked on 2026-11-14). What it established is in [Security](../domain/security.md), [Rejecting](../domain/rejecting.md), [Releasing](../RELEASING.md) and `CLAUDE.md`.
 
 ## Idea
 
