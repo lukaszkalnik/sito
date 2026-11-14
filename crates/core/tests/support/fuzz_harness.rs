@@ -11,7 +11,7 @@ use std::io::Cursor;
 use std::path::Path;
 
 use chrono::Datelike;
-use sito_core::decode::{ImageSource, decode_image, decode_tiff_from};
+use sito_core::decode::{ImageSource, JPEG_MEMORY_LIMIT, decode_image, decode_tiff_from};
 use sito_core::metadata::{Orientation, PhotoMetadata, read_exif_metadata_from};
 use sito_core::raw::{RawFormat, read_preview_from, read_raw_metadata_from, with_orientation};
 use sito_core::takeout::parse_sidecar;
@@ -23,6 +23,11 @@ const MAX_IFDS: usize = 64;
 const MIN_PLAUSIBLE_YEAR: i32 = 1990;
 /// Memory limit of the TIFF decode under fuzzing, far below the app's.
 const FUZZ_TIFF_MEMORY_LIMIT: u64 = 64 * 1024 * 1024;
+/// Largest JPEG (pixels at full size, in bytes) decoded under fuzzing.
+/// Larger ones up to `JPEG_MEMORY_LIMIT` are legitimate (big photos) and
+/// bounded, but take many seconds under the fuzzer's instrumentation, which
+/// would count as hangs and slow the search; their limit has a unit test.
+const FUZZ_JPEG_BYTES: u64 = 64 * 1024 * 1024;
 const SOI: [u8; 2] = [0xFF, 0xD8];
 
 /// The TIFF structure reader: headers, IFD chains, values, maker notes.
@@ -125,7 +130,32 @@ pub fn decode(data: &[u8]) {
         bytes: data,
         path: Path::new("fuzz"),
     };
-    let _ = decode_image(source, Some(256));
-    let _ = decode_image(source, None);
+    let jpeg_bytes = claimed_jpeg_bytes(data);
+    let legitimately_large =
+        jpeg_bytes.is_some_and(|bytes| bytes > FUZZ_JPEG_BYTES && bytes <= JPEG_MEMORY_LIMIT);
+    if !legitimately_large {
+        let scaled = decode_image(source, Some(256));
+        let full = decode_image(source, None);
+        if jpeg_bytes.is_some_and(|bytes| bytes > JPEG_MEMORY_LIMIT) {
+            assert!(
+                scaled.is_err() && full.is_err(),
+                "a JPEG over the limit is refused"
+            );
+        }
+    }
     let _ = decode_tiff_from(Cursor::new(data), FUZZ_TIFF_MEMORY_LIMIT);
+}
+
+/// Bytes the pixels of a JPEG need at full size, as its header claims.
+fn claimed_jpeg_bytes(data: &[u8]) -> Option<u64> {
+    let mut decoder = jpeg_decoder::Decoder::new(Cursor::new(data));
+    decoder.read_info().ok()?;
+    let info = decoder.info()?;
+    let bytes_per_pixel = match info.pixel_format {
+        jpeg_decoder::PixelFormat::L8 => 1,
+        jpeg_decoder::PixelFormat::L16 => 2,
+        jpeg_decoder::PixelFormat::RGB24 => 3,
+        jpeg_decoder::PixelFormat::CMYK32 => 4,
+    };
+    Some(u64::from(info.width) * u64::from(info.height) * bytes_per_pixel)
 }

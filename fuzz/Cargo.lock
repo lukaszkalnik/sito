@@ -769,6 +769,7 @@ name = "sito-fuzz"
 version = "0.0.0"
 dependencies = [
  "chrono",
+ "jpeg-decoder",
  "libfuzzer-sys",
  "sito-core",
 ]

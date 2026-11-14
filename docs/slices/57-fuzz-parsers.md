@@ -4,7 +4,7 @@ status: 🚧 in progress
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; Step 5 done meanwhile (2026-11-14): `fuzz.yml`, CLAUDE.md, security and releasing docs; its first CI run is still to be checked. Next: the findings and coverage of the first run.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; Step 5 done meanwhile (2026-11-14): `fuzz.yml`, CLAUDE.md, security and releasing docs; its first CI run (2026-11-14) worked and found the first bug (below). Next: the findings and coverage of the first run on the Mac.
 
 ## Idea
 
@@ -109,6 +109,10 @@ Details:
 - Fuzzing the scan (folder walk) or the Tauri protocols: their input is not file content.
 - Property tests with `proptest`/`bolero`: the regression tests of step 3 give the stable half of approach 3 without a new dependency in `core`.
 - Fuzzing on the Windows machine.
+
+### Findings
+
+1. **`decode`: a JPEG bomb on the thumbnail path** (CI, first manual run of `fuzz.yml`, 2026-11-14, after about 3 minutes). A 958-byte JPEG claiming 6928 × 16140 took over 10 seconds under the fuzzer; edited to claim 65535 × 65535, it took 25 seconds and 324 MB per decode in a release build. The full decode already refused it (the `image` crate's default memory limit), but the scaled decode calls `jpeg-decoder` directly, which reads every block at full size and checks its own buffer limit only after decoding. Fix: `decode::JPEG_MEMORY_LIMIT` (512 MB, the same as before for the full decode, now set explicitly) is checked against the header before the scaled decode; a larger JPEG falls through to the full decode, which refuses it at once. Both inputs are in `fuzz_regressions/decode/`. Headers between 64 MB and the limit are legitimate photos up to about 170 MP; they are skipped by the `decode` harness, since under the fuzzer's instrumentation they take 15 seconds or more and would be reported as hangs.
 
 ### Decisions
 
