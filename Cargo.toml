@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/core", "src-tauri"]
+# Fuzz targets: a workspace of their own, built with nightly only.
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.15.1"

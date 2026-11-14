@@ -1,0 +1,66 @@
+# Fuzz targets for the file parsers of `sito-core` (cargo-fuzz, nightly).
+# Its own workspace: the app's build, CI, clippy and notices never see it.
+[package]
+name = "sito-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+members = ["."]
+
+[dependencies]
+chrono = "0.4"
+libfuzzer-sys = "0.4"
+sito-core = { path = "../crates/core" }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "tiff_reader"
+path = "fuzz_targets/tiff_reader.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "raw_preview"
+path = "fuzz_targets/raw_preview.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "metadata"
+path = "fuzz_targets/metadata.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "orientation"
+path = "fuzz_targets/orientation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sidecar"
+path = "fuzz_targets/sidecar.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode"
+path = "fuzz_targets/decode.rs"
+test = false
+doc = false
+bench = false
