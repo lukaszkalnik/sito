@@ -144,41 +144,64 @@ pub fn decode_tiff_from(
 }
 
 /// The pixels of an encoded image, decoded at a reduced size covering
-/// `max_edge` when the format allows (JPEG), else at full size.
+/// `max_edge` when the format allows (JPEG), else at full size, under
+/// [`JPEG_MEMORY_LIMIT`].
 ///
 /// # Errors
 ///
-/// Fails if the image cannot be read or decoded.
+/// Fails if the image cannot be read or decoded, or needs more memory.
 pub fn decode_image(
     source: ImageSource<'_>,
     max_edge: Option<u32>,
 ) -> Result<DynamicImage, DecodeError> {
-    match max_edge.and_then(|edge| decode_scaled(source, edge)) {
+    decode_image_within(source, max_edge, JPEG_MEMORY_LIMIT)
+}
+
+/// Like [`decode_image`], but refuses an image needing more than
+/// `memory_limit` bytes at full size instead of [`JPEG_MEMORY_LIMIT`].
+///
+/// # Errors
+///
+/// Fails if the image cannot be read or decoded, or needs more memory.
+pub fn decode_image_within(
+    source: ImageSource<'_>,
+    max_edge: Option<u32>,
+    memory_limit: u64,
+) -> Result<DynamicImage, DecodeError> {
+    match max_edge.and_then(|edge| decode_scaled(source, edge, memory_limit)) {
         Some(image) => Ok(image),
-        None => decode_full(source),
+        None => decode_full(source, memory_limit),
     }
 }
 
 /// Fast path: lets the JPEG decoder skip detail (DCT scaling by up to 1/8),
 /// so a 12 MP photo is never decoded at full size. Returns `None` for
 /// anything it cannot handle; the caller then falls back to a full decode.
-fn decode_scaled(source: ImageSource<'_>, max_edge: u32) -> Option<DynamicImage> {
+fn decode_scaled(
+    source: ImageSource<'_>,
+    max_edge: u32,
+    memory_limit: u64,
+) -> Option<DynamicImage> {
     match source {
-        ImageSource::Path(path) => {
-            decode_scaled_from(BufReader::new(File::open(path).ok()?), max_edge)
+        ImageSource::Path(path) => decode_scaled_from(
+            BufReader::new(File::open(path).ok()?),
+            max_edge,
+            memory_limit,
+        ),
+        ImageSource::Bytes { bytes, .. } => {
+            decode_scaled_from(Cursor::new(bytes), max_edge, memory_limit)
         }
-        ImageSource::Bytes { bytes, .. } => decode_scaled_from(Cursor::new(bytes), max_edge),
     }
 }
 
-fn decode_scaled_from(reader: impl Read, max_edge: u32) -> Option<DynamicImage> {
+fn decode_scaled_from(reader: impl Read, max_edge: u32, memory_limit: u64) -> Option<DynamicImage> {
     let mut decoder = jpeg_decoder::Decoder::new(reader);
     decoder.read_info().ok()?;
     let info = decoder.info()?;
     // The decoder reads every block at full size even when scaling, and its
     // own buffer limit is checked only after decoding: a 1 KB file claiming
     // 65535 × 65535 would take half a minute. The full decode refuses it.
-    if full_size_bytes(info)? > JPEG_MEMORY_LIMIT {
+    if full_size_bytes(info)? > memory_limit {
         return None;
     }
 
@@ -213,8 +236,9 @@ fn full_size_bytes(info: jpeg_decoder::ImageInfo) -> Option<u64> {
         .checked_mul(bytes_per_pixel)
 }
 
-/// Slow path: full decode with the `image` crate, under [`JPEG_MEMORY_LIMIT`].
-fn decode_full(source: ImageSource<'_>) -> Result<DynamicImage, DecodeError> {
+/// Slow path: full decode with the `image` crate, allocating at most
+/// `memory_limit` bytes.
+fn decode_full(source: ImageSource<'_>, memory_limit: u64) -> Result<DynamicImage, DecodeError> {
     let path = source.path();
     let io_error = |source| DecodeError::Io {
         path: path.to_path_buf(),
@@ -229,20 +253,21 @@ fn decode_full(source: ImageSource<'_>) -> Result<DynamicImage, DecodeError> {
             .map_err(io_error)?
             .with_guessed_format()
             .map_err(io_error)
-            .and_then(|reader| decode_limited(reader).map_err(image_error)),
+            .and_then(|reader| decode_limited(reader, memory_limit).map_err(image_error)),
         ImageSource::Bytes { bytes, .. } => ImageReader::new(Cursor::new(bytes))
             .with_guessed_format()
             .map_err(io_error)
-            .and_then(|reader| decode_limited(reader).map_err(image_error)),
+            .and_then(|reader| decode_limited(reader, memory_limit).map_err(image_error)),
     }
 }
 
-/// Decodes under [`JPEG_MEMORY_LIMIT`].
+/// Decodes, allocating at most `memory_limit` bytes.
 fn decode_limited(
     mut reader: ImageReader<impl BufRead + Seek>,
+    memory_limit: u64,
 ) -> Result<DynamicImage, ImageError> {
     let mut limits = Limits::default();
-    limits.max_alloc = Some(JPEG_MEMORY_LIMIT);
+    limits.max_alloc = Some(memory_limit);
     reader.limits(limits);
     reader.decode()
 }
@@ -316,9 +341,27 @@ mod tests {
             path: Path::new("bomb.jpg"),
         };
 
-        assert!(decode_scaled(source, 256).is_none());
+        assert!(decode_scaled(source, 256, JPEG_MEMORY_LIMIT).is_none());
         assert!(decode_image(source, Some(256)).is_err());
         assert!(decode_image(source, None).is_err());
+    }
+
+    #[test]
+    fn a_jpeg_over_a_given_memory_limit_is_refused_on_both_paths() {
+        let mut bytes = Vec::new();
+        RgbImage::from_pixel(64, 64, image::Rgb([10, 200, 10]))
+            .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
+            .unwrap();
+        let source = ImageSource::Bytes {
+            bytes: &bytes,
+            path: Path::new("small.jpg"),
+        };
+
+        // 64 × 64 RGB needs 12,288 bytes.
+        assert!(decode_image_within(source, Some(16), 12_287).is_err());
+        assert!(decode_image_within(source, None, 12_287).is_err());
+        assert!(decode_image_within(source, Some(16), 12_288).is_ok());
+        assert!(decode_image_within(source, None, 1024 * 1024).is_ok());
     }
 
     #[test]
@@ -343,7 +386,7 @@ mod tests {
             .save(&path)
             .unwrap();
 
-        let image = decode_scaled(ImageSource::Path(&path), 400).unwrap();
+        let image = decode_scaled(ImageSource::Path(&path), 400, JPEG_MEMORY_LIMIT).unwrap();
 
         // 1/4 is the smallest DCT scale that still covers 400 × 300.
         assert_eq!((image.width(), image.height()), (400, 300));

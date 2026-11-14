@@ -11,7 +11,7 @@ use std::io::Cursor;
 use std::path::Path;
 
 use chrono::Datelike;
-use sito_core::decode::{ImageSource, JPEG_MEMORY_LIMIT, decode_image, decode_tiff_from};
+use sito_core::decode::{ImageSource, decode_image_within, decode_tiff_from};
 use sito_core::metadata::{Orientation, PhotoMetadata, read_exif_metadata_from};
 use sito_core::raw::{RawFormat, read_preview_from, read_raw_metadata_from, with_orientation};
 use sito_core::takeout::parse_sidecar;
@@ -23,6 +23,11 @@ const MAX_IFDS: usize = 64;
 const MIN_PLAUSIBLE_YEAR: i32 = 1990;
 /// Memory limit of the TIFF decode under fuzzing, far below the app's.
 const FUZZ_TIFF_MEMORY_LIMIT: u64 = 64 * 1024 * 1024;
+/// Memory limit of the JPEG decode under fuzzing, far below the app's. The
+/// decoder's work grows with the claimed size, so near the app's limit a
+/// 1 KB input takes seconds and the corpus fills up with them; a low limit
+/// runs the same refusal check while keeping every input fast.
+const FUZZ_JPEG_MEMORY_LIMIT: u64 = 16 * 1024 * 1024;
 const SOI: [u8; 2] = [0xFF, 0xD8];
 
 /// The TIFF structure reader: headers, IFD chains, values, maker notes.
@@ -125,9 +130,9 @@ pub fn decode(data: &[u8]) {
         bytes: data,
         path: Path::new("fuzz"),
     };
-    let scaled = decode_image(source, Some(256));
-    let full = decode_image(source, None);
-    if claimed_jpeg_bytes(data).is_some_and(|bytes| bytes > JPEG_MEMORY_LIMIT) {
+    let scaled = decode_image_within(source, Some(256), FUZZ_JPEG_MEMORY_LIMIT);
+    let full = decode_image_within(source, None, FUZZ_JPEG_MEMORY_LIMIT);
+    if claimed_jpeg_bytes(data).is_some_and(|bytes| bytes > FUZZ_JPEG_MEMORY_LIMIT) {
         assert!(
             scaled.is_err() && full.is_err(),
             "a JPEG over the limit is refused"

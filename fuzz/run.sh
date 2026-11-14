@@ -26,10 +26,6 @@ case "$target" in
     seeds=("$fixtures/exif" "$fixtures/cameras" "$fixtures/tiff")
     # Just above the app's TIFF memory limit (decode::TIFF_MEMORY_LIMIT).
     malloc_limit_mb=1100
-    # A JPEG up to decode::JPEG_MEMORY_LIMIT (about 170 MP) is legitimate and
-    # takes about 25 seconds under the fuzzer's instrumentation; only an input
-    # beyond that is a hang. Its inputs are decoded, never skipped.
-    timeout=60
     ;;
   *)
     echo "unknown target: $target" >&2

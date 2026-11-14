@@ -42,9 +42,11 @@ fuzz/run.sh <target> [seconds]    # default 600 seconds
 ```
 
 The script passes the fixtures as seeds, the dictionary in `dict/` and the
-limits per input: 10 seconds (60 for `decode`, where a legitimately large JPEG takes
-about 25 seconds under instrumentation), 64 KB, 2 GB of memory in all and 256 MB per
-allocation (1100 MB for `decode`, just above the app's TIFF limit). The corpus
+limits per input: 10 seconds, 64 KB, 2 GB of memory in all and 256 MB per
+allocation (1100 MB for `decode`, just above the app's TIFF limit). The `decode`
+harness refuses JPEGs over 16 MB at full size instead of the app's 512 MB: the
+decoder's work grows with the claimed size, and large headers would otherwise
+fill the corpus and slow every run down. The corpus
 the fuzzer grows is kept in `corpus/<target>/` (git-ignored) and makes the next
 run start where the last one stopped.
 
