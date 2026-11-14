@@ -28,11 +28,16 @@ mod tag {
 pub fn read_tiff_metadata(path: &Path) -> PhotoMetadata {
     File::open(path)
         .ok()
-        .and_then(|file| from_reader(BufReader::new(file)))
+        .map(|file| read_tiff_metadata_from(BufReader::new(file)))
         .unwrap_or_default()
 }
 
-/// Reads the metadata of a TIFF structure held in `reader`.
+/// Like [`read_tiff_metadata`], for a TIFF structure held in `reader`.
+#[must_use]
+pub fn read_tiff_metadata_from(reader: impl Read + Seek) -> PhotoMetadata {
+    from_reader(reader).unwrap_or_default()
+}
+
 fn from_reader(reader: impl Read + Seek) -> Option<PhotoMetadata> {
     let (mut tiff, first) = TiffReader::open(reader).ok()?;
     let ifds = tiff.walk(first);

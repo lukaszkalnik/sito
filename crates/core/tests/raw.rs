@@ -1,11 +1,15 @@
 // Test helpers may panic freely.
 #![allow(clippy::unwrap_used)]
 
+use std::io::Cursor;
 use std::path::PathBuf;
 
 use image::GenericImageView;
 use sito_core::metadata::{Orientation, read_exif_metadata, read_photo_metadata};
-use sito_core::raw::{RawError, RawFormat, read_preview, with_orientation};
+use sito_core::raw::{
+    RawError, RawFormat, read_preview, read_preview_from, read_raw_metadata,
+    read_raw_metadata_from, with_orientation,
+};
 use sito_core::thumbnail::render_photo;
 
 fn fixture(name: &str) -> PathBuf {
@@ -54,6 +58,54 @@ fn finds_the_largest_embedded_preview() {
         // The 64×48 preview, not Olympus' 16×12 thumbnail.
         let image = image::load_from_memory(&preview).unwrap();
         assert_eq!(image.dimensions(), (64, 48), "{name}");
+    }
+}
+
+#[test]
+fn reads_raw_files_held_in_memory_like_files() {
+    for (name, ..) in FILES {
+        let path = fixture(name);
+        let format = RawFormat::from_path(&path).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+
+        assert_eq!(
+            read_preview_from(Cursor::new(&bytes), format).unwrap(),
+            read_preview(&path, format).unwrap(),
+            "{name}"
+        );
+        assert_eq!(
+            read_raw_metadata_from(Cursor::new(&bytes), format),
+            read_raw_metadata(&path, format),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn a_jpeg_under_a_raw_name_in_memory_is_returned_whole() {
+    let jpeg = std::fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/exif/rotated_orientation-6.jpg"),
+    )
+    .unwrap();
+
+    let preview = read_preview_from(Cursor::new(&jpeg), RawFormat::Orf).unwrap();
+    let meta = read_raw_metadata_from(Cursor::new(&jpeg), RawFormat::Orf);
+
+    assert_eq!(preview, jpeg);
+    assert_eq!(meta.orientation, Orientation::from_exif(6));
+}
+
+#[test]
+fn truncated_raw_data_in_memory_has_no_preview() {
+    let bytes = std::fs::read(fixture("olympus.orf")).unwrap();
+
+    for len in [0, 3, 8, 100] {
+        let truncated = Cursor::new(&bytes[..len]);
+        assert!(
+            read_preview_from(truncated, RawFormat::Orf).is_err(),
+            "{len}"
+        );
     }
 }
 

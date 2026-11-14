@@ -2,7 +2,7 @@
 //! display images and image analysis.
 
 use std::fs::File;
-use std::io::{BufReader, Cursor, Read};
+use std::io::{BufRead, BufReader, Cursor, Read, Seek};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 
@@ -108,22 +108,34 @@ pub fn decode_photo(path: &Path, max_edge: Option<u32>) -> Result<DynamicImage, 
 /// The first page of the TIFF at `path`, decoded with at most `memory_limit`
 /// bytes, one TIFF at a time.
 pub(crate) fn decode_tiff(path: &Path, memory_limit: u64) -> Result<DynamicImage, DecodeError> {
-    let _one_at_a_time = TIFF_DECODE.lock().unwrap_or_else(PoisonError::into_inner);
-    let io_error = |source| DecodeError::Io {
+    let file = File::open(path).map_err(|source| DecodeError::Io {
         path: path.to_path_buf(),
         source,
-    };
-    let mut reader = ImageReader::open(path)
-        .map_err(io_error)?
-        .with_guessed_format()
-        .map_err(io_error)?;
-    let mut limits = Limits::default();
-    limits.max_alloc = Some(memory_limit);
-    reader.limits(limits);
-    reader.decode().map_err(|source| DecodeError::Image {
+    })?;
+    decode_tiff_from(BufReader::new(file), memory_limit).map_err(|source| DecodeError::Image {
         path: path.to_path_buf(),
         source,
     })
+}
+
+/// The first page of the TIFF held in `reader`, decoded with at most
+/// `memory_limit` bytes, one TIFF at a time.
+///
+/// # Errors
+///
+/// Fails if the data is not a decodable TIFF or needs more memory.
+pub fn decode_tiff_from(
+    reader: impl BufRead + Seek,
+    memory_limit: u64,
+) -> Result<DynamicImage, ImageError> {
+    let _one_at_a_time = TIFF_DECODE.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut reader = ImageReader::new(reader)
+        .with_guessed_format()
+        .map_err(ImageError::IoError)?;
+    let mut limits = Limits::default();
+    limits.max_alloc = Some(memory_limit);
+    reader.limits(limits);
+    reader.decode()
 }
 
 /// The pixels of an encoded image, decoded at a reduced size covering

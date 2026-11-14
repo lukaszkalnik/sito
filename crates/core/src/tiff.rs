@@ -10,5 +10,5 @@
 mod metadata;
 mod reader;
 
-pub use metadata::read_tiff_metadata;
+pub use metadata::{read_tiff_metadata, read_tiff_metadata_from};
 pub use reader::{Endian, Entry, Ifd, MAX_BLOCK, TiffError, TiffReader, tag};

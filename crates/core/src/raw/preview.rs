@@ -7,7 +7,7 @@ use std::path::Path;
 use super::RawError;
 use super::format::RawFormat;
 use super::maker_note;
-use crate::limited_read::{LimitedReadError, MAX_JPEG_BYTES, read_limited};
+use crate::limited_read::{LimitedReadError, MAX_JPEG_BYTES, read_limited_from};
 use crate::tiff::{Ifd, MAX_BLOCK, TiffReader};
 
 /// Bytes of a candidate read to check that it is a displayable JPEG.
@@ -49,27 +49,75 @@ impl Candidate {
 /// Fails if the file cannot be read, holds no usable preview, or is a JPEG
 /// too large to show ([`RawError::TooLarge`]).
 pub fn read_preview(path: &Path, format: RawFormat) -> Result<Vec<u8>, RawError> {
-    let mut file = BufReader::new(File::open(path)?);
-    if is_jpeg(&mut file) {
-        return read_whole_jpeg(path);
+    read_preview_from(BufReader::new(File::open(path)?), format)
+}
+
+/// Like [`read_preview`], for a RAW file held in `reader`.
+///
+/// # Errors
+///
+/// As [`read_preview`].
+pub fn read_preview_from(
+    mut reader: impl Read + Seek,
+    format: RawFormat,
+) -> Result<Vec<u8>, RawError> {
+    let len = reader.seek(SeekFrom::End(0))?;
+    let mut source = Source { reader, len };
+    if is_jpeg(&mut source.reader) {
+        return source.read_whole_jpeg();
     }
     let candidates = if format.is_tiff_based() {
-        tiff_candidates(&mut file)
+        tiff_candidates(&mut source.reader)
     } else {
-        raf_candidates(&mut file)
+        raf_candidates(&mut source)
     };
     let best = candidates
         .into_iter()
-        .filter_map(|candidate| Some((candidate, pixels(&mut file, candidate)?)))
+        .filter_map(|candidate| Some((candidate, pixels(&mut source, candidate)?)))
         .max_by_key(|&(_, pixels)| pixels)
         .map(|(candidate, _)| candidate)
         .ok_or(RawError::NoPreview)?;
-    read_at(&mut file, best.offset, best.len).ok_or(RawError::NoPreview)
+    source
+        .read_at(best.offset, best.len)
+        .ok_or(RawError::NoPreview)
+}
+
+/// A RAW file and its length, found once.
+struct Source<R> {
+    reader: R,
+    len: u64,
+}
+
+impl<R: Read + Seek> Source<R> {
+    /// `len` bytes at `offset`, if they lie inside the file and below the
+    /// size limit.
+    fn read_at(&mut self, offset: u64, len: u32) -> Option<Vec<u8>> {
+        if u64::from(len) > MAX_BLOCK || offset.checked_add(u64::from(len))? > self.len {
+            return None;
+        }
+        self.reader.seek(SeekFrom::Start(offset)).ok()?;
+        let mut bytes = vec![0; usize::try_from(len).ok()?];
+        self.reader.read_exact(&mut bytes).ok()?;
+        Some(bytes)
+    }
+
+    /// The whole file, a JPEG under a RAW name. A file over the limit is
+    /// refused before anything is read.
+    fn read_whole_jpeg(&mut self) -> Result<Vec<u8>, RawError> {
+        if self.len > MAX_JPEG_BYTES {
+            return Err(RawError::TooLarge);
+        }
+        self.reader.seek(SeekFrom::Start(0))?;
+        read_limited_from(&mut self.reader, MAX_JPEG_BYTES).map_err(|err| match err {
+            LimitedReadError::Io(source) => RawError::Io(source),
+            LimitedReadError::TooLarge { .. } => RawError::TooLarge,
+        })
+    }
 }
 
 /// Candidates in the IFDs of a TIFF-structured RAW file and its maker note.
-fn tiff_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
-    let Ok((mut tiff, first)) = TiffReader::open(file) else {
+fn tiff_candidates(reader: &mut (impl Read + Seek)) -> Vec<Candidate> {
+    let Ok((mut tiff, first)) = TiffReader::open(reader) else {
         return Vec::new();
     };
     let ifds = tiff.walk(first);
@@ -115,8 +163,8 @@ fn ifd_candidates<R: Read + Seek>(tiff: &mut TiffReader<R>, ifd: &Ifd) -> Vec<Ca
 }
 
 /// The JPEG a Fujifilm RAF header points to.
-fn raf_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
-    let Some(header) = read_at(file, 0, 92) else {
+fn raf_candidates(source: &mut Source<impl Read + Seek>) -> Vec<Candidate> {
+    let Some(header) = source.read_at(0, 92) else {
         return Vec::new();
     };
     if !header.starts_with(b"FUJIFILMCCD-RAW") {
@@ -134,11 +182,11 @@ fn raf_candidates(file: &mut BufReader<File>) -> Vec<Candidate> {
 
 /// The pixel count of a candidate if it is a JPEG a browser can show
 /// (baseline or progressive; RAW data stored as lossless JPEG is not).
-fn pixels(file: &mut BufReader<File>, candidate: Candidate) -> Option<u64> {
+fn pixels(source: &mut Source<impl Read + Seek>, candidate: Candidate) -> Option<u64> {
     if candidate.len < 4 {
         return None;
     }
-    let probe = read_at(file, candidate.offset, candidate.len.min(PROBE_LEN))?;
+    let probe = source.read_at(candidate.offset, candidate.len.min(PROBE_LEN))?;
     if !probe.starts_with(&[0xFF, 0xD8]) {
         return None;
     }
@@ -154,32 +202,9 @@ fn pixels(file: &mut BufReader<File>, candidate: Candidate) -> Option<u64> {
         .flatten()
 }
 
-/// The whole file at `path`, a JPEG under a RAW name.
-fn read_whole_jpeg(path: &Path) -> Result<Vec<u8>, RawError> {
-    read_limited(path, MAX_JPEG_BYTES).map_err(|err| match err {
-        LimitedReadError::Io(source) => RawError::Io(source),
-        LimitedReadError::TooLarge { .. } => RawError::TooLarge,
-    })
-}
-
 /// Whether the file starts like a JPEG (some files with RAW extensions are).
 pub(super) fn is_jpeg(file: &mut (impl Read + Seek)) -> bool {
     let mut start = [0; 3];
     let read = file.seek(SeekFrom::Start(0)).is_ok() && file.read_exact(&mut start).is_ok();
     read && start == [0xFF, 0xD8, 0xFF]
-}
-
-/// `len` bytes at `offset`, if they lie inside the file and below the size limit.
-fn read_at(file: &mut BufReader<File>, offset: u64, len: u32) -> Option<Vec<u8>> {
-    if u64::from(len) > MAX_BLOCK {
-        return None;
-    }
-    let file_len = file.get_ref().metadata().ok()?.len();
-    if offset.checked_add(u64::from(len))? > file_len {
-        return None;
-    }
-    file.seek(SeekFrom::Start(offset)).ok()?;
-    let mut bytes = vec![0; len as usize];
-    file.read_exact(&mut bytes).ok()?;
-    Some(bytes)
 }

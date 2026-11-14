@@ -9,5 +9,5 @@ mod time;
 
 pub use folder::{find_own_sidecar, find_sidecar, is_sidecar_candidate, pair_sidecars};
 pub use naming::match_sidecars;
-pub use sidecar::{Sidecar, SidecarError, read_sidecar};
+pub use sidecar::{Sidecar, SidecarError, parse_sidecar, read_sidecar};
 pub use time::{ChosenTime, TakeoutUse, choose_time};

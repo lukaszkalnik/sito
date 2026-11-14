@@ -1,12 +1,14 @@
 // Test helpers may panic freely.
 #![allow(clippy::unwrap_used)]
 
+use std::io::Cursor;
 use std::path::PathBuf;
 
 use image::GenericImageView;
-use sito_core::decode::{DecodeError, decode_photo};
+use sito_core::decode::{DecodeError, TIFF_MEMORY_LIMIT, decode_photo, decode_tiff_from};
 use sito_core::metadata::{Orientation, read_photo_metadata};
 use sito_core::thumbnail::{ThumbnailCache, render_photo};
+use sito_core::tiff::read_tiff_metadata_from;
 use sito_core::timeline::{ExifInfo, Photo, TimeSource, build_timeline};
 use tempfile::TempDir;
 
@@ -26,6 +28,21 @@ fn reads_the_capture_time_orientation_and_scanner() {
     );
     assert_eq!(meta.orientation, Orientation::from_exif(6));
     assert_eq!(meta.camera.as_deref(), Some("EPSON Perfection V600"));
+}
+
+#[test]
+fn reads_tiffs_held_in_memory_like_files() {
+    let path = fixture("rgb8_orientation-6.tif");
+    let bytes = std::fs::read(&path).unwrap();
+
+    assert_eq!(
+        read_tiff_metadata_from(Cursor::new(&bytes)),
+        read_photo_metadata(&path)
+    );
+    let image = decode_tiff_from(Cursor::new(&bytes), TIFF_MEMORY_LIMIT).unwrap();
+    assert_eq!(image.dimensions(), (40, 30));
+    // 40 × 30 RGB needs 3,600 bytes.
+    assert!(decode_tiff_from(Cursor::new(&bytes), 100).is_err());
 }
 
 #[test]

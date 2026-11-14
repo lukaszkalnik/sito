@@ -1,10 +1,10 @@
 ---
-status: 📝 concept drafted
+status: 🚧 in progress
 ---
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Next: step 1.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Step 1 done (2026-11-14). Next: step 2.
 
 ## Idea
 

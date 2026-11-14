@@ -74,7 +74,12 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar, SidecarError> {
     parse_sidecar(&json)
 }
 
-fn parse_sidecar(json: &[u8]) -> Result<Sidecar, SidecarError> {
+/// Parses the contents of a Takeout date file.
+///
+/// # Errors
+///
+/// As [`read_sidecar`], except for the reading errors.
+pub fn parse_sidecar(json: &[u8]) -> Result<Sidecar, SidecarError> {
     let raw: Raw = serde_json::from_slice(json)?;
     let taken = raw
         .photo_taken_time

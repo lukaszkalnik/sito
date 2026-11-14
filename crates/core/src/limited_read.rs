@@ -36,8 +36,19 @@ pub(crate) fn read_limited(path: &Path, max: u64) -> Result<Vec<u8>, LimitedRead
     }
     // The file may grow after the check, so the read itself stops just past
     // the limit as well.
+    read_limited_from(file, max)
+}
+
+/// Everything `reader` yields, if it is at most `max` bytes. Reads at most
+/// one byte past the limit.
+///
+/// # Errors
+///
+/// [`LimitedReadError::TooLarge`] for a longer input;
+/// [`LimitedReadError::Io`] if the reader fails.
+pub(crate) fn read_limited_from(reader: impl Read, max: u64) -> Result<Vec<u8>, LimitedReadError> {
     let mut bytes = Vec::new();
-    file.take(max.saturating_add(1)).read_to_end(&mut bytes)?;
+    reader.take(max.saturating_add(1)).read_to_end(&mut bytes)?;
     if u64::try_from(bytes.len()).is_ok_and(|len| len > max) {
         return Err(LimitedReadError::TooLarge { max });
     }
@@ -67,6 +78,15 @@ mod tests {
 
         assert!(matches!(
             read_limited(&path, 5),
+            Err(LimitedReadError::TooLarge { max: 5 })
+        ));
+    }
+
+    #[test]
+    fn reads_a_reader_up_to_the_limit_and_no_further() {
+        assert_eq!(read_limited_from(&b"12345"[..], 5).unwrap(), b"12345");
+        assert!(matches!(
+            read_limited_from(&b"123456"[..], 5),
             Err(LimitedReadError::TooLarge { max: 5 })
         ));
     }

@@ -14,14 +14,15 @@ mod maker_note;
 mod orientation;
 mod preview;
 
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
 pub use format::RawFormat;
 pub use orientation::with_orientation;
-pub use preview::read_preview;
+pub use preview::{read_preview, read_preview_from};
 
-use crate::metadata::{PhotoMetadata, read_exif_metadata};
-use crate::tiff::read_tiff_metadata;
+use crate::metadata::{PhotoMetadata, read_exif_metadata_from};
+use crate::tiff::read_tiff_metadata_from;
 
 /// Why a RAW file could not be shown.
 #[derive(Debug, thiserror::Error)]
@@ -43,13 +44,22 @@ pub enum RawError {
 /// [`PhotoMetadata::default`] or partially filled metadata.
 #[must_use]
 pub fn read_raw_metadata(path: &Path, format: RawFormat) -> PhotoMetadata {
-    let is_jpeg = std::fs::File::open(path)
-        .map(std::io::BufReader::new)
-        .is_ok_and(|mut file| preview::is_jpeg(&mut file));
+    std::fs::File::open(path)
+        .map(|file| read_raw_metadata_from(BufReader::new(file), format))
+        .unwrap_or_default()
+}
+
+/// Like [`read_raw_metadata`], for a RAW file held in `reader`.
+#[must_use]
+pub fn read_raw_metadata_from(mut reader: impl Read + Seek, format: RawFormat) -> PhotoMetadata {
+    let is_jpeg = preview::is_jpeg(&mut reader);
+    if reader.seek(SeekFrom::Start(0)).is_err() {
+        return PhotoMetadata::default();
+    }
     if format.is_tiff_based() && !is_jpeg {
-        read_tiff_metadata(path)
+        read_tiff_metadata_from(reader)
     } else {
         // `nom-exif` reads Fujifilm's RAF container and JPEGs itself.
-        read_exif_metadata(path)
+        read_exif_metadata_from(reader)
     }
 }

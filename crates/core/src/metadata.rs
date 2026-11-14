@@ -1,5 +1,7 @@
 //! Photo metadata read from EXIF: capture time, orientation and camera.
 
+use std::fs::File;
+use std::io::{Read, Seek};
 use std::path::Path;
 
 use chrono::{Datelike, FixedOffset, NaiveDateTime, NaiveTime};
@@ -97,8 +99,18 @@ pub fn read_photo_metadata(path: &Path) -> PhotoMetadata {
 /// Never fails, like [`read_photo_metadata`].
 #[must_use]
 pub fn read_exif_metadata(path: &Path) -> PhotoMetadata {
-    match nom_exif::read_exif(path) {
-        Ok(exif) => from_exif(&exif),
+    File::open(path)
+        .map(read_exif_metadata_from)
+        .unwrap_or_default()
+}
+
+/// Like [`read_exif_metadata`], for a file held in `reader`.
+#[must_use]
+pub fn read_exif_metadata_from(reader: impl Read + Seek) -> PhotoMetadata {
+    let exif = nom_exif::MediaSource::seekable(reader)
+        .and_then(|source| nom_exif::MediaParser::new().parse_exif(source));
+    match exif {
+        Ok(iter) => from_exif(&iter.into()),
         Err(_) => PhotoMetadata::default(),
     }
 }
@@ -245,6 +257,21 @@ mod tests {
         let meta = read_photo_metadata(&fixture("broken-date.jpg"));
 
         assert_eq!(meta.captured, None);
+    }
+
+    #[test]
+    fn reads_exif_held_in_memory_like_a_file() {
+        let path = fixture("offset_2024-06-02_08-30-00+0200.jpg");
+        let bytes = std::fs::read(&path).unwrap();
+
+        let meta = read_exif_metadata_from(std::io::Cursor::new(bytes));
+
+        assert_eq!(meta, read_exif_metadata(&path));
+        assert!(meta.captured.is_some());
+        assert_eq!(
+            read_exif_metadata_from(std::io::Cursor::new(b"not a photo")),
+            PhotoMetadata::default()
+        );
     }
 
     #[test]
