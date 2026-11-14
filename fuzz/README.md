@@ -53,6 +53,15 @@ Which branches a corpus reaches (to find parser code no input gets to):
 cd fuzz && cargo +nightly fuzz coverage <target> corpus/<target>
 ```
 
+## In CI
+
+`.github/workflows/fuzz.yml` runs every target for ten minutes each week (and
+by hand from the Actions tab), keeping each corpus in the Actions cache. A
+finding fails the run and is uploaded as the artifact
+`fuzz-finding-<target>`; it then goes through the steps below. The same
+workflow runs `cargo fmt --check` and `cargo clippy` on this crate, which the
+main CI does not see.
+
 ## A finding
 
 The fuzzer stops and saves the input in `artifacts/<target>/` (`crash-…`,

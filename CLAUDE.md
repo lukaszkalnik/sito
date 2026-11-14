@@ -100,7 +100,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 ### Scale and performance
 
 - Assume galleries of 50 000+ photos. Never hold all decoded images in memory; stream or batch work.
-- Modules that parse bytes from files (`tiff`, `raw`, `takeout/sidecar.rs`) turn on `clippy::indexing_slicing` and `clippy::arithmetic_side_effects` outside their tests: use `get(..)` and `checked_*` arithmetic, so a crafted file ends in an error, never in a panic or a wrapped number. A new parser module does the same.
+- Modules that parse bytes from files (`tiff`, `raw`, `takeout/sidecar.rs`) turn on `clippy::indexing_slicing` and `clippy::arithmetic_side_effects` outside their tests: use `get(..)` and `checked_*` arithmetic, so a crafted file ends in an error, never in a panic or a wrapped number. A new parser module does the same. Every parser has a fuzz target in `fuzz/` (a new parser module gets one); after changing a parser, run its target for ten minutes (`fuzz/run.sh <target>`, macOS/Linux, nightly) and keep any finding as a regression input (see `fuzz/README.md`).
 - A file from the gallery is never read whole without a size limit (`read_limited` in `crates/core/src/limited_read.rs`): its name says nothing about its size. Parsers check every offset and count against the file's length and cap block sizes.
 - Keep IPC payloads small: send IDs and metadata, never image bytes (images go through the `thumb:`/`photo:` protocols).
 - Long lists in the UI are virtualized. Long jobs are cancellable and throttle their progress events.
@@ -202,6 +202,7 @@ sito/
 ├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ docs/RELEASING.md  # how to build, release and install
 ├─ scripts/           # dev helper scripts (icon rendering)
+├─ fuzz/              # cargo-fuzz targets for the file parsers (own workspace, nightly)
 ├─ fixtures/          # small test photos with known groups
 └─ .github/workflows/
 ```
@@ -217,6 +218,7 @@ sito/
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
+- **Fuzz** (weekly and by hand, `fuzz.yml`): every fuzz target for ten minutes on Linux, corpus kept in the Actions cache, findings uploaded as artifacts; also lints the fuzz crate.
 - **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, open the viewer, uninstall; see `src-tauri/src/smoke.rs`) before the release is published with the tag's `CHANGELOG.md` section as its notes. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Where knowledge lives
@@ -252,4 +254,5 @@ npm run build                        # frontend production build
 npm run notices:rust                 # regenerate Rust license notices (needs `cargo install cargo-about --features cli`)
 cargo audit                          # known vulnerabilities in Rust dependencies (needs `cargo install cargo-audit`)
 npm audit --omit=dev                 # the same for the shipped npm packages
+fuzz/run.sh <target> [seconds]       # fuzz one parser (macOS/Linux, nightly + cargo-fuzz, see fuzz/README.md)
 ```

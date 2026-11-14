@@ -4,7 +4,7 @@ status: 🚧 in progress
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; next: its findings and coverage, then step 5.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; Step 5 done meanwhile (2026-11-14): `fuzz.yml`, CLAUDE.md, security and releasing docs; its first CI run is still to be checked. Next: the findings and coverage of the first run.
 
 ## Idea
 
@@ -100,7 +100,7 @@ Details:
 
 ### Step 5 – Running it again (`ci:` and `docs:`)
 
-- **Scheduled job:** a new workflow `.github/workflows/fuzz.yml` on `ubuntu-latest`, weekly and by hand (`workflow_dispatch`), not on push: nightly toolchain, `cargo install cargo-fuzz --locked` (pinned version), each target for 10 minutes. It keeps the grown corpus between runs in the Actions cache (no secrets in this job, read-only token, nothing it produces ships). On a finding it fails and uploads the crashing input as an artifact. It also runs `cargo fmt --check` and `cargo clippy` on the fuzz crate, which the main CI does not see. Pinned actions, `permissions: contents: read`, passes `zizmor`. Free for a public repository; on the Mac nothing has to be remembered.
+- **Scheduled job:** a new workflow `.github/workflows/fuzz.yml` on `ubuntu-latest` (one job per target, in parallel), weekly and by hand (`workflow_dispatch`), not on push: nightly toolchain, `cargo install cargo-fuzz --locked` (pinned version), each target for 10 minutes. It keeps the grown corpus between runs in the Actions cache (no secrets in this job, read-only token, nothing it produces ships). On a finding it fails and uploads the crashing input as an artifact. It also runs `cargo fmt --check` and `cargo clippy` on the fuzz crate, which the main CI does not see. Pinned actions, `permissions: contents: read`, passes `zizmor`. Free for a public repository; on the Mac nothing has to be remembered.
 - **When a parser changes:** a short run of its target by hand (`fuzz/run.sh <target> 600`), noted in `CLAUDE.md` next to the existing rule for parser modules, together with: "a new parser module gets a fuzz target".
 - `docs/domain/security.md`: "Parsers are fuzzed" under Photo files (what, how often), the known gap removed (or replaced by any crate finding that stays open). `CLAUDE.md` Commands: one line for `fuzz/run.sh`. Repository layout: `fuzz/`.
 

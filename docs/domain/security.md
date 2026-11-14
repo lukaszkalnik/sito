@@ -14,6 +14,7 @@ What protects the user's photos and machine today. Sito's main input is untruste
 
 - **Parsers check everything against the file.** The TIFF and RAW preview readers check every offset and length against the file's size and cap entry counts, value counts and block sizes; TIFF decoding has a memory limit. A crafted file ends in "not readable" or "no preview", never in a crash: in these modules, indexing and arithmetic that could panic or overflow are compile errors.
 - **Size limits:** a JPEG (also one under a RAW name) over 512 MB is not read for the viewer, which shows its error text for that photo; a Takeout date file over 1 MB is ignored like an unreadable one (the photo keeps its EXIF time). An embedded preview is at most 64 MB.
+- **Parsers are fuzzed.** Every parser of photo files (TIFF structures, RAW previews and maker notes, metadata, orientation patching, Takeout date files, decoding) has a fuzz target in `fuzz/`, which feeds it mutated inputs and counts every panic, hang (over 10 seconds) and allocation over 256 MB as a finding. A CI job runs each target for ten minutes every week; a parser change gets a short run by hand. Every finding is kept as a regression input that the ordinary tests run on every push ([fuzz/README.md](../../fuzz/README.md)).
 - **Scan:** symbolic links are not followed.
 
 ## Moving files
@@ -38,4 +39,3 @@ What protects the user's photos and machine today. Sito's main input is untruste
 - The installers are not code-signed yet ([slice 47](../slices/47-windows-code-signing.md), [slice 50](../slices/50-macos-code-signing.md)).
 - Thumbnails of photos stay in the cache folder until it is cleaned ([slice 15](../slices/15-settings.md)).
 - On macOS volumes without an exclusive rename (exFAT and FAT cards, some network shares), a move checks the target and then renames, with a short gap in between ([Rejecting](rejecting.md)).
-- The file parsers are not fuzzed yet ([slice 57](../slices/57-fuzz-parsers.md)).
