@@ -4,7 +4,7 @@ status: 🚧 in progress
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Next: step 4, the first long run on the Mac.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; next: its findings and coverage, then step 5.
 
 ## Idea
 
