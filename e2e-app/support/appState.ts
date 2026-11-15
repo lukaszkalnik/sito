@@ -72,11 +72,33 @@ export function configFolder(env: Readonly<Record<string, string | undefined>>):
  * Moves the app's state folders into `into`, so the next app starts fresh and
  * the state of a failed test stays for a look. Nothing is deleted.
  */
-export function moveStateInto(env: Readonly<Record<string, string>>, into: string): void {
+export async function moveStateInto(
+  env: Readonly<Record<string, string>>,
+  into: string,
+): Promise<void> {
   for (const folder of stateFolders(env)) {
     if (folder.path === '' || !existsSync(folder.path)) continue;
     mkdirSync(into, { recursive: true });
-    move(folder.path, join(into, folder.name));
+    await moveSoon(folder.path, join(into, folder.name));
+  }
+}
+
+const MOVE_ATTEMPTS = 40;
+const MOVE_RETRY_MS = 250;
+
+/**
+ * Moves `from` to `to`, trying again for a while: on Windows the app's
+ * WebView2 processes outlive it briefly and keep files open or changing.
+ */
+async function moveSoon(from: string, to: string): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      move(from, to);
+      return;
+    } catch (err) {
+      if (attempt >= MOVE_ATTEMPTS) throw err;
+      await new Promise((resolve) => setTimeout(resolve, MOVE_RETRY_MS));
+    }
   }
 }
 
@@ -86,7 +108,7 @@ function move(from: string, to: string): void {
     renameSync(from, to);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err;
-    cpSync(from, to, { recursive: true, preserveTimestamps: true });
+    cpSync(from, to, { recursive: true, force: true, preserveTimestamps: true });
     rmSync(from, { recursive: true });
   }
 }

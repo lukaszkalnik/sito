@@ -1,11 +1,9 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { browser } from '@wdio/globals';
-
 import { appEnvironment, moveStateInto } from './support/appState.ts';
 import { APP, DRIVER_PORT, copyApp, startDriver, stopDriver } from './support/driver.ts';
+import { keepWindows } from './support/failure.ts';
 
 /** One folder per run, shared by the worker processes through the environment. */
 const RUN = (process.env.SITO_E2E_RUN ??= new Date().toISOString().replace(/[:.]/g, '-'));
@@ -13,17 +11,6 @@ const RESULTS = join(fileURLToPath(new URL('./results/', import.meta.url)), RUN)
 
 /** The spec this worker runs: its results folder and its app's environment. */
 let current: { results: string; env: Readonly<Record<string, string>> } | null = null;
-
-/** A screenshot and the HTML of each open window, for a look at a failed test. */
-async function keepWindows(into: string): Promise<void> {
-  mkdirSync(into, { recursive: true });
-  for (const [index, handle] of (await browser.getWindowHandles()).entries()) {
-    await browser.switchToWindow(handle);
-    const name = new URL(await browser.getUrl()).search.includes('viewer') ? 'viewer' : 'main';
-    await browser.saveScreenshot(join(into, `${index}-${name}.png`));
-    writeFileSync(join(into, `${index}-${name}.html`), await browser.getPageSource());
-  }
-}
 
 export const config: WebdriverIO.Config = {
   runner: 'local',
@@ -55,7 +42,7 @@ export const config: WebdriverIO.Config = {
   async beforeSession(_config, _capabilities, specs) {
     const results = join(RESULTS, basename(specs[0] ?? 'spec', '.spec.ts'));
     const env = appEnvironment();
-    moveStateInto(env, join(results, 'state-before'));
+    await moveStateInto(env, join(results, 'state-before'));
     current = { results, env };
     await startDriver(env, join(results, 'driver.log'));
   },
@@ -67,7 +54,7 @@ export const config: WebdriverIO.Config = {
 
   async afterSession() {
     await stopDriver();
-    if (current !== null) moveStateInto(current.env, join(current.results, 'state'));
+    if (current !== null) await moveStateInto(current.env, join(current.results, 'state'));
     current = null;
   },
 };

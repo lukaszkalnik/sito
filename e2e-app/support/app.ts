@@ -14,9 +14,8 @@ const LAST_FOLDER_KEY = 'sito.lastFolder';
 export async function openFolder(dir: string): Promise<void> {
   await switchToWindow('main');
   await browser.execute((key, path) => localStorage.setItem(key, path), LAST_FOLDER_KEY, dir);
-  // Deferred, so the script returns before the page goes; WebView2 would
-  // otherwise wait for its reply forever.
-  await browser.execute(() => void setTimeout(() => location.reload(), 0));
+  // WebDriver's own reload: a script that navigates away never returns on WebView2.
+  await browser.refresh();
 }
 
 /** The full summary of the main window's status line („Znaleziono 6 zdjęć. …”). */
