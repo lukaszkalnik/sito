@@ -1,14 +1,14 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 28 – End-to-end tests of the real app
 
-Planned on 2026-11-15 and approved by the user the same day; implemented the same day (see [Implementation](#implementation)). Open: the intermittent viewer race under [Findings](#findings), then `npm run e2e:app` on the Windows dev machine.
+Planned on 2026-11-15 and approved by the user the same day; implemented the same day (see [Implementation](#implementation)). Left to test: `npm run e2e:app` (after `npm run e2e:app:build:embedded`) on the Windows dev machine, once it is available again (not as of 2026-11-15; the Windows CI job covers the platform meanwhile). The intermittent viewer race moved to [slice 28b](28b-viewer-stuck-loading.md).
 
 ## Implementation
 
-All seven steps of the Plan are on `main`. `e2e-app.yml` passes on Windows, Linux and macOS, but not reliably yet: about one run in three fails on the viewer race below. Where the result differs from the Decisions and the Plan below, this section wins.
+All seven steps of the Plan are on `main`. `e2e-app.yml` passes on Windows, Linux and macOS, but not reliably yet: about one run in three fails on the viewer race of [slice 28b](28b-viewer-stuck-loading.md). Where the result differs from the Decisions and the Plan below, this section wins.
 
 ### Deviations from the plan
 
@@ -28,8 +28,7 @@ All seven steps of the Plan are on `main`. `e2e-app.yml` passes on Windows, Linu
 
 ### Findings
 
-- **Open: the viewer sometimes never shows its first photo** (seen on Linux and Windows CI, a few times out of about a dozen runs, never on the Mac). It stays on „Wczytywanie zdjęcia…”: the viewer's backend holds the main window's request (photo id and scan id), but `get_viewer_photo` returns `null` for it, which the viewer takes as a photo not on the timeline yet and waits for. So the request's scan id or photo id does not match the backend's scan at that moment. Not found yet: which of the conditions in `viewer::page::viewer_photo` fails. Failed tests keep `<n>-viewer.json` (the request and that page) in the run's artifact; the next step is to also record the backend's current scan id and timeline.
-
+- **The viewer sometimes never shows its photo** (Linux and Windows CI): an app race, not found yet; [slice 28b](28b-viewer-stuck-loading.md).
 - **A zoom key pressed right after the viewer's photo appears was lost** (the view's size came only from its `ResizeObserver`), which made the mocked e2e test of zooming fail on a busy runner. Fixed: zoom actions measure the view themselves until the observer has reported (with a regression test).
 - **Window places are lost on small Mac screens:** when the default window does not fit the screen, fitting it undoes the restored size and position. Not fixed here: [slice 28a](28a-macos-small-screen-restore.md). Until then the restart spec skips its frame comparison on macOS (the saved state is still checked there).
 
