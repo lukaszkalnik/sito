@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 28 – End-to-end tests of the real app
 
-Planned on 2026-11-15 and approved by the user the same day; implemented the same day (see [Implementation](#implementation)). Left to test: `npm run e2e:app` (after `npm run e2e:app:build:embedded`) on the Windows dev machine, once it is available again (not as of 2026-11-15; the Windows CI job covers the platform meanwhile). The intermittent viewer race moved to [slice 28b](28b-viewer-stuck-loading.md).
+Planned, implemented and accepted by the user on 2026-11-15, on the strength of CI (no local run on the Windows dev machine, which is not available; the Windows CI job covers the platform). What it established is in CLAUDE.md (the two e2e suites, commands, CI) and [docs/domain/security.md](../domain/security.md) (the e2e build is never shipped). Follow-ups: [slice 28a](28a-macos-small-screen-restore.md), [slice 28b](28b-viewer-stuck-loading.md).
 
 ## Implementation
 
