@@ -23,7 +23,7 @@ Picking the best shot of each series automatically (sharpness, exposure, faces) 
   <img alt="Sito's viewer showing one photo of a series, with the series strip below" src="docs/images/viewer-light.jpg">
 </picture>
 
-Built with Tauri (Rust) and React + TypeScript. See [CLAUDE.md](CLAUDE.md) for architecture, conventions and commands.
+Built with Tauri (Rust) and React + TypeScript. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) explains the technologies and how the parts work together; [CLAUDE.md](CLAUDE.md) holds the coding conventions and commands.
 
 ## Google Takeout
 
