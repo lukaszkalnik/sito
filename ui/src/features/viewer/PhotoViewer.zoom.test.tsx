@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -87,6 +87,28 @@ describe('PhotoViewer zoom', () => {
     expect(screen.getByRole('img', { name: 'IMG_2.jpg' }).style.transform).toBe(
       'translate(-620px, -250px)',
     );
+  });
+
+  it('zooms with a key pressed before the view has reported its size', async () => {
+    let report: () => void = () => {};
+    vi.stubGlobal(
+      'ResizeObserver',
+      class extends FixedSizeObserver {
+        override observe() {
+          report = () => super.observe();
+        }
+      },
+    );
+    renderViewer(pageOf(2));
+    const view = screen.getByTestId('viewer-photo-loading').parentElement;
+    Object.defineProperty(view, 'clientWidth', { value: 1000 });
+    Object.defineProperty(view, 'clientHeight', { value: 500 });
+    loadPhoto();
+
+    await userEvent.keyboard('1');
+    act(() => report());
+
+    expect(zoomBadge()).toHaveTextContent('100%');
   });
 
   it('keeps the zoom within a series and resets it outside', async () => {

@@ -64,7 +64,10 @@ export function usePhotoZoom(photo: ViewerPhoto): PhotoZoom {
   useEffect(() => {
     latest.current = geometry;
   });
-  const act = useCallback((action: ZoomAction) => dispatch({ action, at: latest.current }), []);
+  const act = useCallback(
+    (action: ZoomAction) => dispatch({ action, at: withViewOf(latest.current, viewRef.current) }),
+    [],
+  );
 
   useResetOnPhotoChange(photo, act);
   usePointerZoom(viewRef, act);
@@ -77,6 +80,16 @@ export function usePhotoZoom(photo: ViewerPhoto): PhotoZoom {
     viewRef,
     view: { layout, scale: zoomed ? zoom.scale : null, onPhotoSize: setPhotoSize, fit },
   };
+}
+
+/**
+ * `geometry` with the view measured from `element` while the resize observer
+ * has not reported its size yet, so a key pressed right after the photo shows
+ * is not lost.
+ */
+function withViewOf(geometry: Geometry, element: HTMLElement | null): Geometry {
+  if (!element || (geometry.view.width > 0 && geometry.view.height > 0)) return geometry;
+  return { ...geometry, view: { width: element.clientWidth, height: element.clientHeight } };
 }
 
 /** The size of `ref`'s element in CSS pixels, kept up to date as it resizes. */
