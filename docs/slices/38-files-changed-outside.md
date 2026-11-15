@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 38 – Files changed outside Sito
 
-Plan approved by the user 2026-11-15; built 2026-11-15, waiting for the user's test. What it established is in [Timeline](../domain/timeline.md#files-changed-outside-sito), [Photos](../domain/photos.md#moved-and-renamed-photos), [Accepting](../domain/accepting.md) and [Rejecting](../domain/rejecting.md).
+Plan approved by the user 2026-11-15; built 2026-11-15, tested by the user 2026-11-15 (all verification steps passed). What it established is in [Timeline](../domain/timeline.md#files-changed-outside-sito), [Photos](../domain/photos.md#moved-and-renamed-photos), [Accepting](../domain/accepting.md) and [Rejecting](../domain/rejecting.md).
 
 ## Context
 
