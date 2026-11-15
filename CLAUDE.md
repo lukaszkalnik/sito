@@ -40,7 +40,7 @@ Platforms: developed on Windows, macOS later.
 - **Testing debug builds: build and start the app for the user.** When a slice is ready for testing (or a fix from testing is in), run `npm run tauri dev` yourself in the background instead of asking the user to start it, and tell them once the window is up. Restart it after Rust changes if it did not reload on its own.
 - **Every GitHub release has a changelog in English**, written into `CHANGELOG.md` (one `## vX.Y.Z – YYYY-MM-DD` section per version) and committed with the version bump; the release workflow publishes that section as the release notes and refuses a tag without one. Write it from the user's perspective and at a high level (grouped as New / Improved / Fixed), not as a list of commits. Name what got better, not just that something did: not "performance improvements" but e.g. "UI responsiveness while loading a large photo collection" or "opening a photo in the viewer is near-instant in folders with tens of thousands of photos". Cover everything since the previous release tag (`git log vPREV..HEAD`), including slices that were never released. End each entry with links to the slices that implemented it (including their sub-slices), as absolute URLs so they also work in the GitHub release notes, e.g. `([slice 32](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/32-accept-photo.md), [32a](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/32a-accept-test-fixes.md))`. In the same commit, set `release: vX.Y.Z` in the frontmatter of every slice the release ships for the first time.
 - **Code style and architecture:** see [Code and architecture rules](#code-and-architecture-rules) below.
-- **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands. Run them before pushing changes that touch the affected flow.
+- **End-to-end tests** where possible: integration tests in `crates/core/tests/` run the full pipeline on `fixtures/`; UI flows are tested with Playwright against the Vite dev server with mocked Tauri commands (`ui/e2e/`). What only the real app shows (windows, plugins, threads, files on disk, restarts) is tested by driving the built app over WebDriver (`e2e-app/`, WebdriverIO: the app's embedded WebDriver on Windows and macOS, `tauri-driver` with WebKitWebDriver on Linux). A new test goes into the mocked suite unless it needs the real app; the real-app suite stays a handful of slow tests. Run them before pushing changes that touch the affected flow.
 - **Local tool locations (Windows dev machine):** all toolchains live under `D:\Lukasz\tools` (C: is nearly full): Rust (`RUSTUP_HOME`, `CARGO_HOME`), Node, GitHub CLI, uv, npm cache/global prefix (`npm_config_cache`, `npm_config_prefix`), Playwright browsers (`PLAYWRIGHT_BROWSERS_PATH`), VS Build Tools. Never install large tools or caches on C:.
 - **Low memory on the dev machine (7 GB RAM):** never run several heavy jobs at once (installers, Rust builds, browser tests). The user env var `CARGO_BUILD_JOBS=2` limits parallel rustc jobs locally (CI uses all cores).
 
@@ -196,7 +196,8 @@ sito/
 │  ├─ src/i18n/pl.json
 │  ├─ build/          # Vite plugin writing THIRD-PARTY-NOTICES.txt
 │  ├─ notices/        # generated Rust notices (committed)
-│  └─ e2e/            # Playwright tests
+│  └─ e2e/            # Playwright tests (mocked Tauri)
+├─ e2e-app/           # WebdriverIO tests of the real app (specs/, support/)
 ├─ docs/domain/       # domain knowledge, one file per topic
 ├─ docs/ARCHITECTURE.md  # the stack and the layers explained for newcomers
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
@@ -219,6 +220,7 @@ sito/
 ## CI (GitHub Actions)
 
 - **Pull requests:** `cargo fmt --check`, `cargo clippy`, `cargo test`, plus frontend lint and build, on both `windows-latest` and `macos-latest`
+- **E2E (real app)** (every push and pull request, except docs-only changes, `e2e-app.yml`): builds the e2e app and runs the smoke test (Linux, macOS) and the `e2e-app/` specs on Windows, Linux (Xvfb) and macOS; failures upload screenshots, the app's state and its log.
 - **Fuzz** (weekly and by hand, `fuzz.yml`): every fuzz target for ten minutes on Linux, corpus kept in the Actions cache, findings uploaded as artifacts; also lints the fuzz crate.
 - **Release** (`v*` tag or manual run): `tauri-action` builds a per-user NSIS installer (Windows) and a DMG (macOS); the Windows installer is smoke-tested (install, launch, open the viewer, uninstall; see `src-tauri/src/smoke.rs`) before the release is published with the tag's `CHANGELOG.md` section as its notes. Unsigned for now; macOS signing and notarization come later. See [docs/RELEASING.md](docs/RELEASING.md).
 
@@ -253,6 +255,9 @@ npm run lint                         # oxlint + Prettier check (ui)
 npm run typecheck -w ui              # TypeScript
 npm test                             # Vitest unit tests (ui)
 npm run e2e                          # Playwright e2e tests (ui, starts Vite)
+npm run e2e:app:build:embedded       # build the app for the real-app e2e tests, with its embedded WebDriver (Windows, macOS)
+npm run e2e:app:build                # the same without it, for tauri-driver (Linux)
+npm run e2e:app                      # real-app e2e tests (needs the build; Linux also tauri-driver and WebKitWebDriver)
 npm run build                        # frontend production build
 npm run notices:rust                 # regenerate Rust license notices (needs `cargo install cargo-about --features cli`)
 cargo audit                          # known vulnerabilities in Rust dependencies (needs `cargo install cargo-audit`)

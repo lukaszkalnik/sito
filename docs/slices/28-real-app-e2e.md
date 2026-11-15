@@ -1,10 +1,42 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 28 – End-to-end tests of the real app
 
-Planned on 2026-11-15 and approved by the user the same day; implementation starts with step 1 of the Plan.
+Planned on 2026-11-15 and approved by the user the same day; implemented the same day (see [Implementation](#implementation)). Left to test: `npm run e2e:app` on the Windows dev machine.
+
+## Implementation
+
+All seven steps of the Plan are on `main`; `e2e-app.yml` passed twice in a row on Windows, Linux and macOS. Where the result differs from the Decisions and the Plan below, this section wins.
+
+### Deviations from the plan
+
+- **No `@wdio/tauri-service`.** Its embedded mode starts the app once in `onPrepare` for the whole run, so there would be no fresh state per spec and no restarts. The harness starts the driver itself in `beforeSession` (as step 4 already sketched): `e2e-app/support/driver.ts` spawns `tauri-driver`, or the app with its embedded WebDriver, and waits for `/status`.
+- **Embedded WebDriver on Windows too.** With `tauri-driver` and an Edge WebDriver matched to the runner's WebView2 runtime (156.0.4314.58, downloaded per run), every session failed with „DevToolsActivePort file doesn't exist”, although the app itself started (its smoke test passed there) and the verbose driver log showed the debugging arguments being passed. The embedded driver supports WebView2 and works, so Windows uses it like macOS; Linux keeps `tauri-driver` with WebKitWebDriver. Input on Windows is therefore synthetic too; nothing in the specs depends on real input. Getting the Edge WebDriver to attach is left open.
+- **Plugin version 1.5.1, not 1.3.0:** 1.3.0 is built on `webview2-com` 0.38 / `windows` 0.61, does not compile next to Tauri's 0.39 / 0.62. The plugin has no commands, so no capability grants it anything and the planned second config (`tauri.e2e-embedded.conf.json`) was not needed. Being an optional dependency, it is not in the generated license notices.
+- **WebdriverIO 10, not 9:** 9 pulls in high-severity advisories (`basic-ftp`, `extract-zip`, `serialize-javascript`) that 10 has fixed; 10 leaves moderate ones in dev-only glob tooling (`npm audit --omit=dev` stays clean).
+- **The app runs as a copy named `sito-e2e`** (`target/e2e-app/`): macOS names an unbundled app's WebKit storage (`~/Library/WebKit/<executable>`, with the last folder) after the executable, which the e2e build would otherwise share with `npm run tauri dev`. The harness moves those folders aside like the identifier's.
+- **Scripts:** `npm run e2e:app:build` (Linux) and `npm run e2e:app:build:embedded` (Windows, macOS) build; `npm run e2e:app` only runs the specs, so the build is a separate step.
+- **Opening a folder** works as planned through `sito.lastFolder`, with WebDriver's own refresh (a script calling `location.reload()` never returns on WebView2). No fallback command was needed.
+- **The smoke test runs as `e2e-app/smoke-test.sh`** (Linux and macOS share it; macOS has no `timeout`).
+
+### Verified
+
+- Linux under Xvfb keeps window positions, so its restart spec checks sizes and positions.
+- On the Mac: the suite passes repeatedly with the embedded driver, leaves no app running, and touches neither the installed Sito's state (`io.github.lukaszkalnik.sito`) nor the dev build's WebKit storage (`~/Library/WebKit/sito`). A build without the feature `e2e` has no listener on port 4445; with it, the server listens on `127.0.0.1` only.
+
+### Findings
+
+- **A zoom key pressed right after the viewer's photo appears was lost** (the view's size came only from its `ResizeObserver`), which made the mocked e2e test of zooming fail on a busy runner. Fixed: zoom actions measure the view themselves until the observer has reported (with a regression test).
+- **Window places are lost on small Mac screens:** when the default window does not fit the screen, fitting it undoes the restored size and position. Not fixed here: [slice 28a](28a-macos-small-screen-restore.md). Until then the restart spec skips its frame comparison on macOS (the saved state is still checked there).
+
+### Proof that the suite catches the bugs it is for
+
+Run once on the throwaway branch `proof/slice-28-bugs` (deleted afterwards), through `workflow_dispatch`, and locally on the Mac:
+
+- **v0.6.2 placement** (the viewer placed from the command thread): the smoke test freezes on Linux, macOS and the Mac („no exit within 60 s”); on Windows, which has no smoke step, the viewer, reject and restart specs time out while the scan spec passes. Locally on the Mac the same specs fail after the smoke test.
+- **v0.6.3** (`window_fit::save_on_close` dropped): **not caught.** The restart spec passed on Windows and macOS (the Linux run failed only on a lost click reply when closing the viewer, a harness race fixed since), and on the Mac. In these debug builds the window-state plugin's own save still runs when the last window closes, so the state file holds both windows anyway. The v0.6.3 bug showed in the installed release build on Windows; the release workflow's smoke test of the installer remains the check for it. Making the restart spec reproduce it (e.g. against a release build) is open.
 
 ## Context
 

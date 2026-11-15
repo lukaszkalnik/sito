@@ -74,7 +74,7 @@ Rust libraries are called *crates* and are listed in `Cargo.toml` files; TypeScr
 | `@tanstack/react-virtual` | React | Draws only the visible rows of a long grid |
 | `@tauri-apps/api` | TypeScript | Calls Rust commands and listens to Rust events from the UI |
 
-Tools used only while developing (not shipped): Vite, Vitest and Testing Library (UI tests), Playwright (end-to-end tests), oxlint and Prettier (TypeScript checks), clippy and rustfmt (Rust checks).
+Tools used only while developing (not shipped): Vite, Vitest and Testing Library (UI tests), Playwright (end-to-end tests of the UI with a mocked backend), WebdriverIO (end-to-end tests of the real app, `e2e-app/`), oxlint and Prettier (TypeScript checks), clippy and rustfmt (Rust checks).
 
 ## The journey of a click: rejecting a photo
 
