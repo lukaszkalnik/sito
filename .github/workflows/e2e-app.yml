@@ -1,8 +1,8 @@
 name: E2E (real app)
 
 # Drives the built app, not a mock: windows, plugins, threads, the file system
-# and restarts (slice 28). The mocked Playwright suite in ui/e2e stays the
-# fast test of the UI flows.
+# and restarts (slice 28, e2e-app/). The mocked Playwright suite in ui/e2e
+# stays the fast test of the UI flows.
 on:
   pull_request:
     paths-ignore: ['docs/**', '**/*.md']
@@ -23,11 +23,13 @@ env:
 
 jobs:
   linux:
-    name: Linux (Xvfb)
+    name: Linux (Xvfb, tauri-driver)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      # The app's own folders (data, config, cache, trash, debug log) live
-      # under the job's temp folder, never in the runner's home.
+      # The smoke test's folders (data, config, cache, trash, debug log) live
+      # under the job's temp folder, never in the runner's home; the specs
+      # get folders of their own.
       - name: Put the app's state in the temp folder
         run: |
           {
@@ -38,7 +40,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Install the Tauri build dependencies
+      - name: Install the Tauri build dependencies and WebKitWebDriver
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -48,40 +50,107 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: tauri-driver@2.1.0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - name: Build the app under test
-        run: npm run tauri -- build --debug --no-bundle -- --locked
-      # SITO_SMOKE_TEST=1 opens the viewer like a click on a photo, closes both
-      # windows and exits with 0 (src-tauri/src/smoke.rs). A freeze while
-      # opening a window (v0.6.2) shows up as the timeout.
+        run: npm run e2e:app:build -- -- --locked
       - name: Smoke test (open the viewer, close both windows)
         run: |
-          set +e
-          SITO_SMOKE_TEST=1 timeout 60 xvfb-run -a target/debug/sito
-          code=$?
-          case $code in
-            0) echo 'Smoke test passed' ;;
-            2) echo '::error::Viewer window could not be opened' ;;
-            3) echo '::error::Viewer window was opened but not shown' ;;
-            124) echo '::error::App froze while opening or closing the viewer (no exit within 60 s)' ;;
-            *) echo "::error::App failed with exit code $code" ;;
-          esac
-          if [ "$code" -ne 0 ]; then exit "$code"; fi
-          state="$XDG_CONFIG_HOME/io.github.lukaszkalnik.sito/.window-state.json"
-          for label in main viewer; do
-            if ! jq -e --arg l "$label" 'has($l)' "$state" > /dev/null; then
-              echo "::error::Window state in $state has no '$label' window"
-              exit 1
-            fi
-          done
-      - name: Keep the app's state and debug log
+          xvfb-run -a e2e-app/smoke-test.sh target/debug/sito \
+            "$XDG_CONFIG_HOME/io.github.lukaszkalnik.sito.e2e/.window-state.json"
+      - name: Run the e2e specs
+        run: xvfb-run -a npm run e2e:app
+      - name: Keep the results (screenshots, app state, logs)
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-app-linux
-          path: ${{ runner.temp }}/sito-state
+          path: |
+            e2e-app/results
+            ${{ runner.temp }}/sito-state
+          if-no-files-found: ignore
+
+  windows:
+    name: Windows (tauri-driver, Edge WebDriver)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
+        with:
+          tool: tauri-driver@2.1.0
+      # The Edge WebDriver must match the WebView2 runtime, which need not be
+      # the version of the runner's Edge and its preinstalled driver.
+      - name: Get the Edge WebDriver of the WebView2 runtime
+        shell: pwsh
+        run: |
+          $key = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $version = (Get-ItemProperty "HKLM:\$key" -ErrorAction SilentlyContinue).pv
+          if (-not $version) { throw 'No WebView2 runtime found' }
+          Write-Host "WebView2 runtime $version"
+          $dir = Join-Path $env:RUNNER_TEMP 'edgedriver'
+          Invoke-WebRequest "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -OutFile "$dir.zip"
+          Expand-Archive "$dir.zip" -DestinationPath $dir
+          "SITO_E2E_NATIVE_DRIVER=$(Join-Path $dir 'msedgedriver.exe')" >> $env:GITHUB_ENV
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the app under test
+        run: npm run e2e:app:build -- -- --locked
+      - name: Run the e2e specs
+        run: npm run e2e:app
+      - name: Keep the results (screenshots, app state, logs)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-app-windows
+          path: e2e-app/results
+          if-no-files-found: ignore
+
+  macos:
+    name: macOS (embedded WebDriver)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # With the embedded WebDriver (feature e2e), as Apple has none for WKWebView.
+      - name: Build the app under test
+        run: npm run e2e:app:build:mac -- -- --locked
+      - name: Smoke test (open the viewer, close both windows)
+        run: |
+          e2e-app/smoke-test.sh target/debug/sito \
+            "$HOME/Library/Application Support/io.github.lukaszkalnik.sito.e2e/.window-state.json"
+      - name: Run the e2e specs
+        run: npm run e2e:app
+      - name: Keep the results (screenshots, app state, logs)
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-app-macos
+          path: e2e-app/results
           if-no-files-found: ignore
