@@ -89,7 +89,11 @@ export async function expectViewerShows(name: string): Promise<void> {
 export async function quitApp(): Promise<void> {
   if ((await windowCount()) > 1) {
     await switchToWindow('viewer');
-    await button(t('viewer.close')).click();
+    // The window may be gone before WebDriver gets the click's reply, which is
+    // then lost; the closing is checked below.
+    await button(t('viewer.close'))
+      .click()
+      .catch(() => {});
     await browser.waitUntil(async () => (await windowCount()) === 1, {
       timeoutMsg: 'the viewer did not close',
     });
