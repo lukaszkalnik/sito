@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use sito_core::accept::AcceptChange;
 use sito_core::actions::ActionLog;
+use sito_core::moved::MovedPhoto;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -70,6 +71,25 @@ pub(crate) fn set_mark(
     Ok(AcceptedDto {
         name: file_name(path),
     })
+}
+
+/// Moves the accepted marks of photos a scan found moved or renamed outside
+/// Sito to their new paths, and tells the windows when any moved.
+pub(crate) fn follow_moves(app: &AppHandle, moves: &[MovedPhoto]) {
+    if moves.is_empty() {
+        return;
+    }
+    let actions = app.state::<Actions>().inner().lock();
+    let Ok(log) = actions.log() else {
+        return;
+    };
+    match log.move_accepted(moves) {
+        Ok(()) => announce(app, ACCEPTED_CHANGED),
+        Err(err) => log::warn!(
+            "cannot move the marks of {} moved photos: {err}",
+            moves.len()
+        ),
+    }
 }
 
 /// Timeline ids of the accepted photos of the current scan.

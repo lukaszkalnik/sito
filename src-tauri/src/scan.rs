@@ -9,6 +9,7 @@ use sito_core::timeline::{Photo, TimeSource, Timeline, TimelineProgress};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use crate::accept;
 use crate::error::{CommandError, off_main_thread};
 use crate::reject::TIMELINE_CHANGED;
 use crate::thumbnails::Thumbnails;
@@ -235,6 +236,7 @@ pub async fn start_scan(
 
     match result {
         Ok(Ok(scan)) => {
+            accept::follow_moves(&app, &scan.moves);
             let timeline = scan.timeline;
             let mut summary = ScanSummaryDto::new(0, &timeline);
             let root = timeline.root.clone();
@@ -269,9 +271,13 @@ fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64, generation
                 return;
             }
             Ok(scanned) => {
+                accept::follow_moves(&app, &scanned.moves);
                 let timeline = scanned.timeline;
                 let summary = ScanSummaryDto::new(scan_id, &timeline);
-                if !app.state::<AppState>().refresh(scan_id, timeline) {
+                if !app
+                    .state::<AppState>()
+                    .refresh(scan_id, timeline, &scanned.moves)
+                {
                     // Another folder was opened meanwhile.
                     return;
                 }

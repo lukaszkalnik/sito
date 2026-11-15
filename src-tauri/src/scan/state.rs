@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use sito_core::moved::MovedPhoto;
 use sito_core::series::Grouping;
 use sito_core::timeline::{Photo, Timeline, compare_photos};
 
@@ -82,13 +83,19 @@ impl Scan {
 
     /// Replaces the timeline with a newer scan of the same folder, keeping
     /// the scan id and the ids of photos that are still there (by path), so
-    /// thumbnail URLs and the UI's references stay valid. New photos get new
-    /// ids; photos that are gone are dropped.
-    pub fn refresh(&mut self, timeline: Timeline) {
+    /// thumbnail URLs and the UI's references stay valid. A photo among
+    /// `moves` (moved or renamed outside Sito) keeps its id at its new path.
+    /// New photos get new ids; photos that are gone are dropped.
+    pub fn refresh(&mut self, timeline: Timeline, moves: &[MovedPhoto]) {
         let mut old: HashMap<PathBuf, usize> = self
             .photos()
             .map(|(id, photo)| (photo.path.clone(), id))
             .collect();
+        for moved in moves {
+            if let Some(id) = old.remove(&moved.from) {
+                old.insert(moved.to.clone(), id);
+            }
+        }
         // Rejected photos are now in the new timeline's rejected list.
         for (path, (id, _)) in self.removed.drain() {
             self.removed_ids.insert(path, id);
@@ -290,10 +297,10 @@ impl AppState {
     /// Refreshes scan `scan_id` with a newer `timeline` of its folder (see
     /// [`Scan::refresh`]). Returns `false`, changing nothing, if another scan
     /// has replaced it in the meantime.
-    pub fn refresh(&self, scan_id: u64, timeline: Timeline) -> bool {
+    pub fn refresh(&self, scan_id: u64, timeline: Timeline, moves: &[MovedPhoto]) -> bool {
         match self.scan().as_mut() {
             Some(scan) if scan.id == scan_id => {
-                scan.refresh(timeline);
+                scan.refresh(timeline, moves);
                 true
             }
             _ => false,
@@ -476,7 +483,7 @@ mod tests {
                 );
             },
             &|scan| scan.update_photos(&[photo("a.jpg", 5)]),
-            &|scan| scan.refresh(timeline(&["a.jpg"])),
+            &|scan| scan.refresh(timeline(&["a.jpg"]), &[]),
         ];
         for change in changes {
             store_one_series(&mut scan, gap);
@@ -620,7 +627,7 @@ mod tests {
         // b.jpg is gone; d.jpg is new and the oldest.
         let mut newer = timeline(&["a.jpg", "c.jpg"]);
         newer.photos.push(photo("d.jpg", 9));
-        scan.refresh(newer);
+        scan.refresh(newer, &[]);
 
         assert_eq!(scan.id, 7);
         assert_eq!(
@@ -635,13 +642,33 @@ mod tests {
     }
 
     #[test]
+    fn a_moved_photo_keeps_its_id_after_a_refresh() {
+        let mut scan = Scan::new(7, timeline(&["a.jpg", "x/b.jpg", "c.jpg"]));
+
+        let moves = [MovedPhoto {
+            from: PathBuf::from("x/b.jpg"),
+            to: PathBuf::from("y/b.jpg"),
+        }];
+        scan.refresh(timeline(&["a.jpg", "y/b.jpg", "c.jpg"]), &moves);
+
+        assert_eq!(
+            names(&scan),
+            [
+                (0, "a.jpg".into()),
+                (1, "y/b.jpg".into()),
+                (2, "c.jpg".into())
+            ]
+        );
+    }
+
+    #[test]
     fn a_photo_rejected_before_a_refresh_is_restored_with_its_id() {
         let mut scan = Scan::new(7, timeline(&["a.jpg", "b.jpg"]));
         scan.remove(1);
         // The refresh finds b.jpg in the rejected folder.
         let mut newer = timeline(&["a.jpg"]);
         newer.rejected = vec![photo("Odrzucone/b.jpg", 1)];
-        scan.refresh(newer);
+        scan.refresh(newer, &[]);
         let (all, _) = scan.photos_with_removed();
         assert_eq!(all.len(), 2, "no duplicate of the rejected photo");
 
@@ -662,8 +689,8 @@ mod tests {
         let old = state.set_timeline(timeline(&["a.jpg"]));
         let current = state.set_timeline(timeline(&["b.jpg"]));
 
-        assert!(!state.refresh(old, timeline(&["c.jpg"])));
-        assert!(state.refresh(current, timeline(&["b.jpg", "d.jpg"])));
+        assert!(!state.refresh(old, timeline(&["c.jpg"]), &[]));
+        assert!(state.refresh(current, timeline(&["b.jpg", "d.jpg"]), &[]));
         assert_eq!(
             state.photo(current, 1).map(|p| p.path),
             Some(PathBuf::from("d.jpg"))
