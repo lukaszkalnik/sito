@@ -98,8 +98,13 @@ sequenceDiagram
     Cmd->>Core: complete: move the files
     Core->>Disk: exclusive move (never replaces a file)
     Cmd-->>Main: event timeline-changed
-    Cmd-->>UI: { name } or { code }
-    UI->>User: next photo + toast „<name> → Odrzucone”
+    alt success
+        Cmd-->>UI: { name }
+        UI->>User: next photo + toast „<name> → Odrzucone”
+    else error
+        Cmd-->>UI: { code }, e.g. { code: "noTrash" }
+        UI->>User: toast with the Polish message for that code
+    end
     Main->>Main: reload the grid without the photo
 ```
 
