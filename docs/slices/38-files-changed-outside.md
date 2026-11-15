@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 38 – Files changed outside Sito
 
-Plan approved by the user 2026-11-15; implementation not started.
+Plan approved by the user 2026-11-15; implementation in progress.
 
 ## Context
 
