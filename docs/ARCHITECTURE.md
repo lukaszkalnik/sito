@@ -1,6 +1,8 @@
 # Architecture for newcomers
 
-This page explains Sito's technologies and parts to someone who has not worked with Rust, TypeScript or Tauri: what each one is, why it was chosen, and how a click travels through the app. The rules for writing code (layers, lints, file sizes) and the pipeline stages are in [CLAUDE.md](../CLAUDE.md); what the app does is in [docs/domain/](domain/README.md).
+This page explains Sito's technologies and parts to someone who has not worked with Rust, TypeScript or Tauri: what each one is, why it was chosen, and how a click travels through the app.
+
+It is written for people, to explain and teach. It is not instructions for coding agents; those are in [CLAUDE.md](../CLAUDE.md), and where the two differ, CLAUDE.md wins. The rules for writing code (layers, lints, file sizes) and the pipeline stages are in [CLAUDE.md](../CLAUDE.md); what the app does is in [docs/domain/](domain/README.md).
 
 ## The three parts
 
