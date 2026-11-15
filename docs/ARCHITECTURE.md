@@ -97,15 +97,15 @@ sequenceDiagram
     Core->>Disk: write the undo entry (before moving)
     Cmd->>Core: complete: move the files
     Core->>Disk: exclusive move (never replaces a file)
-    Cmd-->>Main: event timeline-changed
     alt success
+        Cmd-->>Main: event timeline-changed
         Cmd-->>UI: { name }
         UI->>User: next photo + toast „<name> → Odrzucone”
+        Main->>Main: reload the grid without the photo
     else error
         Cmd-->>UI: { code }, e.g. { code: "noTrash" }
         UI->>User: toast with the Polish message for that code
     end
-    Main->>Main: reload the grid without the photo
 ```
 
 Step by step, with the files involved:
