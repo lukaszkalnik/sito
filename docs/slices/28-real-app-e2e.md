@@ -1,5 +1,5 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 28 – End-to-end tests of the real app
