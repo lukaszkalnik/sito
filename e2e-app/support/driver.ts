@@ -70,7 +70,14 @@ export async function startAppAgain(): Promise<void> {
 
 /** Stops the driver and makes sure no app under test is left running. */
 export async function stopDriver(): Promise<void> {
-  running()?.child.kill();
+  const child = running()?.child;
+  child?.kill();
+  // Until it has exited, Windows keeps its state folders locked.
+  if (child !== undefined)
+    await pollUntil(
+      () => child.exitCode !== null || child.signalCode !== null,
+      'the driver to stop',
+    );
   store.sitoE2eDriver = null;
   if (appRunning()) killApp();
 }

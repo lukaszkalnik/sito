@@ -55,16 +55,19 @@ export async function placeWindow(
 
 /**
  * Asks window `label` to close, like its close button does (the app saves
- * the window state on that request). It returns before the window is gone,
- * since the page it runs in may be the one closing.
+ * the window state on that request). The caller checks that it closed: when
+ * it is the last window, the app may quit before WebDriver gets the reply,
+ * which is then lost.
  */
 export async function requestClose(label: WindowLabel): Promise<void> {
-  await browser.execute((name) => {
-    const tauri = (
-      window as unknown as {
-        __TAURI_INTERNALS__: { invoke: (cmd: string, args: unknown) => Promise<unknown> };
-      }
-    ).__TAURI_INTERNALS__;
-    setTimeout(() => void tauri.invoke('plugin:window|close', { label: name }), 0);
-  }, label);
+  await browser
+    .execute((name) => {
+      const tauri = (
+        window as unknown as {
+          __TAURI_INTERNALS__: { invoke: (cmd: string, args: unknown) => Promise<unknown> };
+        }
+      ).__TAURI_INTERNALS__;
+      setTimeout(() => void tauri.invoke('plugin:window|close', { label: name }), 0);
+    }, label)
+    .catch(() => {});
 }
