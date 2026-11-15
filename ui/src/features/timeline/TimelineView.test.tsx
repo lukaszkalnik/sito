@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getSeries, getTimeline, type Grouping, type Series, type TimelineEntry } from './api';
 import '../../i18n';
-import type { Completing } from '../scan/scanReducer';
+import type { Completing, Missing } from '../scan/scanReducer';
 import { sendViewerContext } from '../viewer/api';
 import { loadFolderView, saveFolderMode } from './folderView';
 import { loadGap, saveGap } from './gapSetting';
@@ -77,8 +77,17 @@ function renderView(
   completing: Completing | null = null,
   {
     busy = false,
+    refreshing = false,
+    missing = 'none',
     onChooseAnother = () => {},
-  }: { busy?: boolean; onChooseAnother?: () => void } = {},
+    onRefresh = () => {},
+  }: {
+    busy?: boolean;
+    refreshing?: boolean;
+    missing?: Missing;
+    onChooseAnother?: () => void;
+    onRefresh?: () => void;
+  } = {},
 ) {
   return render(
     <TimelineView
@@ -88,11 +97,13 @@ function renderView(
         photosFound: photos,
         unreadableEntries: 0,
         withoutDate: 0,
-        refreshing: false,
+        refreshing,
       }}
       completing={completing}
+      missing={missing}
       busy={busy}
       onChooseAnother={onChooseAnother}
+      onRefresh={onRefresh}
     />,
   );
 }
@@ -279,5 +290,64 @@ describe('TimelineView', () => {
     view.unmount();
     renderView(2, null, { busy: true });
     expect(screen.getByRole('button', { name: 'Wybierz inny folder' })).toBeDisabled();
+  });
+
+  it('refreshes with „Odśwież” and F5', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    const onRefresh = vi.fn();
+    const view = renderView(2, null, { onRefresh });
+
+    const button = screen.getByRole('button', { name: 'Odśwież' });
+    expect(button).toHaveAttribute('title', 'Sprawdź zmiany w folderze (F5)');
+    await userEvent.click(button);
+    await userEvent.keyboard('{F5}');
+    expect(onRefresh).toHaveBeenCalledTimes(2);
+    view.unmount();
+  });
+
+  it.each([{ busy: true }, { refreshing: true }])(
+    'keeps F5 but does not refresh while %o',
+    (options) => {
+      mockedTimeline.mockResolvedValue(entries(2));
+      mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+      const onRefresh = vi.fn();
+      renderView(2, null, { ...options, onRefresh });
+
+      expect(screen.getByRole('button', { name: 'Odśwież' })).toBeDisabled();
+      // F5 is still taken, so the page is not reloaded.
+      expect(fireEvent.keyDown(window, { key: 'F5' })).toBe(false);
+      expect(onRefresh).not.toHaveBeenCalled();
+    },
+  );
+
+  it('offers a refresh when photos are gone from disk', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    const onRefresh = vi.fn();
+    renderView(2, null, { missing: 'photos', onRefresh });
+
+    expect(
+      screen.getByText(/^Niektórych zdjęć nie ma już w otwartym folderze/),
+    ).toBeInTheDocument();
+    const buttons = screen.getAllByRole('button', { name: 'Odśwież' });
+    expect(buttons).toHaveLength(2);
+    await userEvent.click(buttons[1] as HTMLElement);
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('says when the folder is gone and offers another one', async () => {
+    mockedTimeline.mockResolvedValue(entries(2));
+    mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
+    const onChooseAnother = vi.fn();
+    renderView(2, null, { missing: 'folder', onChooseAnother });
+
+    const notice = screen.getByRole('alert');
+    expect(notice).toHaveTextContent(/^Otwartego folderu nie ma już na dysku/);
+    await userEvent.click(within(notice).getByRole('button', { name: 'Wybierz inny folder' }));
+    expect(onChooseAnother).toHaveBeenCalledOnce();
+    // A reconnected drive can be checked again.
+    expect(screen.getByRole('button', { name: 'Odśwież' })).toBeEnabled();
+    expect(screen.queryByText(/^Niektórych zdjęć/)).not.toBeInTheDocument();
   });
 });

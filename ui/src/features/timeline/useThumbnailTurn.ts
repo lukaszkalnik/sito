@@ -11,13 +11,16 @@ function viewOf(element: Element): ScreenRect {
 /**
  * Whether the tile in `ref` may load the thumbnail at `src` now: it waits
  * for its turn in the shared thumbnail queue from when it is rendered, and
- * leaves the queue when it goes away or gets a new `src`. Call `finished`
- * when the thumbnail has loaded or failed, to pass the turn on.
+ * leaves the queue when it goes away or gets a new `src`. A new `attempt`
+ * (a retry after a failure) queues it again. Call `finished` when the
+ * thumbnail has loaded or failed, to pass the turn on.
  */
 export function useThumbnailTurn(
   ref: RefObject<Element | null>,
   src: string,
+  attempt = 0,
 ): { turn: boolean; finished: () => void } {
+  const key = `${src}#${attempt}`;
   const [turnFor, setTurnFor] = useState<string | null>(null);
   const ticket = useRef<Ticket | null>(null);
 
@@ -26,12 +29,12 @@ export function useThumbnailTurn(
     if (element === null) return;
     const mine = thumbnailQueue.request(
       () => rankOf(element.getBoundingClientRect(), viewOf(element)),
-      () => setTurnFor(src),
+      () => setTurnFor(key),
     );
     ticket.current = mine;
     return () => mine.release();
-  }, [ref, src]);
+  }, [ref, key]);
 
   const finished = useCallback(() => ticket.current?.release(), []);
-  return { turn: turnFor === src, finished };
+  return { turn: turnFor === key, finished };
 }

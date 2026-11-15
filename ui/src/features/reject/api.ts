@@ -16,10 +16,13 @@ export interface Undone {
   /** Timeline id of the photo, or `null` if it could not be read back or is not on the timeline. */
   id: number | null;
   name: string;
+  /** The name it came back under because its own was taken, `null` if it got its own back. */
+  restoredName: string | null;
 }
 
 const REJECT_ERROR_CODES = [
   'occupied',
+  'photoMissing',
   'missing',
   'missingFromTrash',
   'noTrash',

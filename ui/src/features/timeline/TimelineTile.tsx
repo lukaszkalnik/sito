@@ -13,9 +13,10 @@ import { useThumbnailTurn } from './useThumbnailTurn';
 
 type ThumbnailStatus = 'loading' | 'loaded' | 'error';
 
-/** How loading the thumbnail at `src` ended. */
+/** How loading the thumbnail at `src` ended; an error at timeline `revision`. */
 type ThumbnailResult =
-  { src: string; status: 'loaded'; shape: ThumbnailShape } | { src: string; status: 'error' };
+  | { src: string; status: 'loaded'; shape: ThumbnailShape }
+  | { src: string; status: 'error'; revision: number };
 
 interface TimelineTileProps {
   entry: TimelineEntry;
@@ -30,16 +31,29 @@ interface TimelineTileProps {
   followed?: boolean;
   /** Marked with a check: the user accepted it. */
   accepted?: boolean;
+  /**
+   * Counts the timeline's changes. A thumbnail that failed loads again when
+   * it changes, e.g. once a refresh found the photo's file at its new place.
+   */
+  revision?: number;
 }
 
 /**
  * Load status of the thumbnail at `src`, and the handlers that update it. A
  * thumbnail seen before is cached by the webview, so it counts as loaded (and
- * `instant`) at once. `settled` is called once the thumbnail has loaded or failed.
+ * `instant`) at once. A failure counts until the timeline `revision`
+ * changes; `attempt` changes with each new try, so the tile queues for a
+ * turn again.
  */
-function useThumbnailStatus(src: string, settled: () => void) {
+function useThumbnailStatus(src: string, revision: number) {
   // Remembers which URL the status belongs to, so a reused tile starts fresh.
   const [result, setResult] = useState<ThumbnailResult | null>(null);
+  const [attempt, setAttempt] = useState(revision);
+  if (result?.status === 'error' && result.src === src && result.revision !== revision) {
+    // Adjusting state while rendering: React re-renders at once with the reset.
+    setResult(null);
+    setAttempt(revision);
+  }
   const remembered = shapeOf(src);
   const instant = remembered !== undefined;
   const current = result?.src === src ? result : null;
@@ -48,15 +62,11 @@ function useThumbnailStatus(src: string, settled: () => void) {
   const onLoad = (event: SyntheticEvent<HTMLImageElement>) => {
     const image = event.currentTarget;
     const loadedShape = shapeFrom(image.naturalWidth, image.naturalHeight);
-    settled();
     rememberLoaded(src, loadedShape);
     setResult({ src, status: 'loaded', shape: loadedShape });
   };
-  const onError = () => {
-    settled();
-    setResult({ src, status: 'error' });
-  };
-  return { status, shape, instant, onLoad, onError };
+  const onError = () => setResult({ src, status: 'error', revision });
+  return { status, shape, instant, attempt, onLoad, onError };
 }
 
 /** Icon shown in place of a thumbnail that could not be loaded. */
@@ -152,12 +162,12 @@ export function TimelineTile({
   highlight = null,
   followed = false,
   accepted = false,
+  revision = 0,
 }: TimelineTileProps) {
-  const { t } = useTranslation();
   const tileRef = useRef<HTMLLIElement>(null);
   const src = thumbnailUrl(scanId, entry.id);
-  const { turn, finished } = useThumbnailTurn(tileRef, src);
-  const { status, shape, instant, onLoad, onError } = useThumbnailStatus(src, finished);
+  const { status, shape, instant, attempt, onLoad, onError } = useThumbnailStatus(src, revision);
+  const { turn, finished } = useThumbnailTurn(tileRef, src, attempt);
 
   return (
     <li
@@ -174,21 +184,41 @@ export function TimelineTile({
           src={src}
           alt=""
           decoding={instant ? 'sync' : 'async'}
-          onLoad={onLoad}
-          onError={onError}
+          // Loaded or failed, the turn passes on.
+          onLoad={(event) => {
+            finished();
+            onLoad(event);
+          }}
+          onError={() => {
+            finished();
+            onError();
+          }}
         />
       )}
       {status === 'error' && <BrokenThumbnail />}
       <TileCaption entry={entry} showFolder={showFolder} />
       <TileBadges entry={entry} />
       {accepted && <AcceptedBadge />}
-      {/* Covers the whole tile, so a click or Enter anywhere opens the photo. */}
-      <button
-        type="button"
-        className="timeline-tile-open"
-        aria-label={t('timeline.open', { name: entry.name })}
-        onClick={onFirstClick(() => onOpen(entry))}
-      />
+      <OpenButton entry={entry} onOpen={onOpen} />
     </li>
+  );
+}
+
+/** Covers the whole tile, so a click or Enter anywhere opens the photo. */
+function OpenButton({
+  entry,
+  onOpen,
+}: {
+  entry: TimelineEntry;
+  onOpen: (entry: TimelineEntry) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      className="timeline-tile-open"
+      aria-label={t('timeline.open', { name: entry.name })}
+      onClick={onFirstClick(() => onOpen(entry))}
+    />
   );
 }

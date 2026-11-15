@@ -1,14 +1,71 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { onScanCompleting, onScanRefreshed, pickFolder, ScanError, scanFolder } from './api';
+import {
+  onFolderMissing,
+  onPhotosMissing,
+  onScanCompleting,
+  onScanRefreshed,
+  onScanRefreshing,
+  pickFolder,
+  refreshFolder,
+  ScanError,
+  scanFolder,
+} from './api';
 import { loadLastFolder, saveLastFolder } from './lastFolder';
-import { initialScanState, scanReducer, type ScanState } from './scanReducer';
+import { initialScanState, scanReducer, type ScanAction, type ScanState } from './scanReducer';
+
+/** Dispatches `toAction(scanId)` for every scan event that `listen` subscribes to. */
+function useScanEvent(
+  listen: (handler: (scanId: number) => void) => Promise<() => void>,
+  dispatch: (action: ScanAction) => void,
+  toAction: (scanId: number) => ScanAction,
+) {
+  useEffect(() => {
+    // Outside the app (e.g. a plain browser) there are no events.
+    const unlisten = listen((scanId) => dispatch(toAction(scanId))).catch(() => () => {});
+    return () => void unlisten.then((stop) => stop());
+  }, [listen, dispatch, toAction]);
+}
+
+const refreshStarted = (scanId: number): ScanAction => ({ type: 'refreshStarted', scanId });
+const photosMissing = (scanId: number): ScanAction => ({ type: 'photosMissing', scanId });
+const folderMissing = (scanId: number): ScanAction => ({ type: 'folderMissing', scanId });
+
+/** Background work on the folder shown, and files found gone from disk. */
+function useScanEvents(dispatch: (action: ScanAction) => void) {
+  // A folder shown from the cache gets its up-to-date summary when the
+  // background rescan is done.
+  useEffect(() => {
+    const unlisten = onScanRefreshed((summary) => dispatch({ type: 'refreshed', summary })).catch(
+      // Outside the app (e.g. a plain browser) there are no events.
+      () => () => {},
+    );
+    return () => void unlisten.then((stop) => stop());
+  }, [dispatch]);
+
+  // A quick first scan reads the EXIF of its photos afterwards.
+  useEffect(() => {
+    const unlisten = onScanCompleting((completing) =>
+      dispatch({ type: 'completing', completing }),
+    ).catch(() => () => {});
+    return () => void unlisten.then((stop) => stop());
+  }, [dispatch]);
+
+  useScanEvent(onScanRefreshing, dispatch, refreshStarted);
+  useScanEvent(onPhotosMissing, dispatch, photosMissing);
+  useScanEvent(onFolderMissing, dispatch, folderMissing);
+}
 
 /**
  * Folder picking and scanning, as a state machine for the scan screen. The
- * folder opened last is opened again on start.
+ * folder opened last is opened again on start; `refresh` rescans the open
+ * folder in the background.
  */
-export function useScan(): { state: ScanState; chooseAndScan: () => Promise<void> } {
+export function useScan(): {
+  state: ScanState;
+  chooseAndScan: () => Promise<void>;
+  refresh: () => void;
+} {
   const [state, dispatch] = useReducer(scanReducer, initialScanState);
 
   const scan = useCallback(async (path: string) => {
@@ -49,23 +106,12 @@ export function useScan(): { state: ScanState; chooseAndScan: () => Promise<void
     if (last !== null) void scan(last);
   }, [scan]);
 
-  // A folder shown from the cache gets its up-to-date summary when the
-  // background rescan is done.
-  useEffect(() => {
-    const unlisten = onScanRefreshed((summary) => dispatch({ type: 'refreshed', summary })).catch(
-      // Outside the app (e.g. a plain browser) there are no events.
-      () => () => {},
-    );
-    return () => void unlisten.then((stop) => stop());
+  useScanEvents(dispatch);
+
+  // The refresh announces itself with `scan-refreshing`, also when started in the viewer.
+  const refresh = useCallback(() => {
+    refreshFolder().catch((err: unknown) => console.error('Cannot refresh the folder', err));
   }, []);
 
-  // A quick first scan reads the EXIF of its photos afterwards.
-  useEffect(() => {
-    const unlisten = onScanCompleting((completing) =>
-      dispatch({ type: 'completing', completing }),
-    ).catch(() => () => {});
-    return () => void unlisten.then((stop) => stop());
-  }, []);
-
-  return { state, chooseAndScan };
+  return { state, chooseAndScan, refresh };
 }

@@ -82,6 +82,8 @@ export interface TauriMock {
   installProgress?: unknown[];
   /** Error thrown by `open_release_page`. Default: none, the page opens. */
   openReleasePageError?: { code: string };
+  /** What `check_photo_file` says is gone of a photo. Default: nothing (`null`). */
+  vanished?: 'photo' | 'folder';
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -327,7 +329,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             const [id] = rejected.splice(index, 1);
             trashed.delete(id);
             emit('timeline-changed');
-            return { id, name: nameOf(id) };
+            return { id, name: nameOf(id), restoredName: null };
           }
           case 'accept_photo':
           case 'unaccept_photo': {
@@ -356,6 +358,12 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             return '0.9.0';
           case 'get_undo_state':
             return undoState();
+          case 'refresh_folder':
+            // Runs until the test sends `scan-refreshed`.
+            if ('ok' in m.scanResult) emit('scan-refreshing', m.scanResult.ok.scanId);
+            return null;
+          case 'check_photo_file':
+            return m.vanished ?? null;
           case 'plugin:event|unlisten':
           case 'plugin:event|emit_to':
           case 'plugin:window|set_title':

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { mockTauri } from './tauri-mock';
+import { emitTauriEvent, invokedCommands, mockTauri } from './tauri-mock';
 
 test('picks a folder, shows both progress phases and then the timeline', async ({ page }) => {
   await mockTauri(page, {
@@ -95,4 +95,62 @@ test('clears the old timeline as soon as another folder is picked', async ({ pag
   // The mocked scan takes 300 ms; the old grid must be gone well before.
   await expect(page.getByTestId('timeline')).toBeHidden({ timeout: 150 });
   await expect(page.getByRole('status')).toContainText('Wyszukiwanie zdjęć… znaleziono 120');
+});
+
+test('„Odśwież” and F5 check the folder for changes in the background', async ({ page }) => {
+  await mockTauri(page, {
+    pickedFolder: 'C:\\Zdjęcia',
+    scanProgress: [],
+    scanResult: { ok: { scanId: 1, photosFound: 50, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 50, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  const refresh = page.getByRole('button', { name: 'Odśwież' });
+  await expect(refresh).toBeEnabled();
+
+  await refresh.click();
+
+  await expect(page.getByText('Sprawdzanie zmian…')).toBeVisible();
+  await expect(refresh).toBeDisabled();
+  await emitTauriEvent(page, 'scan-refreshed', {
+    scanId: 1,
+    photosFound: 50,
+    unreadableEntries: 0,
+    withoutDate: 0,
+    refreshing: false,
+  });
+  await expect(page.getByText('Sprawdzanie zmian…')).toHaveCount(0);
+
+  await page.keyboard.press('F5');
+  await expect(page.getByText('Sprawdzanie zmian…')).toBeVisible();
+  const refreshes = (await invokedCommands(page)).filter((c) => c.cmd === 'refresh_folder');
+  expect(refreshes).toHaveLength(2);
+});
+
+test('offers a refresh when photos are gone, and another folder when the folder is', async ({
+  page,
+}) => {
+  await mockTauri(page, {
+    pickedFolder: 'C:\\Zdjęcia',
+    scanProgress: [],
+    scanResult: { ok: { scanId: 1, photosFound: 50, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 50, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
+    series: { every: 10, size: 3 },
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await expect(page.getByTestId('timeline')).toBeVisible();
+
+  await emitTauriEvent(page, 'photos-missing', 1);
+  const note = page.getByText(/^Niektórych zdjęć nie ma już w otwartym folderze/);
+  await expect(note).toBeVisible();
+  await page.getByRole('button', { name: 'Odśwież' }).last().click();
+  await expect(note).toHaveCount(0);
+  await expect(page.getByText('Sprawdzanie zmian…')).toBeVisible();
+
+  await emitTauriEvent(page, 'folder-missing', 1);
+  await expect(page.getByRole('alert')).toContainText('Otwartego folderu nie ma już na dysku');
+  await page.getByRole('alert').getByRole('button', { name: 'Wybierz inny folder' }).click();
+  await expect(page.getByTestId('timeline')).toBeVisible();
 });

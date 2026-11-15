@@ -1,0 +1,20 @@
+.folder-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.folder-missing p {
+  flex: 1;
+  min-width: 16rem;
+  margin: 0;
+}
+
+.folder-missing .control-button {
+  color: var(--text);
+}

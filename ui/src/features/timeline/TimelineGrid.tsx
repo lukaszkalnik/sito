@@ -35,6 +35,8 @@ interface TimelineGridProps {
   followed?: number | null;
   /** Where the grid's position is kept between openings of the folder. */
   savedPosition?: SavedPosition;
+  /** Counts the timeline's changes; failed thumbnails load again with each. */
+  revision?: number;
 }
 
 /** The rows of the grid for the measured `width`. */
@@ -91,6 +93,7 @@ export function TimelineGrid({
   onRevealed,
   followed = null,
   savedPosition,
+  revision = 0,
 }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
@@ -105,7 +108,7 @@ export function TimelineGrid({
     saved: savedPosition,
     measured: width > 0,
   });
-  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed };
+  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed, revision };
 
   return (
     <div ref={scrollRef} className="timeline" data-testid="timeline" onScroll={onScroll}>

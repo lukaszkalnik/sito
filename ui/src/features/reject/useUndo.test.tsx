@@ -19,7 +19,7 @@ describe('useUndo', () => {
   });
 
   it('restores with Ctrl+Z and reports the photo', async () => {
-    vi.mocked(undoReject).mockResolvedValue({ id: 4, name: 'IMG_4.jpg' });
+    vi.mocked(undoReject).mockResolvedValue({ id: 4, name: 'IMG_4.jpg', restoredName: null });
     const onUndone = vi.fn();
     const { result } = renderHook(() => useUndo(onUndone));
     await waitFor(() => expect(result.current.undoState).toBe('available'));
@@ -28,8 +28,26 @@ describe('useUndo', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
     });
 
-    await waitFor(() => expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg' }));
+    await waitFor(() =>
+      expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg', restoredName: null }),
+    );
     expect(result.current.toast).toEqual({ text: 'Przywrócono IMG_4.jpg', kind: 'info' });
+  });
+
+  it('names the new name of a photo whose own name was taken', async () => {
+    vi.mocked(undoReject).mockResolvedValue({
+      id: 4,
+      name: 'IMG_4.jpg',
+      restoredName: 'IMG_4 (2).jpg',
+    });
+    const { result } = renderHook(() => useUndo());
+
+    await act(() => result.current.undo());
+
+    expect(result.current.toast).toEqual({
+      text: 'Przywrócono IMG_4.jpg jako IMG_4 (2).jpg – nazwa była zajęta.',
+      kind: 'info',
+    });
   });
 
   it.each([

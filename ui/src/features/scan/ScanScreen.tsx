@@ -2,14 +2,14 @@ import { useTranslation } from 'react-i18next';
 
 import type { ScanProgress, ScanSummary } from './api';
 import { TimelineView } from '../timeline/TimelineView';
-import type { Completing, ScanState } from './scanReducer';
+import type { Completing, Missing, ScanState } from './scanReducer';
 import { useScan } from './useScan';
 import './ScanScreen.css';
 
 /** The finished scan to show, if any (also while picking another folder). */
 function finishedScan(
   state: ScanState,
-): { path: string; summary: ScanSummary; completing: Completing | null } | null {
+): { path: string; summary: ScanSummary; completing: Completing | null; missing: Missing } | null {
   if (state.status === 'done') return state;
   if (state.status === 'picking' && state.previous.status === 'done') return state.previous;
   return null;
@@ -28,7 +28,7 @@ function ProgressText({ progress }: { progress: ScanProgress }) {
 
 export function ScanScreen() {
   const { t } = useTranslation();
-  const { state, chooseAndScan } = useScan();
+  const { state, chooseAndScan, refresh } = useScan();
 
   const busy = state.status === 'picking' || state.status === 'scanning';
   const finished = finishedScan(state);
@@ -39,8 +39,10 @@ export function ScanScreen() {
         path={finished.path}
         summary={finished.summary}
         completing={finished.completing}
+        missing={finished.missing}
         busy={busy}
         onChooseAnother={() => void chooseAndScan()}
+        onRefresh={refresh}
       />
     );
   }

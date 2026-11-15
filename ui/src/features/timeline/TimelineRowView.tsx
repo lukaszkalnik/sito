@@ -20,6 +20,8 @@ export interface TileContext {
   highlighted: Reveal | null;
   /** The photo the viewer shows, if any. */
   followed: number | null;
+  /** Counts the timeline's changes; failed thumbnails load again with each. */
+  revision: number;
 }
 
 /** The camera a series header names, if any. */
@@ -81,6 +83,7 @@ function TileList({
           highlight={entry.id === context.highlighted?.id ? context.highlighted.reason : null}
           followed={entry.id === context.followed}
           accepted={context.acceptedIds.has(entry.id)}
+          revision={context.revision}
         />
       ))}
     </ul>

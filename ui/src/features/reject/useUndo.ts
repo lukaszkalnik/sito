@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { useShortcuts } from '../../shortcuts/useShortcuts';
@@ -58,6 +59,7 @@ function useToast() {
 /** Translation keys of the messages for a failed undo. */
 const UNDO_ERROR_KEYS: Readonly<Record<RejectErrorCode, string>> = {
   occupied: 'undo.occupied',
+  photoMissing: 'undo.failed',
   missing: 'undo.missing',
   missingFromTrash: 'undo.missingFromTrash',
   trashUndoUnsupported: 'undo.trashUndoUnsupported',
@@ -66,6 +68,13 @@ const UNDO_ERROR_KEYS: Readonly<Record<RejectErrorCode, string>> = {
   io: 'undo.failed',
   internal: 'undo.failed',
 };
+
+/** The toast for a photo „Cofnij” brought back, naming its new name if its own was taken. */
+function undoneText({ name, restoredName }: Undone, t: TFunction): string {
+  return restoredName === null
+    ? t('undo.done', { name })
+    : t('undo.doneRenamed', { name, restoredName });
+}
 
 /** The translation key of the message for a failed undo. */
 function undoErrorKey(error: unknown): string {
@@ -94,7 +103,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     try {
       const undone = await undoReject();
       if (undone) {
-        setToast({ text: t('undo.done', { name: undone.name }), kind: 'info' });
+        setToast({ text: undoneText(undone, t), kind: 'info' });
         onUndone?.(undone);
       }
     } catch (error) {

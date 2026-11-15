@@ -5,6 +5,10 @@
   bottom: 1rem;
   transform: translateX(-50%);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
   pointer-events: none;
 }
 
@@ -17,4 +21,32 @@
   white-space: nowrap;
   /* Keeps the pill from wobbling while the number counts up. */
   font-variant-numeric: tabular-nums;
+}
+
+/* A note with a button takes clicks, wraps and stays inside the window. */
+.scan-notes--action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 2rem);
+  box-sizing: border-box;
+  border-radius: 1rem;
+  white-space: normal;
+  pointer-events: auto;
+}
+
+.scan-notes--action button {
+  flex: none;
+  padding: 0.15rem 0.6rem;
+  border: 1.5px solid rgb(255 255 255 / 70%);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.scan-notes--action button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }

@@ -32,11 +32,23 @@ describe('scanReducer', () => {
     });
 
     state = scanReducer(state, { type: 'scanFinished', summary });
-    expect(state).toEqual({ status: 'done', path: 'C:\\Photos', summary, completing: null });
+    expect(state).toEqual({
+      status: 'done',
+      path: 'C:\\Photos',
+      summary,
+      completing: null,
+      missing: 'none',
+    });
   });
 
   it('restores the previous result when picking is cancelled', () => {
-    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary, completing: null };
+    const done: ScanState = {
+      status: 'done',
+      path: 'C:\\Photos',
+      summary,
+      completing: null,
+      missing: 'none',
+    };
 
     const picking = scanReducer(done, { type: 'pickStarted' });
     const restored = scanReducer(picking, { type: 'pickCancelled' });
@@ -78,6 +90,7 @@ describe('scanReducer', () => {
       path: 'C:\\Photos',
       summary: cached,
       completing: null,
+      missing: 'none',
     };
 
     it('updates the summary of the folder shown', () => {
@@ -105,7 +118,13 @@ describe('scanReducer', () => {
   });
 
   describe('reading EXIF in the background', () => {
-    const done: ScanState = { status: 'done', path: 'C:\\Photos', summary, completing: null };
+    const done: ScanState = {
+      status: 'done',
+      path: 'C:\\Photos',
+      summary,
+      completing: null,
+      missing: 'none',
+    };
     const progress = (done: number, total: number) => ({
       type: 'completing' as const,
       completing: { scanId: 1, done, total },
@@ -132,6 +151,53 @@ describe('scanReducer', () => {
 
       expect(scanReducer(done, other)).toBe(done);
       expect(scanReducer(scanning, progress(1, 2))).toBe(scanning);
+    });
+  });
+
+  describe('refreshing and files gone from disk', () => {
+    const done: ScanState = {
+      status: 'done',
+      path: 'C:\\Photos',
+      summary,
+      completing: null,
+      missing: 'none',
+    };
+    const refreshStarted = { type: 'refreshStarted' as const, scanId: 1 };
+    const photosMissing = { type: 'photosMissing' as const, scanId: 1 };
+    const folderMissing = { type: 'folderMissing' as const, scanId: 1 };
+
+    it('shows a refresh started from either window as refreshing', () => {
+      const refreshing = scanReducer(done, refreshStarted);
+
+      expect(refreshing).toEqual({ ...done, summary: { ...summary, refreshing: true } });
+      expect(scanReducer(refreshing, { type: 'refreshed', summary })).toEqual(done);
+    });
+
+    it('notes missing photos until a refresh starts', () => {
+      const missing = scanReducer(done, photosMissing);
+      expect(missing).toEqual({ ...done, missing: 'photos' });
+
+      expect(scanReducer(missing, refreshStarted)).toMatchObject({ missing: 'none' });
+      // Photos that fail while a refresh runs may be found by it.
+      const refreshing = scanReducer(done, refreshStarted);
+      expect(scanReducer(refreshing, photosMissing)).toBe(refreshing);
+    });
+
+    it('notes a missing folder until a refresh finds it again', () => {
+      const gone = scanReducer(done, folderMissing);
+      expect(gone).toEqual({ ...done, missing: 'folder' });
+
+      // Missing photos say less than a missing folder.
+      expect(scanReducer(gone, photosMissing)).toBe(gone);
+      const refreshing = scanReducer(gone, refreshStarted);
+      expect(refreshing).toMatchObject({ missing: 'folder' });
+      expect(scanReducer(refreshing, { type: 'refreshed', summary })).toEqual(done);
+    });
+
+    it('ignores the events of a scan no longer shown', () => {
+      for (const type of ['refreshStarted', 'photosMissing', 'folderMissing'] as const) {
+        expect(scanReducer(done, { type, scanId: 99 })).toBe(done);
+      }
     });
   });
 });

@@ -83,3 +83,30 @@ export async function onScanCompleting(
 ): Promise<UnlistenFn> {
   return listen<ScanCompleting>('scan-completing', (event) => handler(event.payload));
 }
+
+/** Rescans the open folder in the background; ends with `onScanRefreshed`. */
+export async function refreshFolder(): Promise<void> {
+  await invoke('refresh_folder');
+}
+
+/** Listens to an event whose payload is a scan id. */
+async function onScanEvent(event: string, handler: (scanId: number) => void): Promise<UnlistenFn> {
+  return listen<unknown>(event, ({ payload }) => {
+    if (typeof payload === 'number') handler(payload);
+  });
+}
+
+/** Calls `handler` with the scan id when a background rescan of it starts (from either window). */
+export async function onScanRefreshing(handler: (scanId: number) => void): Promise<UnlistenFn> {
+  return onScanEvent('scan-refreshing', handler);
+}
+
+/** Calls `handler` with the scan id when photo files of the open folder are gone from disk. */
+export async function onPhotosMissing(handler: (scanId: number) => void): Promise<UnlistenFn> {
+  return onScanEvent('photos-missing', handler);
+}
+
+/** Calls `handler` with the scan id when the open folder itself is gone from disk. */
+export async function onFolderMissing(handler: (scanId: number) => void): Promise<UnlistenFn> {
+  return onScanEvent('folder-missing', handler);
+}

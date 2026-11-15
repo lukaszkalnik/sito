@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useAcceptedIds } from '../accept/useAcceptedIds';
-import type { Undone } from '../reject/api';
+import type { Undone, UndoState } from '../reject/api';
 import type { ScanSummary } from '../scan/api';
 import { ScanNotes } from '../scan/ScanNotes';
-import type { Completing } from '../scan/scanReducer';
+import { FolderMissingNotice } from '../scan/FolderMissingNotice';
+import type { Completing, Missing } from '../scan/scanReducer';
+import { useTimelineRevision } from '../reject/useTimelineRevision';
+import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { openViewer, sendViewerContext } from '../viewer/api';
 import { DestinationSetting } from '../reject/DestinationPicker';
 import { Toast } from '../reject/Toast';
@@ -28,8 +31,13 @@ interface TimelineViewProps {
   summary: ScanSummary;
   /** Progress of reading EXIF in the background, `null` when none is read. */
   completing: Completing | null;
+  /** What of the folder is known to be gone from disk. */
+  missing: Missing;
+  /** A folder is being picked or scanned. */
   busy: boolean;
   onChooseAnother: () => void;
+  /** Checks the folder for changes in the background. */
+  onRefresh: () => void;
 }
 
 /**
@@ -75,12 +83,14 @@ interface TimelineBodyProps {
   /** The photo the viewer shows, if any. */
   followed: number | null;
   savedPosition: SavedPosition;
+  /** Counts the timeline's changes; failed thumbnails load again with each. */
+  revision: number;
 }
 
 /** Below the bar: the grid, or a message while loading, on error or without series. */
 function TimelineBody(props: TimelineBodyProps) {
-  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed, savedPosition } =
-    props;
+  const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed } = props;
+  const { savedPosition, revision } = props;
   const { t } = useTranslation();
   switch (timeline.status) {
     case 'loading':
@@ -112,6 +122,7 @@ function TimelineBody(props: TimelineBodyProps) {
           onRevealed={onRevealed}
           followed={followed}
           savedPosition={savedPosition}
+          revision={revision}
           onOpen={(entry) =>
             void openViewer({ id: entry.id, scanId, mode, gap }).catch((err: unknown) =>
               console.error('Cannot open the viewer', err),
@@ -122,15 +133,59 @@ function TimelineBody(props: TimelineBodyProps) {
   }
 }
 
-/** Full-window view of a finished scan: summary bar and the timeline grid. */
-export function TimelineView({
-  path,
-  summary,
-  completing,
-  busy,
-  onChooseAnother,
-}: TimelineViewProps) {
+/**
+ * „Odśwież” and F5, unless a folder is being picked or scanned or the open
+ * one is refreshing. F5 is taken also then, so it never reloads the page.
+ */
+function useRefresh(summary: ScanSummary, busy: boolean, onRefresh: () => void) {
+  const refreshBusy = busy || summary.refreshing;
+  const refresh = useCallback(() => {
+    if (!refreshBusy) onRefresh();
+  }, [refreshBusy, onRefresh]);
+  useShortcuts({ refresh });
+  return refresh;
+}
+
+interface TimelineBarProps {
+  path: string;
+  summary: ScanSummary;
+  timeline: TimelineEntriesState;
+  busy: boolean;
+  onChooseAnother: () => void;
+  onRefresh: () => void;
+  mode: TimelineMode;
+  setMode: (mode: TimelineMode) => void;
+  gap: number;
+  changeGap: (gap: number) => void;
+  undoState: UndoState;
+  undo: () => Promise<void>;
+}
+
+/** The bar above the grid: title, folder, summary and the controls. */
+function TimelineBar(props: TimelineBarProps) {
+  const { path, summary, timeline, busy, onChooseAnother, onRefresh } = props;
   const { t } = useTranslation();
+  return (
+    <header className="timeline-bar">
+      <h1>{t('app.title')}</h1>
+      <FolderInfo {...{ path, summary, timeline, busy, onChooseAnother, onRefresh }} />
+      <div className="timeline-bar-controls">
+        <GapSlider gap={props.gap} onChange={props.changeGap} />
+        <ViewPicker mode={props.mode} onChange={props.setMode} />
+        <DestinationSetting />
+        <UndoButton
+          className="control-icon-button"
+          state={props.undoState}
+          onUndo={() => void props.undo()}
+        />
+      </div>
+    </header>
+  );
+}
+
+/** Full-window view of a finished scan: summary bar and the timeline grid. */
+export function TimelineView(props: TimelineViewProps) {
+  const { path, summary, completing, missing, busy, onChooseAnother, onRefresh } = props;
   const [gap, changeGap] = useGap(path);
   // A new scan id means another scan finished, so the timeline is reloaded; a
   // refreshed summary keeps the id and the view.
@@ -140,24 +195,19 @@ export function TimelineView({
   const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
   const { undoState, undo, toast } = useUndo(showRestored);
   const acceptedIds = useAcceptedIds(summary.scanId);
+  const revision = useTimelineRevision();
+  const refresh = useRefresh(summary, busy, onRefresh);
   useViewerContext(mode, gap);
 
   return (
     <main className="timeline-view">
-      <header className="timeline-bar">
-        <h1>{t('app.title')}</h1>
-        <FolderInfo {...{ path, summary, timeline, busy, onChooseAnother }} />
-        <div className="timeline-bar-controls">
-          <GapSlider gap={gap} onChange={changeGap} />
-          <ViewPicker mode={mode} onChange={setMode} />
-          <DestinationSetting />
-          <UndoButton
-            className="control-icon-button"
-            state={undoState}
-            onUndo={() => void undo()}
-          />
-        </div>
-      </header>
+      <TimelineBar
+        {...{ path, summary, timeline, busy, onChooseAnother, mode, setMode, gap, changeGap }}
+        onRefresh={refresh}
+        undo={undo}
+        undoState={undoState}
+      />
+      {missing === 'folder' && <FolderMissingNotice onChooseAnother={onChooseAnother} />}
       <TimelineBody
         timeline={timeline}
         mode={mode}
@@ -168,9 +218,15 @@ export function TimelineView({
         onRevealed={revealed}
         followed={followed}
         savedPosition={savedPosition}
+        revision={revision}
       />
       <Toast message={toast} onUndo={() => void undo()} />
-      <ScanNotes refreshing={summary.refreshing} completing={completing} />
+      <ScanNotes
+        refreshing={summary.refreshing}
+        completing={completing}
+        photosMissing={missing === 'photos'}
+        onRefresh={refresh}
+      />
     </main>
   );
 }

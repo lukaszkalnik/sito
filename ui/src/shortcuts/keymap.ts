@@ -13,7 +13,8 @@ export type ShortcutAction =
   | 'panLeft'
   | 'panRight'
   | 'panUp'
-  | 'panDown';
+  | 'panDown'
+  | 'refresh';
 
 /**
  * A key combination: `key` as in `KeyboardEvent.key` (letters lower case),
@@ -41,6 +42,7 @@ export const KEYMAP: Readonly<Record<ShortcutAction, Shortcut>> = {
   panRight: { key: 'ArrowRight', modifier: 'shift' },
   panUp: { key: 'ArrowUp', modifier: 'shift' },
   panDown: { key: 'ArrowDown', modifier: 'shift' },
+  refresh: { key: 'F5', modifier: 'none' },
 };
 
 /**
@@ -74,9 +76,15 @@ export function actionOf(
  * Actions that a held key (auto-repeat) does not repeat: each press does one.
  * Rejecting and undoing move files, so holding Delete must not reject photo
  * after photo; holding A would toggle the mark on and off; closing twice
- * would fail.
+ * would fail; each refresh walks the whole folder.
  */
-const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set(['reject', 'accept', 'undo', 'close']);
+const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set([
+  'reject',
+  'accept',
+  'undo',
+  'close',
+  'refresh',
+]);
 
 /** Whether a key held down repeats `action`. */
 export function repeatsWhenHeld(action: ShortcutAction): boolean {

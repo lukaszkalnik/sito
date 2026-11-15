@@ -28,6 +28,7 @@ const context = {
   acceptedIds: new Set<number>(),
   highlighted: null,
   followed: null,
+  revision: 0,
 };
 
 function renderHeader(label: SeriesLabel) {

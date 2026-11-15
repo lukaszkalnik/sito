@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
 import { ChooseFolderButton } from '../scan/ChooseFolderButton';
+import { RefreshButton } from '../scan/RefreshButton';
 import type { ScanSummary } from '../scan/api';
 import { CutPath } from '../../paths/CutPath';
 import type { Series } from './api';
@@ -61,23 +62,27 @@ function ScanStatus({
   );
 }
 
-/** The folder button, then the folder path and the summary line. */
+/** The folder and refresh buttons, then the folder path and the summary line. */
 export function FolderInfo({
   path,
   summary,
   timeline,
   busy,
   onChooseAnother,
+  onRefresh,
 }: {
   path: string;
   summary: ScanSummary;
   timeline: TimelineEntriesState;
+  /** A folder is being picked or scanned. */
   busy: boolean;
   onChooseAnother: () => void;
+  onRefresh: () => void;
 }) {
   return (
     <div className="folder-info">
       <ChooseFolderButton busy={busy} onClick={onChooseAnother} />
+      <RefreshButton busy={busy || summary.refreshing} onClick={onRefresh} />
       <div className="folder-info-text">
         <p>
           <CutPath path={path} />

@@ -174,6 +174,30 @@ describe('TimelineTile', () => {
     expect(image()).toHaveAttribute('src', 'thumb://localhost/7?scan=4');
   });
 
+  it('tries a failed thumbnail again once the timeline changed', () => {
+    const tile = (revision: number) => (
+      <ul>
+        <TimelineTile entry={entry} scanId={3} showFolder onOpen={vi.fn()} revision={revision} />
+      </ul>
+    );
+    const { container, rerender } = render(tile(0));
+    const image = () => container.querySelector('img');
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    fireEvent.error(image()!);
+    // Re-rendering without a change keeps the hint.
+    rerender(tile(0));
+    expect(
+      screen.getByRole('img', { name: 'Nie udało się wczytać miniatury.' }),
+    ).toBeInTheDocument();
+
+    rerender(tile(1));
+    expect(screen.queryByRole('img', { name: 'Nie udało się wczytać miniatury.' })).toBeNull();
+    act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
+    expect(image()).toHaveAttribute('src', 'thumb://localhost/7?scan=3');
+    fireEvent.load(image()!);
+    expect(screen.getByTestId('timeline-tile')).toHaveClass('timeline-tile--loaded');
+  });
+
   it('shows a thumbnail seen before at once when its tile comes back', () => {
     const first = renderTile();
     act(() => vi.advanceTimersByTime(THUMBNAIL_DELAY_MS));
