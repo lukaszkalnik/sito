@@ -6,8 +6,8 @@ How the user marks the keepers of a series. Sito only suggests; accepting is the
 - On an accepted photo the button is pressed and reads **„Cofnij akceptację”**; it and A take the mark off again. Holding A does not repeat (once per press, like Delete).
 - A toast confirms each change, „Zaakceptowano <name>” or „Cofnięto akceptację <name>”, without „Cofnij”: the button and A take a mark back.
 - Accepted photos carry a **green check** in the bottom-right corner of their grid tiles and of their thumbnails in the viewer's series strip (not on the big photo). Its label is „Zaakceptowane”.
-- The mark is kept by the photo's **path**, so it survives restarts and rescans. A photo moved or renamed outside Sito loses its mark.
-- A rejected accepted photo keeps its mark: undoing the rejection brings it back accepted.
+- The mark is kept by the photo's **path**, so it survives restarts and rescans. A photo moved or renamed outside Sito keeps its mark: the next scan that recognises the move ([Photos](photos.md#moved-and-renamed-photos)), also into a renamed scanned folder opened under its new name, moves the mark along. Only unique matches move a mark; a copy of an accepted photo is not accepted, and a photo Sito cannot match loses its mark.
+- A rejected accepted photo keeps its mark: undoing the rejection brings it back accepted, also when it comes back under a new name because its own was taken ([Rejecting](rejecting.md)).
 
 ## Undo
 

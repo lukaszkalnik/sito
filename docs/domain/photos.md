@@ -52,3 +52,14 @@ Opening each photo file is what makes a first scan slow on a USB hard disk (30�
 - **Scans share the photo cache without waiting for each other:** a scan locks the cache only to look photos up and to store them, never while it walks the folder or reads photos. It stores what it read every 200 photos, so a scan that is stopped (or Sito closed) keeps its work, and the next scan of that folder reads only the rest. Only a complete scan removes photos that are gone from the cache.
 - **Opening another folder stops the background work of the previous one:** its background rescan („Sprawdzanie zmian…”, see [Timeline](timeline.md#main-window-bar)) and its pass 2 stop within the next 200 photos (or 500 folder entries), so the new folder's scan starts at once and has the disk to itself.
 - Measured on the user's Takeout (34,600 photos, USB hard disk, 2026-10-29): pass 1 took about 5 minutes (before: 35–40 minutes for a full read); pass 2 then read about 70 photos a second in the background.
+
+## Moved and renamed photos
+
+Photos are cached by path, so a folder renamed or moved outside Sito would otherwise be read again in full, like new photos. Every scan (a first scan, a reopened folder, a refresh) recognises them instead:
+
+- A file the cache does not know at its path is taken to be a cached photo that moved when its **file name, size and modification time** are the same. Its Takeout date file and RAW companion must match by size and modification time too (their paths change with the photo), else it is read again.
+- Sito looks first among the cached photos of the scanned folder that the scan no longer found, then anywhere in the cache, so a renamed **scanned folder** opened under its new name is covered as well.
+- **Only unique matches count:** if two vanished photos or two new files share that identity, none of them is matched and they are read again. A photo without a modification time is never matched.
+- A match whose old path **still exists** is a copy: its cached metadata is reused (it is the same file), but it is not a move, so its accepted mark stays where it is.
+- Nothing is read for a moved photo: a renamed folder of 34,600 photos opens in the time of a folder walk. The cache stores it under its new path and forgets the old one once the scan is complete; a stopped scan matches it again next time.
+- Moves into or out of an `Odrzucone` folder are not treated as moves of the photo (they are Sito's own rejections and undos), though their metadata is reused.

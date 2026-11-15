@@ -1,10 +1,10 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 38 – Files changed outside Sito
 
-Plan approved by the user 2026-11-15; implementation in progress.
+Plan approved by the user 2026-11-15; built 2026-11-15, waiting for the user's test. What it established is in [Timeline](../domain/timeline.md#files-changed-outside-sito), [Photos](../domain/photos.md#moved-and-renamed-photos), [Accepting](../domain/accepting.md) and [Rejecting](../domain/rejecting.md).
 
 ## Context
 
@@ -84,6 +84,17 @@ Approaches can combine: the rescan button always, 1 as the safety net (its „Od
 - Refreshing on focus or watching the folder (candidates 2, 3): a later slice if the button and the safety net are not enough.
 - A rejection whose `Odrzucone` folder was renamed along with its parent: undo skips it as „missing” (today's behaviour); matching undo log entries to moved folders is left out.
 - Opening a renamed scanned folder automatically: Sito cannot know the new name, so the user chooses it (step 10a).
+
+## Implementation notes
+
+Built as planned, with these differences:
+
+- `check_photo_file(id)` (instead of `photo_missing(id) -> bool`) answers `null`, `"photo"` or `"folder"`, since the viewer shows a message of its own for a vanished folder.
+- Moves into or out of an `Odrzucone` folder are not reported as moves (a rescan after Sito's own rejection would otherwise move the accepted mark into `Odrzucone`, and undo would bring the photo back without it); their cached metadata is still reused.
+- The photo cache stores relocated photos and forgets the old paths of moves only once a scan is complete, so a stopped scan still reports the moves (and moves the marks) next time.
+- F5 also refreshes from the viewer window (so it never reloads either window), and a photo restored under a new name by undo takes its accepted mark along.
+- A photo that left the timeline in a refresh (deleted outside Sito) makes the viewer move on to the photo the backend picked for after rejecting it.
+- The background refresh moved to `src-tauri/src/scan/refresh.rs`; the vanished-file reporting shared by both protocols is `src-tauri/src/missing.rs`.
 
 ## Tests
 
