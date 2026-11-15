@@ -79,7 +79,10 @@ pub fn raw_preview(data: &[u8]) {
 pub fn metadata(data: &[u8]) {
     check_metadata(&read_tiff_metadata_from(Cursor::new(data)));
     check_metadata(&read_exif_metadata_from(Cursor::new(data)));
-    check_metadata(&read_raw_metadata_from(Cursor::new(data), RawFormat::Raf));
+    // One TIFF-based format and RAF, which take different branches.
+    for format in [RawFormat::Dng, RawFormat::Raf] {
+        check_metadata(&read_raw_metadata_from(Cursor::new(data), format));
+    }
 }
 
 fn check_metadata(meta: &PhotoMetadata) {

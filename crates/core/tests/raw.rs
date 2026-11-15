@@ -19,8 +19,9 @@ fn fixture(name: &str) -> PathBuf {
 }
 
 /// Every synthetic RAW fixture: file, camera, EXIF orientation.
-const FILES: [(&str, &str, u16); 9] = [
+const FILES: [(&str, &str, u16); 10] = [
     ("olympus.orf", "OLYMPUS IMAGING CORP. E-M10", 6),
+    ("olympus-old.orf", "OLYMPUS IMAGING CORP. E-500", 1),
     ("canon.cr2", "Canon EOS 80D", 8),
     ("nikon.nef", "NIKON CORPORATION NIKON D750", 1),
     ("sony.arw", "SONY ILCE-7M3", 1),

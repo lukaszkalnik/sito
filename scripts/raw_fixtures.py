@@ -275,6 +275,34 @@ def raf() -> bytes:
     return bytes(header + preview)
 
 
+def orf_old() -> bytes:
+    """Older Olympus: an `OLYMP\\0` maker note in the file's byte order, whose
+    IFD follows its 8-byte header and gives the preview by start (counted
+    from the start of the file) and length."""
+
+    def with_note(start: int) -> bytes:
+        note = build(
+            "II",
+            b"OLYMP\0\x01\0",
+            {"main": [(0x0088, LONG, start), (0x0089, LONG, len(PREVIEW))]},
+            {},
+        )
+        return build(
+            "II",
+            tiff_header("II", b"RO"),
+            {
+                "ifd0": [*camera("OLYMPUS IMAGING CORP.", "E-500", 1), (0x8769, LONG, IfdRef("_exif"))],
+                "_exif": [(0x9003, ASCII, DATE), (0x927C, UNDEFINED, note)],
+            },
+            {"preview": PREVIEW},
+        )
+
+    # Blobs are placed before out-of-line values, so the preview's offset
+    # does not depend on the maker note's content.
+    start = with_note(0).index(PREVIEW)
+    return with_note(start)
+
+
 def nef_maker_note() -> bytes:
     """Older Nikon: the preview is only in the maker note's preview IFD, whose
     offsets count from the maker note's own TIFF header."""
@@ -315,6 +343,7 @@ def write_all(folder: Path) -> list[Path]:
     files = {
         "olympus.orf": orf(),
         "olympus-no-preview.ORF": orf(with_preview=False),
+        "olympus-old.orf": orf_old(),
         "canon.cr2": cr2(),
         "nikon.nef": nef(),
         "sony.arw": arw(),

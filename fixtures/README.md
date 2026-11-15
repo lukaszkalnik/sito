@@ -55,6 +55,7 @@ Tiny synthetic RAW files written by `scripts/raw_fixtures.py`: the TIFF layout o
 |---|---|---|---|
 | `olympus.orf` | `IIRO` magic, preview in the maker note's `CameraSettings` | OLYMPUS IMAGING CORP. E-M10 | 6 |
 | `olympus-no-preview.ORF` | like above, without preview or thumbnail | same | 6 |
+| `olympus-old.orf` | `IIRO` magic, older `OLYMP\0` maker note giving the preview by start (from the start of the file) and length | OLYMPUS IMAGING CORP. E-500 | 1 |
 | `canon.cr2` | IFD0 is a JPEG strip (compression 6), `CR` header | Canon EOS 80D | 8 |
 | `nikon.nef` | big-endian, preview JPEG in a sub-IFD | NIKON CORPORATION NIKON D750 | 1 |
 | `sony.arw` | IFD0 `JPEGInterchangeFormat` | SONY ILCE-7M3 | 1 |
