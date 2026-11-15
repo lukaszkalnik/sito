@@ -208,3 +208,25 @@ pub(super) fn is_jpeg(file: &mut (impl Read + Seek)) -> bool {
     let read = file.seek(SeekFrom::Start(0)).is_ok() && file.read_exact(&mut start).is_ok();
     read && start == [0xFF, 0xD8, 0xFF]
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use super::*;
+
+    #[test]
+    fn a_jpeg_under_a_raw_name_over_the_size_limit_is_not_read() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("huge.dng");
+        let mut file = File::create(&path).unwrap();
+        file.write_all(&[0xFF, 0xD8, 0xFF]).unwrap();
+        // Sparse: only the length is set, nothing large is written.
+        file.set_len(MAX_JPEG_BYTES + 1).unwrap();
+
+        assert!(matches!(
+            read_preview(&path, RawFormat::Dng),
+            Err(RawError::TooLarge)
+        ));
+    }
+}
