@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "rules": {
+    "typescript/no-non-null-assertion": "error",
+    "max-depth": ["error", 3],
+    "max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],
+    "max-lines-per-function": ["error", { "max": 50, "skipBlankLines": true, "skipComments": true }]
+  },
+  "overrides": [
+    {
+      "files": ["specs/**"],
+      "rules": { "max-lines-per-function": "off" }
+    }
+  ]
+}

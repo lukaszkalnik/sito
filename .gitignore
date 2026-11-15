@@ -28,3 +28,6 @@ Thumbs.db
 
 # Real RAW samples for an ignored test (scripts/get-raw-samples.py)
 /samples/
+
+# Results of the real-app e2e tests (screenshots, app state, logs)
+e2e-app/results/
