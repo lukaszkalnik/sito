@@ -41,9 +41,8 @@ jobs:
       - run: npm run build
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      # The embedded WebDriver of the real-app e2e tests, used on macOS only.
+      # The embedded WebDriver of the real-app e2e tests.
       - run: cargo clippy -p sito --all-targets --features e2e --locked -- -D warnings
-        if: matrix.os == 'macos-latest'
       - run: cargo test --workspace --locked
 
   frontend:

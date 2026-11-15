@@ -7,17 +7,19 @@ import { EXECUTABLE } from './appState.ts';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const EXE = process.platform === 'win32' ? '.exe' : '';
-/** The app built by `npm run e2e:app:build` (`:mac` on macOS). */
+/** The app built by `npm run e2e:app:build` (`:embedded` on Windows and macOS). */
 const BUILT = join(ROOT, 'target/debug', `sito${EXE}`);
 /** The copy of the app the tests run. */
 export const APP = join(ROOT, 'target/e2e-app', `${EXECUTABLE}${EXE}`);
 
 /**
- * How the tests reach the app: on macOS, which has no WebDriver for WKWebView,
- * through the server the e2e build embeds (feature `e2e`); elsewhere through
- * `tauri-driver`, which starts the app for each session.
+ * How the tests reach the app: on Windows and macOS through the WebDriver
+ * server the e2e build embeds (feature `e2e`), on Linux through `tauri-driver`
+ * and WebKitWebDriver, which start the app for each session. macOS has no
+ * WebDriver for WKWebView; on Windows, the Edge WebDriver could not attach to
+ * the app's WebView2 (slice 28).
  */
-const EMBEDDED = process.platform === 'darwin';
+const EMBEDDED = process.platform !== 'linux';
 /** The port WebdriverIO connects to. */
 export const DRIVER_PORT = EMBEDDED ? 4445 : 4444;
 /** How long the driver or the app gets to come up. */
@@ -41,10 +43,12 @@ export function copyApp(): void {
   copyFileSync(BUILT, APP);
 }
 
-/** Starts the driver (on macOS, the app itself) with `appEnv`, logging to `log`. */
+/** Starts the driver (or the app with its embedded one) with `appEnv`, logging to `log`. */
 export async function startDriver(appEnv: Readonly<Record<string, string>>, log: string) {
   const env = { ...process.env, ...appEnv };
   store.sitoE2eDriver = { child: spawnLogged(env, log), env, log };
+  // A worker whose session never starts gets no afterSession hook.
+  process.once('exit', () => running()?.child.kill());
   await waitForStatus();
 }
 
@@ -117,17 +121,10 @@ async function pollUntil(done: () => boolean | Promise<boolean>, what: string): 
 /** Whether a process of the app under test is running. */
 function appRunning(): boolean {
   if (EMBEDDED) return running()?.child.exitCode === null;
-  if (process.platform === 'win32') {
-    const list = spawnSync('tasklist', ['/FI', `IMAGENAME eq ${EXECUTABLE}.exe`, '/NH']);
-    return list.stdout.toString().includes(`${EXECUTABLE}.exe`);
-  }
+  // Started by tauri-driver's native driver, on Linux.
   return spawnSync('pgrep', ['-f', APP]).status === 0;
 }
 
 function killApp(): void {
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/F', '/IM', `${EXECUTABLE}.exe`]);
-  } else {
-    spawnSync('pkill', ['-f', APP]);
-  }
+  spawnSync('pkill', ['-f', APP]);
 }

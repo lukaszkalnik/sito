@@ -77,7 +77,7 @@ jobs:
           if-no-files-found: ignore
 
   windows:
-    name: Windows (tauri-driver, Edge WebDriver)
+    name: Windows (embedded WebDriver)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -88,29 +88,15 @@ jobs:
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
-        with:
-          tool: tauri-driver@2.1.0
-      # The Edge WebDriver must match the WebView2 runtime, which need not be
-      # the version of the runner's Edge and its preinstalled driver.
-      - name: Get the Edge WebDriver of the WebView2 runtime
-        shell: pwsh
-        run: |
-          $key = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
-          $version = (Get-ItemProperty "HKLM:\$key" -ErrorAction SilentlyContinue).pv
-          if (-not $version) { throw 'No WebView2 runtime found' }
-          Write-Host "WebView2 runtime $version"
-          $dir = Join-Path $env:RUNNER_TEMP 'edgedriver'
-          Invoke-WebRequest "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip" -OutFile "$dir.zip"
-          Expand-Archive "$dir.zip" -DestinationPath $dir
-          "SITO_E2E_NATIVE_DRIVER=$(Join-Path $dir 'msedgedriver.exe')" >> $env:GITHUB_ENV
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      # With the embedded WebDriver (feature e2e): the Edge WebDriver could not
+      # attach to the app's WebView2 („DevToolsActivePort file doesn't exist”).
       - name: Build the app under test
-        run: npm run e2e:app:build -- -- --locked
+        run: npm run e2e:app:build:embedded -- -- --locked
       - name: Run the e2e specs
         run: npm run e2e:app
       - name: Keep the results (screenshots, app state, logs)
@@ -140,7 +126,7 @@ jobs:
       - run: npm ci
       # With the embedded WebDriver (feature e2e), as Apple has none for WKWebView.
       - name: Build the app under test
-        run: npm run e2e:app:build:mac -- -- --locked
+        run: npm run e2e:app:build:embedded -- -- --locked
       - name: Smoke test (open the viewer, close both windows)
         run: |
           e2e-app/smoke-test.sh target/debug/sito \
