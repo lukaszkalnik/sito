@@ -1,10 +1,10 @@
 ---
-status: 🚧 in progress
+status: ✅ done
 ---
 
 # Slice 57 – Fuzz the file parsers
 
-Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; Step 5 done meanwhile (2026-11-14): `fuzz.yml`, CLAUDE.md, security and releasing docs; its first CI run (2026-11-14) worked and found the first bug (below). Next: the findings and coverage of the first run on the Mac.
+Since 2026-11-13; plan written and approved by the user on 2026-11-14 (with the weekly CI job and one hour per target for the first run). Steps 1–3 done (2026-11-14). Step 4: the first long run (one hour per target, one after another) started on the Mac on 2026-11-14 with nightly 2026-11-11 and cargo-fuzz 0.13.2; Step 5 done meanwhile (2026-11-14): `fuzz.yml`, CLAUDE.md, security and releasing docs; its first CI run (2026-11-14) worked and found the first bug (below). Step 4 finished on 2026-11-15 (results below). Done on 2026-11-15; nothing to test in the app. What it established is in [Security](../domain/security.md) ("Parsers are fuzzed"), [fuzz/README.md](../../fuzz/README.md) and the parser rule of `CLAUDE.md`.
 
 ## Idea
 
@@ -114,12 +114,36 @@ Details:
 
 1. **`decode`: a JPEG bomb on the thumbnail path** (CI, first manual run of `fuzz.yml`, 2026-11-14, after about 3 minutes). A 958-byte JPEG claiming 6928 × 16140 took over 10 seconds under the fuzzer; edited to claim 65535 × 65535, it took 25 seconds and 324 MB per decode in a release build. The full decode already refused it (the `image` crate's default memory limit), but the scaled decode calls `jpeg-decoder` directly, which reads every block at full size and checks its own buffer limit only after decoding. Fix: `decode::JPEG_MEMORY_LIMIT` (512 MB, the same as before for the full decode, now set explicitly) is checked against the header before the scaled decode; a larger JPEG falls through to the full decode, which refuses it at once. The 65535 × 65535 input is in `fuzz_regressions/decode/` (the original 6928 × 16140 one is within the limit and would make every `cargo test` decode 112 MP; the unit test of the limit covers that size). Headers up to the limit are legitimate photos up to about 170 MP and take about 25 seconds under the fuzzer's instrumentation. First the harness skipped them, then (at the user's suggestion) the `decode` target got a 60-second timeout instead. The first long run showed the cost: such headers reach new code, so the corpus filled up with them and the target slowed from about 3,700 to 77 inputs per second within the hour. Final form: `decode::decode_image_within` takes the memory limit as a parameter (`decode_image` passes `JPEG_MEMORY_LIMIT`), and the harness uses 16 MB. The same refusal check runs on every input, nothing is skipped, and every input stays fast, so the timeout is 10 seconds again. What is no longer fuzzed is decoding images of 16 to 512 MB, which runs the same code as smaller ones.
 
+### Findings of the first run
+
+On the Mac (Apple silicon, nightly 2026-11-11, cargo-fuzz 0.13.2), one hour per target, one after another, 2026-11-14 17:49 to 23:50, seeded from `fixtures/`:
+
+| Target | Inputs run | Edges reached | Corpus | Found |
+|---|---|---|---|---|
+| `tiff_reader` | 0.9 M | 804 | 650 | nothing |
+| `raw_preview` | 12.5 M | 1,955 | 2,408 | nothing |
+| `metadata` | 15.2 M | 3,347 | 2,404 | nothing |
+| `orientation` | 33.9 M | 112 | 22 | nothing |
+| `sidecar` | 36.2 M | 1,436 | 1,806 | nothing |
+| `decode` | 0.2 M | 7,635 | 1,803 | no failure; slowed to 77 inputs per second (see Findings, 1) |
+
+No crash, broken invariant, timeout or allocation over the limits in any target; nothing to report upstream. The only finding of the slice is the JPEG bomb found by CI (Findings, 1), whose final fix came out of this run: after it, a five-minute `decode` run on the same corpus made 245,586 inputs (about 840 per second at the end) and reached 8,136 edges, more than the whole hour before.
+
+**Coverage** (`cargo fuzz coverage` per target, lines of each target's own parser module never executed by its corpus):
+
+- **Gaps closed:** no input reached the preview of an older Olympus maker note (`OLYMP\0`, preview by start and length), and no fixture or test had one either. New fixture `fixtures/raw/olympus-old.orf` (also a seed; the RAW tests now cover it), and the older Olympus and Nikon maker note tags in `fuzz/dict/tiff.dict`. The `metadata` harness called `read_raw_metadata_from` only as RAF, so its TIFF-based branch was not fuzzed; it now runs as DNG and RAF.
+- **Unreached on purpose:** the functions taking a path (the harnesses pass bytes; the path functions only open the file and call the reader); a JPEG under a RAW name over 512 MB and a Takeout file over 1 MB (inputs are at most 64 KB; unit tests cover both limits, the first one added with this run); the `_ =>` arm of `TiffReader`'s value conversion and an empty-JPEG check after `starts_with(SOI)` (unreachable by construction).
+
 ### Decisions
 
 Made by the user on 2026-11-14:
 
 1. The weekly CI job of step 5 is set up (not only runs by hand).
 2. The first run gives each target one hour (about six hours of the Mac, overnight).
+
+On 2026-11-15:
+
+3. The `decode` harness refuses JPEGs over 16 MB instead of using the app's 512 MB limit with a longer timeout, so the fuzzer stays fast (Findings, 1).
 
 ## Builds on
 
