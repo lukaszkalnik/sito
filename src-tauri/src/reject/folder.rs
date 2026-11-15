@@ -40,19 +40,20 @@ pub(super) fn reject(
     Ok(())
 }
 
-/// Moves the photo at `to` in "Odrzucone" back to `from`, and its other
-/// files `extra` back too. The folder is removed once empty only if it is in
-/// `created_dirs`.
+/// Moves the photo at `to` in "Odrzucone" back to `from`, or under a free
+/// name next to it if `from` is taken, and its other files `extra` back too;
+/// returns where the photo went. The folder is removed once empty only if
+/// it is in `created_dirs`.
 pub(super) fn undo(
     from: &Path,
     to: &Path,
     extra: &[FileMove],
     created_dirs: &HashSet<PathBuf>,
-) -> Result<(), CommandError> {
+) -> Result<PathBuf, CommandError> {
     let created_here = to.parent().is_some_and(|dir| created_dirs.contains(dir));
     let restored = reject::restore(to, from, extra, created_here).map_err(move_failed)?;
     for err in restored.errors {
         log::warn!("photo restored, but not this file of it: {err}");
     }
-    Ok(())
+    Ok(restored.path)
 }

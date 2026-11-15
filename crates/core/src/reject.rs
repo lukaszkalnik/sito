@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::scan::REJECTED_DIR;
+use crate::scan::{REJECTED_DIR, is_photo};
 
 mod exclusive;
 mod files;
@@ -29,9 +29,14 @@ pub enum RejectError {
     /// The file to move back is no longer in the rejected folder.
     #[error("{0} no longer exists")]
     Missing(PathBuf),
-    /// Another file now has the original name, so moving back would overwrite it.
+    /// The target name was taken at the moment of the move (by another
+    /// program in between), so the move would have overwritten it.
     #[error("{0} already exists")]
     Occupied(PathBuf),
+    /// The photo to reject is no longer at its path: it was moved, renamed
+    /// or deleted outside Sito.
+    #[error("{0} is gone")]
+    PhotoGone(PathBuf),
     /// The [`REJECTED_DIR`] folder is a symbolic link or a junction, so
     /// photos moved into it would leave the gallery.
     #[error("{0} is a link, not a folder")]
@@ -71,9 +76,12 @@ pub struct Rejected {
     pub extra: Vec<FileMove>,
 }
 
-/// What [`restore`] did besides moving the photo back.
-#[derive(Debug, Default)]
+/// What [`restore`] did.
+#[derive(Debug)]
 pub struct Restored {
+    /// Where the photo went back to: its original path, or a numbered name
+    /// next to it when another file had taken the original name.
+    pub path: PathBuf,
     /// Why some of the photo's other files could not be moved back; the
     /// photo is back in any case.
     pub errors: Vec<RejectError>,
@@ -103,9 +111,13 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
 ///
 /// # Errors
 ///
-/// Returns an error if `path` has no folder or file name, the folder cannot
-/// be created, or it is a link ([`RejectError::RejectedDirIsLink`]).
+/// Returns [`RejectError::PhotoGone`] if there is no file at `path`, or an
+/// error if `path` has no folder or file name, the folder cannot be created,
+/// or it is a link ([`RejectError::RejectedDirIsLink`]).
 pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
+    if !path.is_file() {
+        return Err(RejectError::PhotoGone(path.to_path_buf()));
+    }
     let no_parent = || RejectError::NoParent(path.to_path_buf());
     let parent = path.parent().ok_or_else(no_parent)?;
     let name = path.file_name().ok_or_else(no_parent)?;
@@ -222,11 +234,16 @@ pub fn abandon(rejected: &Rejected) {
 /// `remove_empty_dir`, the [`REJECTED_DIR`] folder it was in is removed if
 /// that leaves it empty; a folder with other files stays.
 ///
+/// If another file has taken the original name of the photo or of its RAW
+/// file meanwhile, both go back as `<stem> (2).<ext>` (or the first number
+/// free for both), and their date files are named after the new names, as
+/// [`prepare`] names them; the other file is left alone.
+///
 /// # Errors
 ///
-/// Returns [`RejectError::Missing`] if `from` is gone, [`RejectError::Occupied`]
-/// if `to` exists again, or an error if the photo cannot be moved. Other
-/// files that cannot be moved back are reported in [`Restored::errors`].
+/// Returns [`RejectError::Missing`] if `from` is gone, or an error if the
+/// photo cannot be moved. Other files that cannot be moved back are
+/// reported in [`Restored::errors`].
 pub fn restore(
     from: &Path,
     to: &Path,
@@ -236,10 +253,8 @@ pub fn restore(
     if !from.is_file() {
         return Err(RejectError::Missing(from.to_path_buf()));
     }
-    if to.exists() {
-        return Err(RejectError::Occupied(to.to_path_buf()));
-    }
-    move_file(from, to)?;
+    let (path, extra) = restore_targets(from, to, extra)?;
+    move_file(from, &path)?;
     let errors = extra
         .iter()
         .filter_map(|file| move_back(file).err())
@@ -247,7 +262,63 @@ pub fn restore(
     if remove_empty_dir {
         remove_if_empty(from.parent());
     }
-    Ok(Restored { errors })
+    Ok(Restored { path, errors })
+}
+
+/// Where the photo rejected from `to` (now at `from`) and its other files
+/// `extra` go back to: their original paths, or numbered names next to them
+/// when one of the photo's names is taken.
+fn restore_targets(
+    from: &Path,
+    to: &Path,
+    extra: &[FileMove],
+) -> Result<(PathBuf, Vec<FileMove>), RejectError> {
+    let no_parent = || RejectError::NoParent(to.to_path_buf());
+    let dir = to.parent().ok_or_else(no_parent)?;
+    let companion = extra.iter().find(|file| is_photo(&file.from));
+    let mut names = vec![to.file_name().ok_or_else(no_parent)?];
+    names.extend(companion.and_then(|file| file.from.file_name()));
+    let targets = free_names(dir, &names).ok_or_else(|| RejectError::Occupied(to.to_path_buf()))?;
+    let photo = targets.first().cloned().ok_or_else(no_parent)?;
+    if photo == to {
+        return Ok((photo, extra.to_vec()));
+    }
+    // The rejected files' names say which date file belongs to which.
+    let renamed: Vec<(&Path, &Path)> = std::iter::once((from, photo.as_path()))
+        .chain(
+            companion
+                .map(|file| file.to.as_path())
+                .zip(targets.get(1).map(PathBuf::as_path)),
+        )
+        .collect();
+    let extra = extra
+        .iter()
+        .map(|file| FileMove {
+            from: renamed_target(file, &renamed, dir).unwrap_or_else(|| file.from.clone()),
+            to: file.to.clone(),
+        })
+        .collect();
+    Ok((photo, extra))
+}
+
+/// The new original path of `file` among the photo's files `renamed`
+/// (rejected path, new path): a renamed RAW file itself, or a date file
+/// named after one of them, renamed after its new name in `dir`.
+fn renamed_target(file: &FileMove, renamed: &[(&Path, &Path)], dir: &Path) -> Option<PathBuf> {
+    if let Some((_, new)) = renamed.iter().find(|(rejected, _)| *rejected == file.to) {
+        return Some(new.to_path_buf());
+    }
+    let name = file.to.file_name()?;
+    let (_, new) = renamed.iter().find(|(rejected, _)| {
+        rejected.file_name().is_some_and(|rejected| {
+            let mut sidecar = rejected.to_os_string();
+            sidecar.push(SIDECAR_SUFFIX);
+            sidecar == name
+        })
+    })?;
+    let mut sidecar = new.file_name()?.to_os_string();
+    sidecar.push(SIDECAR_SUFFIX);
+    Some(dir.join(sidecar))
 }
 
 fn move_back(file: &FileMove) -> Result<(), RejectError> {

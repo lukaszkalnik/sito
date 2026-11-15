@@ -12,8 +12,11 @@ pub enum CommandError {
     NotADirectory,
     /// The folder could not be read.
     Io,
-    /// Undo would overwrite a file that now has the photo's original name.
+    /// A move would overwrite a file that took the target name meanwhile.
     Occupied,
+    /// The photo is no longer at its path: moved, renamed or deleted
+    /// outside Sito.
+    PhotoMissing,
     /// The rejected photo is no longer in the rejected folder.
     Missing,
     /// The rejected photo is no longer in the trash.

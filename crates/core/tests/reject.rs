@@ -114,18 +114,53 @@ fn restores_a_renamed_photo_under_its_original_name() {
 }
 
 #[test]
-fn refuses_to_overwrite_a_new_file_with_the_original_name() {
+fn restores_under_a_free_name_when_the_original_name_is_taken() {
     let dir = TempDir::new().unwrap();
-    let photo = dir.path().join("IMG_1.jpg");
-    write(&photo, "rejected");
+    let (photo, sidecar) = photo_with_sidecar(&dir);
     let rejected = reject(&photo).unwrap();
     write(&photo, "new file");
 
-    let err = restore(&rejected.path, &photo, &[], true).unwrap_err();
+    let restored = restore(&rejected.path, &photo, &rejected.extra, true).unwrap();
 
-    assert!(matches!(err, RejectError::Occupied(path) if path == photo));
+    let album = dir.path().join("Album");
+    assert_eq!(restored.path, album.join("IMG_1 (2).jpg"));
+    assert!(restored.errors.is_empty());
+    assert_eq!(fs::read_to_string(&restored.path).unwrap(), "photo");
+    // The file that took the name is untouched; the date file follows the new name.
     assert_eq!(fs::read_to_string(&photo).unwrap(), "new file");
-    assert!(rejected.path.exists());
+    assert!(!sidecar.exists());
+    assert_eq!(
+        fs::read_to_string(album.join(format!("IMG_1 (2).jpg{SIDECAR}"))).unwrap(),
+        "date"
+    );
+}
+
+#[test]
+fn a_pair_with_one_name_taken_goes_back_with_one_number() {
+    let dir = TempDir::new().unwrap();
+    let (jpeg, raw) = pair_with_sidecars(&dir);
+    let rejected = reject(&jpeg).unwrap();
+    write(&raw, "another raw");
+
+    let restored = restore(&rejected.path, &jpeg, &rejected.extra, true).unwrap();
+
+    let album = dir.path().join("Album");
+    assert_eq!(restored.path, album.join("P1010001 (2).JPG"));
+    assert!(restored.errors.is_empty());
+    assert_eq!(
+        fs::read_to_string(album.join("P1010001 (2).ORF")).unwrap(),
+        "raw"
+    );
+    assert_eq!(fs::read_to_string(&raw).unwrap(), "another raw");
+    assert!(!jpeg.exists());
+    for (name, content) in [
+        ("P1010001 (2).JPG", "jpeg date"),
+        ("P1010001 (2).ORF", "raw date"),
+    ] {
+        let sidecar = album.join(format!("{name}{SIDECAR}"));
+        assert_eq!(fs::read_to_string(sidecar).unwrap(), content);
+    }
+    assert!(!album.join("Odrzucone").exists());
 }
 
 #[test]
@@ -140,12 +175,14 @@ fn reports_a_rejected_photo_that_is_gone() {
 }
 
 #[test]
-fn reports_a_photo_that_cannot_be_moved() {
+fn reports_a_photo_that_is_gone_before_preparing_anything() {
     let dir = TempDir::new().unwrap();
+    let gone = dir.path().join("missing.jpg");
 
-    let err = reject(&dir.path().join("missing.jpg")).unwrap_err();
+    let err = prepare(&gone).unwrap_err();
 
-    assert!(matches!(err, RejectError::Io { .. }));
+    assert!(matches!(err, RejectError::PhotoGone(path) if path == gone));
+    assert!(!dir.path().join("Odrzucone").exists());
 }
 
 #[test]

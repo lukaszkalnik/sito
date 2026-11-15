@@ -13,6 +13,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::{Deserialize, Serialize};
 use sito_core::actions::{ActionLog, LogError, Placement, RejectAction, Rejections};
+use sito_core::moved::MovedPhoto;
 use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
 use sito_core::trash::TrashRestore;
@@ -99,6 +100,9 @@ pub struct UndoneDto {
     pub(crate) id: Option<usize>,
     /// File name of the photo.
     pub(crate) name: String,
+    /// The file name it came back under, when its own name was taken by
+    /// another file; `None` when it got its own name back.
+    pub(crate) restored_name: Option<String>,
 }
 
 /// Whether "Cofnij" has something to undo in the current folder.
@@ -119,6 +123,7 @@ impl From<RejectError> for CommandError {
         match err {
             RejectError::Occupied(_) => Self::Occupied,
             RejectError::Missing(_) => Self::Missing,
+            RejectError::PhotoGone(_) => Self::PhotoMissing,
             RejectError::RejectedDirIsLink(_) => Self::RejectedDirIsLink,
             RejectError::NoParent(_) | RejectError::Io { .. } => Self::Io,
         }
@@ -154,6 +159,10 @@ fn reject_in(
 ) -> Result<RejectedDto, CommandError> {
     let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
+    // Checked before anything is logged; the UI offers a refresh.
+    if !path.is_file() {
+        return Err(CommandError::PhotoMissing);
+    }
 
     match destination {
         Destination::Folder => folder::reject(log, &path, &mut actions.created_dirs)?,
@@ -211,25 +220,46 @@ fn restore_rejection(
             to.as_path(),
         ),
         Placement::Trash { files, at } => (
-            trash::undo(actions.bin.as_ref(), files, *at),
+            trash::undo(actions.bin.as_ref(), files, *at).map(|()| action.from.clone()),
             action.from.as_path(),
         ),
     };
-    if let Err(err) = undone {
-        // A refused trash restore (`TrashUndoUnsupported`) is not skipped: a
-        // later version may be able to restore it.
-        if matches!(err, CommandError::Missing | CommandError::MissingFromTrash) {
-            // It can never be undone; skip it so the next "Cofnij" goes on.
-            log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
+    let restored = match undone {
+        Ok(restored) => restored,
+        Err(err) => {
+            // A refused trash restore (`TrashUndoUnsupported`) is not skipped: a
+            // later version may be able to restore it.
+            if matches!(err, CommandError::Missing | CommandError::MissingFromTrash) {
+                // It can never be undone; skip it so the next "Cofnij" goes on.
+                log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
+            }
+            return Err(err);
         }
-        return Err(err);
-    }
+    };
     log.mark_undone(action.id).map_err(|err| log_failed(&err))?;
-    let id = scan.restore(&action.from, rejected_path, |path| read_photo(path).ok());
+    let renamed = restored != action.from;
+    if renamed {
+        follow_mark(log, &action.from, &restored);
+    }
+    let id = scan.restore(&action.from, &restored, rejected_path, |path| {
+        read_photo(path).ok()
+    });
     Ok(UndoneDto {
         id,
         name: file_name(&action.from),
+        restored_name: renamed.then(|| file_name(&restored)),
     })
+}
+
+/// Moves the accepted mark of a photo restored under a new name along.
+fn follow_mark(log: &ActionLog, from: &Path, to: &Path) {
+    let moved = MovedPhoto {
+        from: from.to_path_buf(),
+        to: to.to_path_buf(),
+    };
+    if let Err(err) = log.move_accepted(&[moved]) {
+        log::warn!("cannot move the accepted mark of a restored photo: {err}");
+    }
 }
 
 /// Whether there is a rejection to undo in the current folder.
@@ -491,9 +521,10 @@ mod tests {
             serde_json::to_value(UndoneDto {
                 id: Some(3),
                 name: "IMG_1.jpg".into(),
+                restored_name: Some("IMG_1 (2).jpg".into()),
             })
             .unwrap(),
-            json!({ "id": 3, "name": "IMG_1.jpg" })
+            json!({ "id": 3, "name": "IMG_1.jpg", "restoredName": "IMG_1 (2).jpg" })
         );
         let states = [
             (UndoStateDto::Available, "available"),
@@ -514,6 +545,7 @@ mod tests {
         let cases = [
             (RejectError::Occupied(path.clone()), "occupied"),
             (RejectError::Missing(path.clone()), "missing"),
+            (RejectError::PhotoGone(path.clone()), "photoMissing"),
             (
                 RejectError::RejectedDirIsLink(path.clone()),
                 "rejectedDirIsLink",
@@ -766,12 +798,57 @@ mod tests {
             UndoneDto {
                 id: Some(id),
                 name: NEWER.into(),
+                restored_name: None,
             }
         );
         // Back from "Odrzucone", still accepted, and the newer accept stays.
         assert_eq!(accepted_names(&scan, &actions), [NEWER, OLDER]);
         assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
         assert_eq!(accepted_names(&scan, &actions), [NEWER, OLDER]);
+    }
+
+    #[test]
+    fn undo_with_a_taken_name_restores_under_a_free_one_with_its_mark() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let mut actions = started(&dir.path().join("sito.db"));
+        let id = id_of(&scan, NEWER);
+        set_mark(&scan, &actions, NEWER, AcceptChange::Accepted);
+        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        fs::write(dir.path().join(NEWER), "another file").unwrap();
+
+        let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
+
+        let renamed = "pixel_2024-06-01_12-00-05 (2).jpg";
+        assert_eq!(undone.restored_name.as_deref(), Some(renamed));
+        assert_eq!(undone.name, NEWER);
+        assert_eq!(
+            file_name(&scan.photo(undone.id.unwrap()).unwrap().path),
+            renamed
+        );
+        assert_eq!(fs::read(dir.path().join(NEWER)).unwrap(), b"another file");
+        assert_eq!(accepted_names(&scan, &actions), [renamed]);
+        assert_eq!(undo_in(&mut scan, &actions).unwrap(), None);
+    }
+
+    #[test]
+    fn rejecting_a_vanished_photo_logs_nothing() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let mut actions = started(&dir.path().join("sito.db"));
+        let id = id_of(&scan, NEWER);
+        fs::rename(dir.path().join(NEWER), dir.path().join("renamed.jpg")).unwrap();
+
+        for destination in [Destination::Folder, Destination::Trash] {
+            assert_eq!(
+                reject_in(&mut scan, &mut actions, id, destination),
+                Err(CommandError::PhotoMissing)
+            );
+        }
+
+        assert!(scan.photo(id).is_some());
+        assert_eq!(undo_state(&actions, dir.path()), UndoStateDto::Nothing);
+        assert!(!dir.path().join("Odrzucone").exists());
     }
 
     #[test]

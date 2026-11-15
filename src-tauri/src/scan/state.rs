@@ -205,23 +205,30 @@ impl Scan {
         Some(photo)
     }
 
-    /// Puts the photo moved back from `rejected_path` to `path` on the
-    /// timeline and returns its id: the id it had if it was removed from this
-    /// scan, otherwise a new one, with the photo read by `read` (it was
-    /// rejected before this scan, so it is taken off the rejected list).
+    /// Puts the photo rejected from `path` and moved back from
+    /// `rejected_path` to `restored` (`path`, or a new name when `path` was
+    /// taken) on the timeline and returns its id: the id it had if it was
+    /// removed from this scan, otherwise a new one, with the photo read by
+    /// `read` (it was rejected before this scan, so it is taken off the
+    /// rejected list). A photo under a new name is read again.
     pub fn restore(
         &mut self,
         path: &Path,
+        restored: &Path,
         rejected_path: &Path,
         read: impl FnOnce(&Path) -> Option<Photo>,
     ) -> Option<usize> {
-        let (id, photo) = if let Some(known) = self.removed.remove(path) {
-            known
+        let (id, photo) = if let Some((id, photo)) = self.removed.remove(path) {
+            if restored == path {
+                (id, photo)
+            } else {
+                (id, read(restored)?)
+            }
         } else {
             self.timeline
                 .rejected
                 .retain(|photo| photo.path != rejected_path);
-            let photo = read(path)?;
+            let photo = read(restored)?;
             let id = self.removed_ids.remove(path).unwrap_or_else(|| {
                 self.next_id += 1;
                 self.next_id - 1
@@ -461,7 +468,12 @@ mod tests {
                 scan.remove(1);
             },
             &|scan| {
-                scan.restore(Path::new("b.jpg"), Path::new("x/b.jpg"), |_| None);
+                scan.restore(
+                    Path::new("b.jpg"),
+                    Path::new("b.jpg"),
+                    Path::new("x/b.jpg"),
+                    |_| None,
+                );
             },
             &|scan| scan.update_photos(&[photo("a.jpg", 5)]),
             &|scan| scan.refresh(timeline(&["a.jpg"])),
@@ -510,11 +522,21 @@ mod tests {
         scan.remove(0);
 
         assert_eq!(
-            scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| None),
+            scan.restore(
+                Path::new("b.jpg"),
+                Path::new("b.jpg"),
+                Path::new("Odrzucone/b.jpg"),
+                |_| None
+            ),
             Some(1)
         );
         assert_eq!(
-            scan.restore(Path::new("a.jpg"), Path::new("Odrzucone/a.jpg"), |_| None),
+            scan.restore(
+                Path::new("a.jpg"),
+                Path::new("a.jpg"),
+                Path::new("Odrzucone/a.jpg"),
+                |_| None
+            ),
             Some(0)
         );
 
@@ -535,9 +557,12 @@ mod tests {
         let mut scan = Scan::new(1, found);
         let older = photo("b.jpg", 1);
 
-        let id = scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| {
-            Some(older)
-        });
+        let id = scan.restore(
+            Path::new("b.jpg"),
+            Path::new("b.jpg"),
+            Path::new("Odrzucone/b.jpg"),
+            |_| Some(older),
+        );
 
         assert_eq!(id, Some(2));
         assert_eq!(scan.timeline.rejected, Vec::new());
@@ -558,6 +583,7 @@ mod tests {
 
         assert_eq!(
             scan.restore(
+                Path::new("gone.jpg"),
                 Path::new("gone.jpg"),
                 Path::new("Odrzucone/gone.jpg"),
                 |_| None
@@ -619,9 +645,12 @@ mod tests {
         let (all, _) = scan.photos_with_removed();
         assert_eq!(all.len(), 2, "no duplicate of the rejected photo");
 
-        let id = scan.restore(Path::new("b.jpg"), Path::new("Odrzucone/b.jpg"), |_| {
-            Some(photo("b.jpg", 1))
-        });
+        let id = scan.restore(
+            Path::new("b.jpg"),
+            Path::new("b.jpg"),
+            Path::new("Odrzucone/b.jpg"),
+            |_| Some(photo("b.jpg", 1)),
+        );
 
         assert_eq!(id, Some(1));
         assert_eq!(scan.timeline.rejected, Vec::new());
