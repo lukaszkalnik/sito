@@ -28,7 +28,7 @@ flowchart TB
 
 ### Tauri: the app frame
 
-Tauri makes a native window, shows a web page in it, and connects that page to a Rust program running next to it. It is similar to Electron (the base of VS Code or Slack), with one big difference: Electron ships a full copy of Chrome inside every app, while Tauri uses the browser engine the operating system already has (WebView2 on Windows, WebKit on macOS).
+Tauri is a framework, written in Rust, for building desktop apps. It makes a native window, shows a web page in it, and connects that page to a Rust program running next to it. Tauri itself is a Rust library: the app's Rust code uses it, and the two are compiled into one program. It is similar to Electron (the base of VS Code or Slack), with one big difference: Electron ships a full copy of Chrome inside every app, while Tauri uses the browser engine the operating system already has (WebView2 on Windows, WebKit on macOS).
 
 Why: installers of a few megabytes instead of more than a hundred, and much lower memory use, which matters next to a 50 000-photo gallery on a machine with little RAM. Tauri is also locked down by default: the page can only call the commands the app declares, which helps keep photos on the machine.
 
