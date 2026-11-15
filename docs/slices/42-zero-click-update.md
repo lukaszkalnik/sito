@@ -44,6 +44,10 @@ The installer is per-user and needs no admin rights, so a silent install has no 
 - `ui/src/features/update/updateReducer.ts`: the notice's state machine (`checking`, `available`, `downloading`, `installing`, ...); add the states for „ready, installs on close” and „updated to X”.
 - The release side (signing key, `latest.json` with notes, manifest check before publishing) needs no change.
 
+## Builds on (from slice 28)
+
+- [Slice 28](28-real-app-e2e.md) (planned) drives the real app with WebDriver on Windows, Linux and macOS, with its own identifier and `SITO_UPDATE_ENDPOINT` pointing at a closed port. Installing on close happens as the app exits, where the mocked Playwright suite cannot look: a spec there can point `SITO_UPDATE_ENDPOINT` at a local manifest (`scripts/local-update-manifest.mjs`), close the app like a user (its `closeWindow` helper) and check that the installer was started. Whether a real silent install can run on the Windows runner is for this slice to find out.
+
 ## Try
 
 With auto update on, start the previous version while a newer one is published: after a while the note says it will install on close. Close Sito, wait a moment, start it: it is the new version and says so once. Turn auto update off: only the slice 41 notice appears.

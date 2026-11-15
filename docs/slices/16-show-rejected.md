@@ -23,3 +23,7 @@ Photos rejected into the system trash ([slice 34](34-reject-to-trash.md)) are no
 Accepted photos ([slice 32](32-accept-photo.md)) are stored by path in the `accepted` table of the action log, read with `ActionLog::accepted_paths(under)` (`crates/core/src/accept.rs`). A view of accepted photos could be built the same way as the rejected one here. Undoing a rejection keeps an accepted photo accepted, since the mark stays with its original path.
 
 Since [slice 43](43-undo-rejections-only.md), „Cofnij” only undoes rejections: `ActionLog::last_undoable` returns a `RejectAction`, and accepts are not logged. If restoring from `Odrzucone` should be undoable too, it adds its own log kind and brings back an enum of undoable actions (like the `LoggedAction` that slice 43 removed).
+
+## Notes from slice 28
+
+[Slice 28](28-real-app-e2e.md) (planned) adds a real-app e2e suite (`e2e-app/`) whose reject spec checks on disk that a photo lands in `Odrzucone` and comes back on undo. Restoring a photo from `Odrzucone` is a file move like that one: add a spec next to it (fresh gallery from `fixtures/`, reject, show rejected, restore, check the file is back), using its `openFolder` and window helpers.
