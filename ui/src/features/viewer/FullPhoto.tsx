@@ -1,7 +1,9 @@
 import { useState, type CSSProperties, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useTimelineRevision } from '../reject/useTimelineRevision';
 import { useMountedFor } from '../timeline/useMountedFor';
+import { PhotoError } from './PhotoError';
 import type { ZoomView } from './usePhotoZoom';
 import type { Layout } from './zoom';
 import { ZoomBadge } from './ZoomBadge';
@@ -10,23 +12,31 @@ import { ZoomBadge } from './ZoomBadge';
  * The photo at full size. While the next photo loads, the previous one
  * stays for a moment, so stepping through photos never flashes an empty
  * window; a photo that takes longer shows a spinner instead. If it cannot
- * be loaded, only the error is shown. Both photos are drawn with `zoom`.
+ * be loaded, only the error is shown (see {@link PhotoError}), until the
+ * timeline changes: then it is tried again. Both photos are drawn with `zoom`.
  */
 export function FullPhoto({
   src,
+  id,
   alt,
   zoom,
   viewRef,
+  onRefresh,
 }: {
   src: string;
+  /** Timeline id of the photo, to ask why it failed. */
+  id: number;
   alt: string;
   zoom: ZoomView;
   viewRef: RefObject<HTMLDivElement | null>;
+  /** Checks the open folder for changes. */
+  onRefresh: () => void;
 }) {
-  const { t } = useTranslation();
+  const revision = useTimelineRevision();
   const [loaded, setLoaded] = useState<string | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
-  const loading = loaded !== src && failed !== src;
+  const [failedAt, setFailedAt] = useState<{ src: string; revision: number } | null>(null);
+  const failed = failedAt?.src === src && failedAt.revision === revision;
+  const loading = loaded !== src && !failed;
   const zoomed = zoom.layout.kind === 'zoomed' ? ' viewer-photo-area--zoomed' : '';
 
   return (
@@ -44,14 +54,10 @@ export function FullPhoto({
             zoom.onPhotoSize({ width, height });
             setLoaded(src);
           }}
-          onError={() => setFailed(src)}
+          onError={() => setFailedAt({ src, revision })}
         />
       )}
-      {failed === src && (
-        <p role="alert" className="viewer-error">
-          {t('viewer.loadError')}
-        </p>
-      )}
+      {failed && <PhotoError key={`${src}#${revision}`} id={id} onRefresh={onRefresh} />}
       {zoom.scale !== null && <ZoomBadge scale={zoom.scale} onFit={zoom.fit} />}
     </div>
   );

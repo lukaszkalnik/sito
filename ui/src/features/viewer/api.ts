@@ -48,6 +48,18 @@ export async function getViewerPhoto(request: ViewerRequest): Promise<ViewerPhot
   return invoke<ViewerPhoto | null>('get_viewer_photo', { request });
 }
 
+/** What is gone of a photo whose file cannot be found: the file, or the whole open folder. */
+export type Vanished = 'photo' | 'folder';
+
+/**
+ * Asks the backend why photo `id` of the open folder failed to load: `null`
+ * if its file is there (it failed for another reason), else what is gone.
+ */
+export async function checkPhotoFile(id: number): Promise<Vanished | null> {
+  const answer = await invoke<unknown>('check_photo_file', { id });
+  return answer === 'photo' || answer === 'folder' ? answer : null;
+}
+
 /** The main window's view, sent to an open viewer when it changes. */
 export interface ViewerContext {
   mode: ViewMode;

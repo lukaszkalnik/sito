@@ -2,15 +2,20 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { UndoState } from '../reject/api';
+import { onTimelineChanged, type UndoState } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
-import { setWindowTitle, type ViewerPhoto } from './api';
+import { checkPhotoFile, setWindowTitle, type ViewerPhoto } from './api';
 import '../../i18n';
 import { PhotoViewer } from './PhotoViewer';
 
 vi.mock('./api', () => ({
   photoUrl: (scanId: number, id: number) => `photo://localhost/${id}?scan=${scanId}`,
   setWindowTitle: vi.fn(() => Promise.resolve()),
+  checkPhotoFile: vi.fn(() => Promise.resolve(null)),
+}));
+vi.mock('../reject/api', async (importActual) => ({
+  ...(await importActual<typeof import('../reject/api')>()),
+  onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
 vi.mock('../timeline/thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
@@ -62,6 +67,7 @@ function viewerProps(
     onToggleAccept: vi.fn(),
     undoState,
     onUndo: vi.fn(),
+    onRefresh: vi.fn(),
   };
 }
 
@@ -186,22 +192,68 @@ describe('PhotoViewer', () => {
     }
   });
 
-  it('reports a photo that cannot be loaded', () => {
+  it('reports a photo that cannot be loaded', async () => {
     renderViewer(pageOf(2));
 
     fireEvent.error(screen.getByTestId('viewer-photo-loading'));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
+    expect(checkPhotoFile).toHaveBeenCalledWith(2);
   });
 
-  it('hides the previous photo when the next one cannot be loaded', () => {
+  it('says when the photo is gone from the folder and offers a refresh', async () => {
+    vi.mocked(checkPhotoFile).mockResolvedValueOnce('photo');
+    const { onRefresh } = renderViewer(pageOf(2));
+
+    fireEvent.error(screen.getByTestId('viewer-photo-loading'));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(
+      'Tego zdjęcia nie ma już w otwartym folderze – zostało przeniesione, zmieniło nazwę lub usunięto je.',
+    );
+    await userEvent.click(within(alert).getByRole('button', { name: 'Odśwież folder' }));
+    expect(onRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('says when the whole folder is gone', async () => {
+    vi.mocked(checkPhotoFile).mockResolvedValueOnce('folder');
+    renderViewer(pageOf(2));
+
+    fireEvent.error(screen.getByTestId('viewer-photo-loading'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Otwartego folderu nie ma już na dysku. Wybierz go ponownie w oknie głównym.',
+    );
+    expect(screen.queryByRole('button', { name: 'Odśwież folder' })).toBeNull();
+  });
+
+  it('loads a failed photo again once the timeline changed', async () => {
+    let changed = () => {};
+    vi.mocked(onTimelineChanged).mockImplementation((handler) => {
+      changed = handler;
+      return Promise.resolve(() => {});
+    });
+    renderViewer(pageOf(2));
+    fireEvent.error(screen.getByTestId('viewer-photo-loading'));
+    await screen.findByRole('alert');
+
+    act(() => changed());
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByTestId('viewer-photo-loading')).toHaveAttribute(
+      'src',
+      'photo://localhost/2?scan=3',
+    );
+  });
+
+  it('hides the previous photo when the next one cannot be loaded', async () => {
     const { rerender } = render(<PhotoViewer {...viewerProps(pageOf(2))} />);
     fireEvent.load(screen.getByTestId('viewer-photo-loading'));
 
     rerender(<PhotoViewer {...viewerProps(pageOf(3))} />);
     fireEvent.error(screen.getByTestId('viewer-photo-loading'));
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nie udało się wczytać zdjęcia.');
     expect(screen.queryByRole('img', { name: /IMG_\d\.jpg/ })).toBeNull();
   });
 

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../i18n';
 import { onTimelineChanged, rejectPhoto, undoState } from '../reject/api';
+import { refreshFolder } from '../scan/api';
 import type { TimelineEntry } from '../timeline/api';
 import { getTimeline } from '../timeline/api';
 import {
@@ -27,6 +28,7 @@ vi.mock('../reject/api', async (importActual) => ({
   onTimelineChanged: vi.fn(),
   rejectPhoto: vi.fn(),
 }));
+vi.mock('../scan/api', () => ({ refreshFolder: vi.fn(() => Promise.resolve()) }));
 vi.mock('../accept/api', () => ({
   getAcceptedIds: vi.fn(() => Promise.resolve([])),
   onAcceptedChanged: vi.fn(() => Promise.resolve(() => {})),
@@ -98,6 +100,35 @@ describe('ViewerApp', () => {
     await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' });
 
     await vi.waitFor(() => expect(sendViewerShown).toHaveBeenLastCalledWith({ scanId: 1, id: 4 }));
+  });
+
+  it('moves on like after a rejection when a refresh found the photo gone', async () => {
+    const handlers: (() => void)[] = [];
+    vi.mocked(onTimelineChanged).mockImplementation((handler) => {
+      handlers.push(handler);
+      return Promise.resolve(() => {});
+    });
+    let gone = false;
+    vi.mocked(getViewerPhoto).mockImplementation((request) =>
+      Promise.resolve(request.id === 3 && gone ? null : page(request.id, 4)),
+    );
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    gone = true;
+    act(() => handlers.forEach((handler) => handler()));
+
+    expect(await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' })).toBeInTheDocument();
+  });
+
+  it('refreshes the folder with F5', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue(page(3, null));
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+
+    await userEvent.keyboard('{F5}');
+
+    expect(refreshFolder).toHaveBeenCalledOnce();
   });
 
   it('shows a spinner while it waits for its photo', () => {

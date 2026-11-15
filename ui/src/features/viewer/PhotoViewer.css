@@ -153,6 +153,19 @@
   margin: 0;
 }
 
+/* A message with a button below it, centred together. */
+div.viewer-error {
+  place-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+div.viewer-error p {
+  max-width: 32rem;
+  margin: 0;
+}
+
 .viewer-strip {
   display: flex;
   flex: none;

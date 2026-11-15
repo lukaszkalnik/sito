@@ -9,6 +9,11 @@ export type ViewerPhotoState =
   | { kind: 'ready'; photo: ViewerPhoto }
   /** The photo is not on the timeline (yet), e.g. a restored one. */
   | { kind: 'missing' }
+  /**
+   * The photo shown left the timeline (a refresh found its file gone):
+   * `afterReject` is the photo that took its place, as after a rejection.
+   */
+  | { kind: 'gone'; afterReject: number | null }
   | { kind: 'error' };
 
 /** What was loaded last, for which scan and photo. */
@@ -27,6 +32,18 @@ function stateFor(loaded: Loaded | null, request: ViewerRequest): ViewerPhotoSta
   if (!loaded || loaded.scanId !== request.scanId) return { kind: 'loading' };
   if (loaded.id === request.id || loaded.state.kind === 'ready') return loaded.state;
   return { kind: 'loading' };
+}
+
+/**
+ * The state of photo `id` of scan `scanId` that is not on the timeline:
+ * `gone` if it was shown just `before` (it left the timeline), else
+ * `missing` (not there yet).
+ */
+function absentState(before: Loaded | null, scanId: number, id: number): ViewerPhotoState {
+  if (before?.scanId === scanId && before.id === id && before.state.kind === 'ready') {
+    return { kind: 'gone', afterReject: before.state.photo.afterReject };
+  }
+  return { kind: 'missing' };
 }
 
 /** Starts loading the pages of `ids` (the neighbours of the shown photo). */
@@ -56,9 +73,11 @@ export function useViewerPhoto(request: ViewerRequest): ViewerPhotoState {
     let cancelled = false;
     const view = { scanId, mode, gap };
     const done = (state: ViewerPhotoState) => !cancelled && setLoaded({ scanId, id, state });
+    const absent = () =>
+      !cancelled && setLoaded((before) => ({ scanId, id, state: absentState(before, scanId, id) }));
     cache.get({ ...view, id }, revision).then(
       (photo) => {
-        if (photo === null) return done({ kind: 'missing' });
+        if (photo === null) return absent();
         done({ kind: 'ready', photo });
         prefetch(cache, view, revision, [photo.next, photo.previous]);
       },

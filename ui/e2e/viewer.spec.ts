@@ -204,3 +204,25 @@ test('pans with Shift+arrows without stepping to another photo', async ({ page }
   await expect.poll(async () => (await shown.boundingBox())?.x).toBeLessThan(before?.x ?? 0);
   await expect(shown).toBeVisible();
 });
+
+test('says when the photo is gone from the folder and refreshes it', async ({ page }) => {
+  await page.route('http://photo.localhost/**', (route) => route.fulfill({ status: 410 }));
+  await mockTauri(page, {
+    pickedFolder: null,
+    scanProgress: [],
+    scanResult: { ok: { scanId: 5, photosFound: 30, unreadableEntries: 0, withoutDate: 0 } },
+    timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 1200 },
+    viewerRequest: { id: 4, scanId: 5, mode: 'all', gap: 10 },
+    vanished: 'photo',
+  });
+  await page.goto('/?window=viewer');
+
+  const alert = page.getByRole('alert');
+  await expect(alert).toHaveText(
+    /^Tego zdjęcia nie ma już w otwartym folderze – zostało przeniesione, zmieniło nazwę lub usunięto je\./,
+  );
+  await alert.getByRole('button', { name: 'Odśwież folder' }).click();
+
+  const refreshes = (await invokedCommands(page)).filter((c) => c.cmd === 'refresh_folder');
+  expect(refreshes).toHaveLength(1);
+});

@@ -15,6 +15,8 @@ interface PhotoViewerProps extends ViewerBarProps {
   scanId: number;
   /** Shows the photo with the given id. */
   onShow: (id: number) => void;
+  /** Checks the open folder for changes, e.g. after the photo's file vanished. */
+  onRefresh: () => void;
 }
 
 /** Arrow keys step, Escape closes, Delete rejects, A accepts (keys in `shortcuts/keymap.ts`). */
@@ -102,6 +104,8 @@ export function PhotoViewer(props: PhotoViewerProps) {
         <div className="viewer-stage">
           <FullPhoto
             src={photoUrl(scanId, entry.id)}
+            id={entry.id}
+            onRefresh={props.onRefresh}
             alt={entry.name}
             zoom={zoom}
             viewRef={viewRef}

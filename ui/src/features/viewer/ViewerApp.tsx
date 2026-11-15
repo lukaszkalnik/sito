@@ -6,6 +6,8 @@ import { useToggleAccept } from '../accept/useToggleAccept';
 import { rejectErrorCode, rejectPhoto, type Undone } from '../reject/api';
 import type { RejectDestination } from '../reject/destination';
 import { useRejectDestination } from '../reject/useRejectDestination';
+import { refreshFolder } from '../scan/api';
+import { useShortcuts } from '../../shortcuts/useShortcuts';
 import {
   closeWindow,
   onViewerContext,
@@ -58,6 +60,7 @@ function rejectErrorKey(error: unknown): string {
   const code = rejectErrorCode(error);
   if (code === 'noTrash') return 'reject.noTrash';
   if (code === 'rejectedDirIsLink') return 'reject.rejectedDirIsLink';
+  if (code === 'photoMissing') return 'reject.photoMissing';
   return 'reject.failed';
 }
 
@@ -127,8 +130,14 @@ function ReadyViewer(props: ReadyViewerProps) {
       onToggleAccept={() => void toggleAccept(photo.entry.id)}
       undoState={undo.undoState}
       onUndo={() => void undo.undo()}
+      onRefresh={refreshInBackground}
     />
   );
+}
+
+/** Rescans the open folder; the main window shows that it runs. */
+function refreshInBackground() {
+  refreshFolder().catch((err: unknown) => console.error('Cannot refresh the folder', err));
 }
 
 /** The viewer while it waits for its photo, or for a restored photo to be back. */
@@ -140,6 +149,12 @@ function ViewerLoading() {
   );
 }
 
+/** Moves on to `next` (as after a rejection) when the photo shown left the timeline. */
+function MoveOn({ next, onShowId }: { next: number | null; onShowId: (id: number) => void }) {
+  useEffect(() => onShowId(next ?? NO_PHOTO), [next, onShowId]);
+  return <ViewerLoading />;
+}
+
 /** Loads the photo of `request` and shows it. */
 function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerProps, 'photo'>) {
   const { t } = useTranslation();
@@ -149,6 +164,8 @@ function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerPr
     // A restored photo whose timeline is still reloading.
     case 'missing':
       return <ViewerLoading />;
+    case 'gone':
+      return <MoveOn next={state.afterReject} onShowId={onShowId} />;
     case 'error':
       return (
         <main className="viewer">
@@ -187,6 +204,8 @@ function LoadedViewer({
   );
   const undo = useUndo(showUndone);
   const acceptedIds = useAcceptedIds(request.scanId);
+  // F5 checks the folder here too, instead of reloading the window.
+  useShortcuts({ refresh: refreshInBackground });
 
   return (
     <>
