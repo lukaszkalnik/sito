@@ -234,7 +234,8 @@ pub async fn start_scan(
     .await;
 
     match result {
-        Ok(Ok(timeline)) => {
+        Ok(Ok(scan)) => {
+            let timeline = scan.timeline;
             let mut summary = ScanSummaryDto::new(0, &timeline);
             let root = timeline.root.clone();
             summary.scan_id = state.set_timeline(timeline);
@@ -267,7 +268,8 @@ fn refresh_in_background(app: AppHandle, path: PathBuf, scan_id: u64, generation
                 log::info!("background rescan of {} stopped", path.display());
                 return;
             }
-            Ok(timeline) => {
+            Ok(scanned) => {
+                let timeline = scanned.timeline;
                 let summary = ScanSummaryDto::new(scan_id, &timeline);
                 if !app.state::<AppState>().refresh(scan_id, timeline) {
                     // Another folder was opened meanwhile.

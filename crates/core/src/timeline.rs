@@ -1,10 +1,11 @@
 //! All photos of a folder tree, with capture times, sorted newest first.
 
+mod cached;
 mod pending;
 mod read;
 
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
@@ -13,11 +14,13 @@ use chrono::NaiveDateTime;
 pub use pending::{Completion, complete_pending};
 
 use crate::metadata::{Orientation, read_photo_metadata};
+use crate::moved::MovedPhoto;
 use crate::photo_cache::{CacheError, PhotoCache, SharedCache, with_cache};
 use crate::scan::{
     FoundFile, ScanError, StampedFile, find_companion, find_photos_until, is_in_rejected_dir,
 };
 use crate::takeout::{TakeoutUse, find_sidecar};
+use cached::split_cached;
 use read::{read_photos, to_photo};
 
 /// Where a photo's capture time came from.
@@ -173,6 +176,18 @@ pub fn read_photo(path: &Path) -> std::io::Result<Photo> {
     }))
 }
 
+/// A timeline built with the photo cache, and the photos the cache knew at
+/// another path because they were moved or renamed outside Sito.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CachedScan {
+    /// The timeline of the scanned folder.
+    pub timeline: Timeline,
+    /// Photos found at a new path, inside the folder or moved into it from
+    /// anywhere the cache knows (also from the folder's own old name).
+    /// Copies of cached photos are not among them.
+    pub moves: Vec<MovedPhoto>,
+}
+
 /// Progress while building a timeline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimelineProgress {
@@ -203,6 +218,7 @@ pub fn build_timeline(
 ) -> Result<Timeline, ScanError> {
     let no_cache = SharedCache::new(None);
     build_timeline_cached(root, &no_cache, ReadMode::Full, || false, on_progress)
+        .map(|scan| scan.timeline)
 }
 
 /// Like [`build_timeline`], but takes photos whose files are unchanged from
@@ -211,6 +227,13 @@ pub fn build_timeline(
 /// Once the scan is complete, photos under `root` that are gone are removed
 /// from the cache. Only the photos that really need reading count in the
 /// reading progress. Cached photos whose EXIF is still pending stay pending.
+///
+/// A file not cached at its path is taken from the cache too when the cache
+/// knows it at exactly one other path with the same file name, size and
+/// modification time (see [`crate::moved`]), with a Takeout date file and RAW
+/// companion of the same size and time: a move if that path is gone, a copy
+/// if not. Such photos are stored under their new paths, and the old paths
+/// of moves forgotten, only once the scan is complete.
 ///
 /// The cache is locked only to look photos up and to store them, never
 /// while the folder is walked or photos are read. It only speeds things up:
@@ -228,7 +251,7 @@ pub fn build_timeline_cached(
     mode: ReadMode,
     should_stop: impl Fn() -> bool,
     mut on_progress: impl FnMut(TimelineProgress),
-) -> Result<Timeline, ScanError> {
+) -> Result<CachedScan, ScanError> {
     let found = find_photos_until(root, &should_stop, |p| {
         on_progress(TimelineProgress::Searching {
             found: p.photos_found,
@@ -239,50 +262,34 @@ pub fn build_timeline_cached(
     let known = with_cache(cache, |cache| cache.photos_under(root).ok())
         .flatten()
         .unwrap_or_default();
-    let (mut photos, to_read) = split_cached(&all_files, known);
+    let split = split_cached(&all_files, known, cache);
     let store = |chunk: &[Photo]| {
         // Failing to cache only means reading these photos again next time.
         with_cache(cache, |cache| cache.store(chunk).ok());
     };
-    let read = read_photos(&to_read, mode, &should_stop, store, &mut on_progress)?;
+    let read = read_photos(&split.to_read, mode, &should_stop, store, &mut on_progress)?;
     // Only a complete scan tells which cached photos are gone.
-    with_cache(cache, |cache| forget_missing(cache, root, &all_files));
+    with_cache(cache, |cache| {
+        store_moves(cache, &split.relocated, &split.moves);
+        forget_missing(cache, root, &all_files);
+    });
 
+    let mut photos = split.unchanged;
+    photos.extend(split.relocated);
     photos.extend(read);
-    Ok(sorted_timeline(root, photos, found.unreadable_entries))
+    Ok(CachedScan {
+        timeline: sorted_timeline(root, photos, found.unreadable_entries),
+        moves: split.moves,
+    })
 }
 
-/// Splits `files` into the photos still up to date among the `known` cached
-/// ones and the files that need reading.
-fn split_cached<'a>(
-    files: &[&'a FoundFile],
-    known: Vec<Photo>,
-) -> (Vec<Photo>, Vec<&'a FoundFile>) {
-    let known: HashMap<PathBuf, Photo> = known
-        .into_iter()
-        .map(|photo| (photo.path.clone(), photo))
-        .collect();
-    let mut photos = Vec::with_capacity(files.len());
-    let mut to_read = Vec::new();
-    for &file in files {
-        match known
-            .get(&file.path)
-            .filter(|photo| is_unchanged(photo, file))
-        {
-            Some(photo) => photos.push(photo.clone()),
-            None => to_read.push(file),
-        }
-    }
-    (photos, to_read)
-}
-
-/// Whether `file`, its Takeout date file and its RAW companion are as
-/// cached in `photo`.
-fn is_unchanged(photo: &Photo, file: &FoundFile) -> bool {
-    photo.size == file.size
-        && photo.modified == file.modified
-        && photo.sidecar == file.sidecar
-        && photo.companion == file.companion
+/// Stores the `relocated` photos under their new paths and forgets the old
+/// paths of the `moves`.
+fn store_moves(cache: &mut PhotoCache, relocated: &[Photo], moves: &[MovedPhoto]) {
+    // Failing only means reading these photos again next time.
+    let _ = cache.store(relocated);
+    let old: Vec<PathBuf> = moves.iter().map(|moved| moved.from.clone()).collect();
+    let _ = cache.forget(&old);
 }
 
 /// Forgets cached photos under `root` that are no longer among `present`.

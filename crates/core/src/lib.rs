@@ -12,6 +12,7 @@ pub mod dimensions;
 pub mod display;
 mod limited_read;
 pub mod metadata;
+pub mod moved;
 pub mod navigation;
 pub mod photo_cache;
 pub mod raw;

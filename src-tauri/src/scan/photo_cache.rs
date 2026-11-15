@@ -6,7 +6,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use sito_core::photo_cache::{PhotoCache, SharedCache};
 use sito_core::scan::ScanError;
-use sito_core::timeline::{self, Photo, ReadMode, Timeline, TimelineProgress};
+use sito_core::timeline::{self, CachedScan, Photo, ReadMode, Timeline, TimelineProgress};
 
 use crate::thumbnails::Thumbnails;
 
@@ -59,7 +59,8 @@ impl PhotoCacheState {
     /// Scans `root`, reading only photos the cache does not know unchanged.
     /// Photos with a Takeout date file are dated from it alone and their
     /// EXIF left pending (see [`Self::pending`]). The cache stays usable by
-    /// others meanwhile; `should_stop` can end the scan early.
+    /// others meanwhile; `should_stop` can end the scan early. Also returns
+    /// the photos found moved or renamed since the cache saw them.
     ///
     /// # Errors
     ///
@@ -70,7 +71,7 @@ impl PhotoCacheState {
         root: &Path,
         should_stop: impl Fn() -> bool,
         on_progress: impl FnMut(TimelineProgress),
-    ) -> Result<Timeline, ScanError> {
+    ) -> Result<CachedScan, ScanError> {
         // Without a cache, pending photos could never be completed.
         let mode = if self.lock().is_some() {
             ReadMode::TakeoutFirst
@@ -160,7 +161,7 @@ mod tests {
 
         let state = PhotoCacheState::open(&file);
         assert!(state.cached_timeline(dir.path()).is_none());
-        let scanned = state.scan(dir.path(), || false, |_| {}).unwrap();
+        let scanned = state.scan(dir.path(), || false, |_| {}).unwrap().timeline;
 
         let cached = state.cached_timeline(dir.path()).unwrap();
         assert_eq!(cached.photos, scanned.photos);

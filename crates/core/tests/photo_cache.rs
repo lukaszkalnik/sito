@@ -42,10 +42,9 @@ fn scan_with(
 ) -> Timeline {
     let placeholder = PhotoCache::open_in_memory().unwrap();
     let shared = SharedCache::new(Some(std::mem::replace(cache, placeholder)));
-    let timeline =
-        build_timeline_cached(root, &shared, ReadMode::Full, || false, on_progress).unwrap();
+    let scan = build_timeline_cached(root, &shared, ReadMode::Full, || false, on_progress).unwrap();
     *cache = shared.into_inner().unwrap().unwrap();
-    timeline
+    scan.timeline
 }
 
 /// Scans `root` with `cache`.

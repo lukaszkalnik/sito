@@ -15,6 +15,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 use crate::metadata::Orientation;
+use crate::moved::FileIdentity;
 use crate::scan::{FileStamp, StampedFile, is_photo};
 use crate::takeout::TakeoutUse;
 use crate::timeline::{ExifInfo, Photo, TimeSource};
@@ -106,6 +107,12 @@ impl PhotoCache {
              )",
             [],
         )?;
+        // Finds moved photos by identity; added to existing caches as well,
+        // so they need not be emptied.
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS photos_by_identity ON photos (size, mtime_ns)",
+            [],
+        )?;
         Ok(Self { conn })
     }
 
@@ -145,13 +152,44 @@ impl PhotoCache {
     ///
     /// Returns an error if the cache cannot be read.
     pub fn all(&self) -> Result<Vec<Photo>, CacheError> {
-        let mut statement = self.conn.prepare(
+        self.select("", [])
+    }
+
+    /// The cached photos with the size and modification time of `identity`
+    /// and its file name, wherever they are, in no particular order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be read.
+    pub fn by_identity(&self, identity: &FileIdentity) -> Result<Vec<Photo>, CacheError> {
+        let (Ok(size), Some(mtime_ns)) = (
+            i64::try_from(identity.size()),
+            to_nanos(identity.modified()),
+        ) else {
+            return Ok(Vec::new());
+        };
+        let photos = self.select("WHERE size = ?1 AND mtime_ns = ?2", params![size, mtime_ns])?;
+        Ok(photos
+            .into_iter()
+            .filter(|photo| identity.has_name_of(&photo.path))
+            .collect())
+    }
+
+    /// The photos of the rows `filter` selects (an SQL `WHERE` clause or
+    /// nothing), leaving out entries for files that are not photos (see
+    /// [`is_photo`]).
+    fn select(
+        &self,
+        filter: &str,
+        parameters: impl rusqlite::Params,
+    ) -> Result<Vec<Photo>, CacheError> {
+        let mut statement = self.conn.prepare(&format!(
             "SELECT path, size, mtime_ns, taken_at, time_source, orientation, camera,
                     sidecar_path, sidecar_size, sidecar_mtime_ns,
                     companion_path, companion_size, companion_mtime_ns
-             FROM photos",
-        )?;
-        let rows = statement.query_map([], |row| {
+             FROM photos {filter}"
+        ))?;
+        let rows = statement.query_map(parameters, |row| {
             Ok(Row {
                 path: row.get(0)?,
                 size: row.get(1)?,
@@ -247,9 +285,19 @@ impl PhotoCache {
             .map(|photo| photo.path)
             .filter(|path| !found.contains(path))
             .collect();
+        self.forget(&gone)
+    }
+
+    /// Removes the cached photos at `paths`, e.g. the old paths of photos
+    /// that were moved.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be written; then nothing is removed.
+    pub fn forget(&mut self, paths: &[PathBuf]) -> Result<(), CacheError> {
         let transaction = self.conn.transaction()?;
         // Cached paths are always valid Unicode (see `store`).
-        for path in gone.iter().filter_map(|path| path.to_str()) {
+        for path in paths.iter().filter_map(|path| path.to_str()) {
             transaction.execute("DELETE FROM photos WHERE path = ?1", params![path])?;
         }
         transaction.commit()?;
