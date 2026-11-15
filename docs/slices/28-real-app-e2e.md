@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 28 – End-to-end tests of the real app
 
-Planned on 2026-11-15; waits for the user's review before implementing.
+Planned on 2026-11-15 and approved by the user the same day; implementation starts with step 1 of the Plan.
 
 ## Context
 
