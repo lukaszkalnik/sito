@@ -30,7 +30,7 @@ Platforms: developed on Windows, macOS later.
 - **Linters and static checks** must pass before every commit:
   - Rust: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` (clippy pedantic is enabled workspace-wide)
   - Frontend: oxlint (`--deny-warnings`), Prettier, `tsc -b`
-- **Commit and push every self-contained change, directly on `main`.** No feature branches or pull requests: always commit on `main` and push to `main`. The one exception is Dependabot's monthly pull request updating the pinned workflow actions, which the user reviews and merges on GitHub (see `docs/RELEASING.md`, Pinned actions). One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
+- **Commit and push every self-contained change, directly on `main`.** Development is trunk-based: no feature branches or pull requests for the work itself; always commit on `main` and push to `main`. A short-lived helper branch is fine where one is needed and never carries work meant to stay (e.g. pushing a deliberately reintroduced bug to run a workflow by hand and show that a test catches it; delete the branch afterwards). Dependabot's monthly pull request updating the pinned workflow actions is the one pull request, which the user reviews and merges on GitHub (see `docs/RELEASING.md`, Pinned actions). One logical change per commit, Conventional Commits style (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`), with tests and checks green. Push right after committing.
 - **Pause at process milestones so the context can be cleared.** At each point below, stop before starting the next piece of work and offer the user the chance to clear the context:
   - a plan is written into its slice file and approved by the user (before implementing it);
   - testing of a slice is finished (the user's OK). Do not pause when a slice becomes ready for testing (status 🧪): start the debug build and let the user test it in the same session, which keeps the context for fixes from testing. A slice may stay 🧪 for a long time when the user cannot test it yet (e.g. it needs a release or another machine); that does not block other slices, and the next prompt need not mention it;
@@ -224,6 +224,8 @@ sito/
 ## Where knowledge lives
 
 Think of it as a team's tools: this file is the coding handbook, `docs/domain/` is the wiki (Confluence), `docs/slices/` are the tickets (Jira) and `docs/ROADMAP.md` is the board.
+
+Decisions about how the project is developed (workflow, rules, conventions) go into this file, not into Claude's private memory, so they are versioned and shared; a longer, self-contained procedure may instead become a project skill (`.claude/skills/`).
 
 - **`CLAUDE.md` (always loaded):** how to write code for this project: stack, layout, layers, rules and workflow. No domain knowledge and no feature descriptions.
 - **`docs/domain/` (read on demand):** what the app works on and how it behaves **today**, one file per topic, indexed in [docs/domain/README.md](docs/domain/README.md). Before planning or changing behaviour, read the index and the topic files the work touches.
