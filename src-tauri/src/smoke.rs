@@ -1,7 +1,7 @@
 //! Smoke test of the app: with `SITO_SMOKE_TEST=1`, Sito opens the viewer
 //! like a click on a photo does, closes both windows like a user, and exits.
 //! It fails on a freeze while the viewer opens (as in v0.6.2) and on the window
-//! state not being written on close. It needs no WebDriver, so the release
+//! state not being written on close. It needs no `WebDriver`, so the release
 //! workflow runs it on the installed app, and the real-app e2e workflow runs it
 //! before its specs.
 
