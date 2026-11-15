@@ -13,6 +13,7 @@
     "e2e": "npm run e2e -w ui",
     "showcase": "npm run showcase -w ui",
     "tauri": "tauri",
+    "e2e:app:build": "tauri build --debug --no-bundle --config src-tauri/tauri.e2e.conf.json",
     "notices:rust": "cargo about generate --frozen --fail --workspace about.hbs -o ui/notices/rust-crates.txt"
   },
   "devDependencies": {
