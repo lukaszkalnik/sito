@@ -46,9 +46,6 @@ export async function expectCounts(photos: number, series?: number): Promise<voi
 /** The tile of photo `name` in the main window's grid. */
 export const tile = (name: string) => $(`button[aria-label="${t('timeline.open', { name })}"]`);
 
-/** The photo shown in the viewer, by its name. */
-export const shownPhoto = (name: string) => $(`img[alt="${name}"]`);
-
 /** XPath of the buttons named `name`: by their label, or their text. */
 export const buttonSelector = (name: string) =>
   `//button[@aria-label="${name}" or normalize-space()="${name}"]`;
@@ -89,10 +86,24 @@ export async function waitForDisplayed(
   });
 }
 
-/** Waits until the viewer window shows photo `name`. */
+/**
+ * Waits until the viewer window shows photo `name`: an image of that name has
+ * loaded. Checked in the page, as WebKitWebDriver's own visibility check
+ * sometimes misses a shown photo.
+ */
 export async function expectViewerShows(name: string): Promise<void> {
   await switchToWindow('viewer');
-  await waitForDisplayed(shownPhoto(name), `${name} in the viewer`);
+  const loaded = () =>
+    browser.execute(
+      (alt) =>
+        [...document.images].some(
+          (image) => image.alt === alt && image.complete && image.naturalWidth > 0,
+        ),
+      name,
+    );
+  await browser.waitUntil(() => loaded().catch(() => false), {
+    timeoutMsg: `the viewer does not show ${name}`,
+  });
 }
 
 /**
