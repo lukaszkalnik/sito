@@ -1,0 +1,22 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "identifier": "io.github.lukaszkalnik.sito.e2e",
+  "app": {
+    "security": {
+      "capabilities": [
+        "default",
+        {
+          "identifier": "e2e",
+          "description": "Tests of the real app place windows to check that they come back after a restart (slice 28). Never shipped: only this config, used by the e2e build, grants it.",
+          "windows": ["main", "viewer"],
+          "permissions": [
+            "core:window:allow-set-size",
+            "core:window:allow-set-position",
+            "core:window:allow-outer-size",
+            "core:window:allow-outer-position"
+          ]
+        }
+      ]
+    }
+  }
+}
