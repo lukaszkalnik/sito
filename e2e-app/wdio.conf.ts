@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +13,17 @@ const RESULTS = join(fileURLToPath(new URL('./results/', import.meta.url)), RUN)
 
 /** The spec this worker runs: its results folder and its app's environment. */
 let current: { results: string; env: Readonly<Record<string, string>> } | null = null;
+
+/** A screenshot and the HTML of each open window, for a look at a failed test. */
+async function keepWindows(into: string): Promise<void> {
+  mkdirSync(into, { recursive: true });
+  for (const [index, handle] of (await browser.getWindowHandles()).entries()) {
+    await browser.switchToWindow(handle);
+    const name = new URL(await browser.getUrl()).search.includes('viewer') ? 'viewer' : 'main';
+    await browser.saveScreenshot(join(into, `${index}-${name}.png`));
+    writeFileSync(join(into, `${index}-${name}.html`), await browser.getPageSource());
+  }
+}
 
 export const config: WebdriverIO.Config = {
   runner: 'local',
@@ -50,7 +62,7 @@ export const config: WebdriverIO.Config = {
 
   async afterTest(test, _context, { passed }) {
     if (passed || current === null) return;
-    await browser.saveScreenshot(join(current.results, `${test.title}.png`)).catch(() => {});
+    await keepWindows(join(current.results, test.title)).catch(() => {});
   },
 
   async afterSession() {

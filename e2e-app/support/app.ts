@@ -68,7 +68,17 @@ export async function windowCount(): Promise<number> {
 /** Waits until the viewer window shows photo `name`. */
 export async function expectViewerShows(name: string): Promise<void> {
   await switchToWindow('viewer');
-  await expect(shownPhoto(name)).toBeDisplayed();
+  // Polled by hand: WebKitWebDriver reports a stale element instead of none
+  // while React swaps the loading photo for the shown one.
+  await browser.waitUntil(
+    () =>
+      shownPhoto(name)
+        .isDisplayed()
+        .catch(() => false),
+    {
+      timeoutMsg: `the viewer does not show ${name}`,
+    },
+  );
 }
 
 /**
