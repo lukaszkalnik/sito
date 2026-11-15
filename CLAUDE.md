@@ -198,6 +198,7 @@ sito/
 │  ├─ notices/        # generated Rust notices (committed)
 │  └─ e2e/            # Playwright tests
 ├─ docs/domain/       # domain knowledge, one file per topic
+├─ docs/ARCHITECTURE.md  # the stack and the layers explained for newcomers
 ├─ docs/ROADMAP.md    # work plan (vertical slices)
 ├─ docs/slices/       # one plan per slice (NN-name.md)
 ├─ docs/RELEASING.md  # how to build, release and install
