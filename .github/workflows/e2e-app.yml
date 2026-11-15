@@ -75,6 +75,8 @@ jobs:
             e2e-app/results
             ${{ runner.temp }}/sito-state
           if-no-files-found: ignore
+          # The window state is `.window-state.json`.
+          include-hidden-files: true
 
   windows:
     name: Windows (embedded WebDriver)
@@ -106,6 +108,8 @@ jobs:
           name: e2e-app-windows
           path: e2e-app/results
           if-no-files-found: ignore
+          # The window state is `.window-state.json`.
+          include-hidden-files: true
 
   macos:
     name: macOS (embedded WebDriver)
@@ -140,3 +144,5 @@ jobs:
           name: e2e-app-macos
           path: e2e-app/results
           if-no-files-found: ignore
+          # The window state is `.window-state.json`.
+          include-hidden-files: true
