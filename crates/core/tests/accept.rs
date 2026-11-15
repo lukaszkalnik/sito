@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 
 use sito_core::accept::AcceptChange;
 use sito_core::actions::{ActionLog, Rejections};
+use sito_core::moved::MovedPhoto;
 use tempfile::TempDir;
 
 fn root() -> PathBuf {
@@ -53,6 +54,44 @@ fn accepting_and_unaccepting_change_the_mark_without_logging() {
 
     assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
     assert_eq!(action_rows(&db), 0);
+}
+
+#[test]
+fn marks_follow_photos_moved_outside_sito() {
+    let log = ActionLog::open_in_memory().unwrap();
+    let elsewhere = PathBuf::from(if cfg!(windows) {
+        r"D:\2023"
+    } else {
+        "/home/u/2023"
+    });
+    log.set_accepted(&photo("IMG_1.jpg"), AcceptChange::Accepted)
+        .unwrap();
+    log.set_accepted(&photo("IMG_3.jpg"), AcceptChange::Accepted)
+        .unwrap();
+
+    log.move_accepted(&[
+        MovedPhoto {
+            from: photo("IMG_1.jpg"),
+            to: photo("Rok/IMG_1.jpg"),
+        },
+        // Not accepted: no mark appears at its new path.
+        MovedPhoto {
+            from: photo("IMG_2.jpg"),
+            to: photo("Rok/IMG_2.jpg"),
+        },
+        // Into another folder, e.g. the renamed scanned folder.
+        MovedPhoto {
+            from: photo("IMG_3.jpg"),
+            to: elsewhere.join("IMG_3.jpg"),
+        },
+    ])
+    .unwrap();
+
+    assert_eq!(accepted(&log), HashSet::from([photo("Rok/IMG_1.jpg")]));
+    assert_eq!(
+        log.accepted_paths(&elsewhere).unwrap(),
+        HashSet::from([elsewhere.join("IMG_3.jpg")])
+    );
 }
 
 #[test]

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use rusqlite::params;
 
 use crate::actions::{ActionLog, LogError, path_text};
+use crate::moved::MovedPhoto;
 
 /// How to change a photo's accepted mark.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,6 +34,31 @@ impl ActionLog {
             AcceptChange::Unaccepted => "DELETE FROM accepted WHERE path = ?1",
         };
         self.conn.execute(sql, params![path_text(path)?])?;
+        Ok(())
+    }
+
+    /// Moves the accepted marks of photos moved outside Sito to their new
+    /// paths, all in one transaction. Photos without a mark are left as
+    /// they are; a mark already at a new path stays.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a path is not valid Unicode or the database
+    /// cannot be written; then no mark is moved.
+    pub fn move_accepted(&self, moves: &[MovedPhoto]) -> Result<(), LogError> {
+        let transaction = self.conn.unchecked_transaction()?;
+        for moved in moves {
+            let from = path_text(&moved.from)?;
+            let removed =
+                transaction.execute("DELETE FROM accepted WHERE path = ?1", params![from])?;
+            if removed > 0 {
+                transaction.execute(
+                    "INSERT OR IGNORE INTO accepted (path) VALUES (?1)",
+                    params![path_text(&moved.to)?],
+                )?;
+            }
+        }
+        transaction.commit()?;
         Ok(())
     }
 
