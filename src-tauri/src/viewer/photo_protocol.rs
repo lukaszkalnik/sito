@@ -12,6 +12,7 @@ use sito_core::timeline::Photo;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::missing::{self, Vanished};
 use crate::protocol::{error_response, jpeg_response, parse_request};
 use crate::scan::state::AppState;
 use crate::thumbnails::Thumbnails;
@@ -25,24 +26,33 @@ pub fn handle<R: Runtime>(
     request: &Request<Vec<u8>>,
     responder: UriSchemeResponder,
 ) {
-    let photo = parse_request(request.uri())
-        .and_then(|(scan_id, id)| ctx.app_handle().state::<AppState>().photo(scan_id, id));
-    let Some(photo) = photo else {
+    let app = ctx.app_handle().clone();
+    let Some((scan_id, photo)) = parse_request(request.uri())
+        .and_then(|(scan_id, id)| Some((scan_id, app.state::<AppState>().photo(scan_id, id)?)))
+    else {
         responder.respond(error_response(StatusCode::NOT_FOUND));
         return;
     };
-    let cache = ctx.app_handle().state::<Thumbnails>().cache().clone();
-    tauri::async_runtime::spawn_blocking(move || responder.respond(read_photo(&photo, &cache)));
+    let cache = app.state::<Thumbnails>().cache().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let vanished = || missing::check(&app, scan_id, &photo);
+        responder.respond(read_photo(&photo, &cache, vanished));
+    });
 }
 
-/// The response for `photo`.
-fn read_photo(photo: &Photo, cache: &ThumbnailCache) -> Response<Vec<u8>> {
+/// The response for `photo`: `410 Gone` if it fails because the file or
+/// its folder `vanished`.
+fn read_photo(
+    photo: &Photo,
+    cache: &ThumbnailCache,
+    vanished: impl FnOnce() -> Option<Vanished>,
+) -> Response<Vec<u8>> {
     match display_jpeg(photo, cache) {
         Ok(bytes) => jpeg_response(bytes),
         Err(err) => {
             log::warn!("cannot show {}: {err}", photo.path.display());
             let status = match err {
-                DisplayError::Io { .. } => StatusCode::NOT_FOUND,
+                DisplayError::Io { .. } => missing::status(vanished(), StatusCode::NOT_FOUND),
                 DisplayError::TooLarge(_) => StatusCode::PAYLOAD_TOO_LARGE,
                 DisplayError::Raw { .. }
                 | DisplayError::Convert { .. }
@@ -85,7 +95,11 @@ mod tests {
         let path = dir.path().join("IMG_1.jpg");
         std::fs::write(&path, [0xFF, 0xD8, 0xFF, 0xD9]).unwrap();
 
-        let response = read_photo(&photo(path), &ThumbnailCache::new(dir.path().join("cache")));
+        let response = read_photo(
+            &photo(path),
+            &ThumbnailCache::new(dir.path().join("cache")),
+            || None,
+        );
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers()[CONTENT_TYPE], "image/jpeg");
@@ -93,14 +107,17 @@ mod tests {
     }
 
     #[test]
-    fn missing_file_is_not_found() {
+    fn a_vanished_file_is_gone() {
         let dir = tempfile::tempdir().unwrap();
+        let cache = ThumbnailCache::new(dir.path().join("cache"));
+        let gone = photo(dir.path().join("gone.jpg"));
 
-        let response = read_photo(
-            &photo(dir.path().join("gone.jpg")),
-            &ThumbnailCache::new(dir.path().join("cache")),
-        );
-
+        let response = read_photo(&gone, &cache, || Some(Vanished::Photo));
+        assert_eq!(response.status(), StatusCode::GONE);
+        let response = read_photo(&gone, &cache, || Some(Vanished::Folder));
+        assert_eq!(response.status(), StatusCode::GONE);
+        // Unreadable for another reason.
+        let response = read_photo(&gone, &cache, || None);
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

@@ -3,6 +3,7 @@
 mod about;
 mod accept;
 mod error;
+mod missing;
 mod navigation;
 mod protocol;
 mod reject;
@@ -46,6 +47,7 @@ pub fn run() -> tauri::Result<()> {
         .manage(scan::state::AppState::default())
         .manage(viewer::ViewerState::default())
         .manage(update::UpdateState::default())
+        .manage(missing::Reported::default())
         .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
             thumbnails::handle(&ctx, &request, responder);
         })
@@ -59,6 +61,8 @@ pub fn run() -> tauri::Result<()> {
         .invoke_handler(tauri::generate_handler![
             scan::start_scan,
             scan::get_timeline,
+            scan::refresh::refresh_folder,
+            missing::check_photo_file,
             series::get_series,
             viewer::open_viewer,
             viewer::current_viewer_request,

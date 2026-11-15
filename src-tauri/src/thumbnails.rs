@@ -10,6 +10,7 @@ use sito_core::timeline::Photo;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::missing::{self, Vanished};
 use crate::protocol::{error_response, jpeg_response, parse_request};
 use crate::scan::state::AppState;
 use worker_pool::WorkerPool;
@@ -74,18 +75,21 @@ pub fn handle<R: Runtime>(
     let app = app.clone();
     thumbnails.pool.spawn(move || {
         let still_shown = || app.state::<AppState>().is_current(scan_id);
-        responder.respond(thumbnail_response(&cache, &photo, still_shown));
+        let vanished = || missing::check(&app, scan_id, &photo);
+        responder.respond(thumbnail_response(&cache, &photo, still_shown, vanished));
     });
 }
 
 /// The thumbnail of `photo`, or `410 Gone` without rendering it if its scan
 /// is `still_shown` no more: after opening another folder, the requests
 /// still queued would otherwise keep the workers busy for nothing (minutes
-/// on a slow disk) while the new folder's thumbnails wait.
+/// on a slow disk) while the new folder's thumbnails wait. Also `410 Gone`
+/// when rendering fails because the file or its folder `vanished`.
 fn thumbnail_response(
     cache: &ThumbnailCache,
     photo: &Photo,
     still_shown: impl Fn() -> bool,
+    vanished: impl FnOnce() -> Option<Vanished>,
 ) -> Response<Vec<u8>> {
     if !still_shown() {
         return error_response(StatusCode::GONE);
@@ -94,7 +98,10 @@ fn thumbnail_response(
         Ok(bytes) => jpeg_response(bytes),
         Err(err) => {
             log::warn!("thumbnail failed: {err:?}");
-            error_response(StatusCode::INTERNAL_SERVER_ERROR)
+            error_response(missing::status(
+                vanished(),
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ))
         }
     }
 }
@@ -129,10 +136,21 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let cache = ThumbnailCache::new(dir.path().to_path_buf());
 
-        let gone = thumbnail_response(&cache, &missing_photo(), || false);
-        let tried = thumbnail_response(&cache, &missing_photo(), || true);
+        let gone = thumbnail_response(&cache, &missing_photo(), || false, || None);
+        let tried = thumbnail_response(&cache, &missing_photo(), || true, || None);
 
         assert_eq!(gone.status(), StatusCode::GONE);
         assert_eq!(tried.status(), StatusCode::INTERNAL_SERVER_ERROR);
+    }
+
+    #[test]
+    fn a_thumbnail_of_a_vanished_file_is_gone() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ThumbnailCache::new(dir.path().to_path_buf());
+
+        for vanished in [Vanished::Photo, Vanished::Folder] {
+            let response = thumbnail_response(&cache, &missing_photo(), || true, || Some(vanished));
+            assert_eq!(response.status(), StatusCode::GONE);
+        }
     }
 }
