@@ -1,12 +1,13 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { onTimelineChanged, type UndoState } from '../reject/api';
+import { onTimelineChanged } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
-import { checkPhotoFile, setWindowTitle, type ViewerPhoto } from './api';
+import { checkPhotoFile, setWindowTitle } from './api';
 import '../../i18n';
 import { PhotoViewer } from './PhotoViewer';
+import { entry, pageOf, renderViewer, viewerProps } from './photoViewerFixtures';
 
 vi.mock('./api', () => ({
   photoUrl: (scanId: number, id: number) => `photo://localhost/${id}?scan=${scanId}`,
@@ -20,62 +21,6 @@ vi.mock('../reject/api', async (importActual) => ({
 vi.mock('../timeline/thumbnails', () => ({
   thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
 }));
-
-/** Photo `id` of six, one second apart, newest first. */
-function entry(id: number, timeSource: TimelineEntry['timeSource'] = 'exif'): TimelineEntry {
-  return {
-    id,
-    name: `IMG_${id}.jpg`,
-    relativeDir: id === 0 ? '' : 'Camera',
-    relativePath: `IMG_${id}.jpg`,
-    takenAt: `2024-06-01T12:00:0${9 - id}`,
-    timeSource,
-    format: 'jpeg',
-  };
-}
-
-/**
- * The page of photo `id` in the all view of six photos, where photos 1–3
- * form a series and 0, 4 and 5 are single photos.
- */
-function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPhoto {
-  const inSeries = id >= 1 && id <= 3;
-  return {
-    entry: entry(id),
-    previous: id > 0 ? id - 1 : null,
-    next: id < 5 ? id + 1 : null,
-    series: inSeries ? [1, 2, 3].map((member) => entry(member)) : [],
-    afterReject: null,
-    details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
-    ...changes,
-  };
-}
-
-function viewerProps(
-  photo: ViewerPhoto,
-  undoState: UndoState = 'none',
-  acceptedIds: ReadonlySet<number> = new Set(),
-) {
-  return {
-    photo,
-    scanId: 3,
-    onShow: vi.fn(),
-    onClose: vi.fn(),
-    onReject: vi.fn(),
-    rejectTo: 'folder' as const,
-    acceptedIds,
-    onToggleAccept: vi.fn(),
-    undoState,
-    onUndo: vi.fn(),
-    onRefresh: vi.fn(),
-  };
-}
-
-function renderViewer(photo: ViewerPhoto, undoState: UndoState = 'none') {
-  const props = viewerProps(photo, undoState);
-  render(<PhotoViewer {...props} />);
-  return props;
-}
 
 /** The viewer on photo 3 of the series 1–3, with photo 3 accepted. */
 function render3Accepted() {
@@ -417,89 +362,5 @@ describe('PhotoViewer', () => {
     renderViewer(pageOf(2));
 
     expect(screen.getByText('IMG_2.jpg')).toHaveAttribute('title', 'IMG_2.jpg');
-  });
-});
-
-/** A view of 1000×500 pixels, as jsdom does no layout. */
-class FixedSizeObserver {
-  private readonly callback: ResizeObserverCallback;
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
-  }
-  observe() {
-    const entry = { contentRect: { width: 1000, height: 500 } } as ResizeObserverEntry;
-    this.callback([entry], this as unknown as ResizeObserver);
-  }
-  disconnect() {}
-  unobserve() {}
-}
-
-/** Lets the loading photo finish as a 2000×1000 image. */
-function loadPhoto() {
-  const image = screen.getByTestId('viewer-photo-loading');
-  Object.defineProperty(image, 'naturalWidth', { value: 2000 });
-  Object.defineProperty(image, 'naturalHeight', { value: 1000 });
-  fireEvent.load(image);
-}
-
-const zoomBadge = () => screen.queryByRole('group', { name: 'Powiększenie' });
-
-describe('PhotoViewer zoom', () => {
-  beforeEach(() => {
-    vi.stubGlobal('ResizeObserver', FixedSizeObserver);
-    vi.clearAllMocks();
-  });
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('shows the zoom level only while zoomed', async () => {
-    renderViewer(pageOf(2));
-    loadPhoto();
-    expect(zoomBadge()).toBeNull();
-
-    await userEvent.keyboard('1');
-    expect(zoomBadge()).toHaveTextContent('100%');
-    await userEvent.keyboard('+');
-    expect(zoomBadge()).toHaveTextContent('125%');
-
-    await userEvent.keyboard('0');
-    expect(zoomBadge()).toBeNull();
-  });
-
-  it('goes back to fit with „Dopasuj”', async () => {
-    renderViewer(pageOf(2));
-    loadPhoto();
-    await userEvent.keyboard('1');
-
-    await userEvent.click(screen.getByRole('button', { name: 'Dopasuj' }));
-
-    expect(zoomBadge()).toBeNull();
-  });
-
-  it('pans with Shift+arrows instead of stepping', async () => {
-    const { onShow } = renderViewer(pageOf(2));
-    loadPhoto();
-    await userEvent.keyboard('1');
-
-    await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
-
-    expect(onShow).not.toHaveBeenCalled();
-    expect(screen.getByRole('img', { name: 'IMG_2.jpg' }).style.transform).toBe(
-      'translate(-620px, -250px)',
-    );
-  });
-
-  it('keeps the zoom within a series and resets it outside', async () => {
-    const props = viewerProps(pageOf(2));
-    const { rerender } = render(<PhotoViewer {...props} />);
-    loadPhoto();
-    await userEvent.keyboard('1');
-
-    rerender(<PhotoViewer {...props} photo={pageOf(3)} />);
-    expect(zoomBadge()).toHaveTextContent('100%');
-
-    rerender(<PhotoViewer {...props} photo={pageOf(4)} />);
-    expect(zoomBadge()).toBeNull();
   });
 });
