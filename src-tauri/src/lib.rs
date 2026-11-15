@@ -25,7 +25,7 @@ use tauri::Manager;
 /// Returns an error if the application fails to start.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> tauri::Result<()> {
-    tauri::Builder::default()
+    with_e2e_driver(tauri::Builder::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(navigation::init())
@@ -78,6 +78,20 @@ pub fn run() -> tauri::Result<()> {
             update::open_release_page
         ])
         .run(tauri::generate_context!())
+}
+
+/// Adds the embedded `WebDriver` server of the end-to-end tests (feature `e2e`,
+/// never in a shipped build). It listens on `127.0.0.1`, on the port in
+/// `TAURI_WEBDRIVER_PORT` (default 4445).
+#[cfg(feature = "e2e")]
+fn with_e2e_driver(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder.plugin(tauri_plugin_wdio_webdriver::init())
+}
+
+/// Without the feature `e2e`, the builder as it is.
+#[cfg(not(feature = "e2e"))]
+fn with_e2e_driver(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
 }
 
 /// Registers the logger, opens the caches and the action log, and shows the
