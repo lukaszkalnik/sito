@@ -1,4 +1,5 @@
-import { $, $$, browser, expect } from '@wdio/globals';
+import { $, $$, browser } from '@wdio/globals';
+import type { ChainablePromiseElement } from 'webdriverio';
 
 import { startAppAgain, waitForAppExit } from './driver.ts';
 import { plural, t } from './strings.ts';
@@ -30,7 +31,16 @@ export async function expectCounts(photos: number, series?: number): Promise<voi
   await browser.waitUntil(async () => (await summary()).startsWith(found), {
     timeoutMsg: `the main window never said „${found}”`,
   });
-  if (series !== undefined) await expect($$('h3')).toBeElementsArrayOfSize(series);
+  if (series === undefined) return;
+  // Counted by hand: WebKitWebDriver reports a stale element instead of a
+  // result while the grid re-renders. Series headers are the grid's h3.
+  await browser.waitUntil(
+    async () =>
+      (await $$('h3')
+        .length.then(Number)
+        .catch(() => -1)) === series,
+    { timeoutMsg: `the main window does not show ${series} series` },
+  );
 }
 
 /** The tile of photo `name` in the main window's grid. */
@@ -66,20 +76,23 @@ export async function windowCount(): Promise<number> {
   return (await browser.getWindowHandles()).length;
 }
 
+/**
+ * Waits until `element` is displayed. Polled by hand: WebKitWebDriver reports
+ * a stale element instead of a result while React re-renders.
+ */
+export async function waitForDisplayed(
+  element: ChainablePromiseElement,
+  what: string,
+): Promise<void> {
+  await browser.waitUntil(() => element.isDisplayed().catch(() => false), {
+    timeoutMsg: `${what} is not shown`,
+  });
+}
+
 /** Waits until the viewer window shows photo `name`. */
 export async function expectViewerShows(name: string): Promise<void> {
   await switchToWindow('viewer');
-  // Polled by hand: WebKitWebDriver reports a stale element instead of none
-  // while React swaps the loading photo for the shown one.
-  await browser.waitUntil(
-    () =>
-      shownPhoto(name)
-        .isDisplayed()
-        .catch(() => false),
-    {
-      timeoutMsg: `the viewer does not show ${name}`,
-    },
-  );
+  await waitForDisplayed(shownPhoto(name), `${name} in the viewer`);
 }
 
 /**
