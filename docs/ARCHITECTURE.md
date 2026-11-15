@@ -69,8 +69,8 @@ Rust libraries are called *crates* and are listed in `Cargo.toml` files; TypeScr
 | `thiserror`, `serde` | Rust | Error types; turning data into JSON for the UI |
 | `ort` (planned) | Rust | Runs ML models locally (ONNX Runtime) |
 | `react`, `react-dom` | TypeScript | The UI component library |
-| `react-i18next` | React | Gives components the Polish texts from `ui/src/i18n/pl.json` |
-| `i18next` | TypeScript | The translation engine behind it, including Polish plural forms |
+| `react-i18next` | React | Gives components the UI texts from the translation files in `ui/src/i18n/` |
+| `i18next` | TypeScript | The translation engine behind it, including each language's plural rules |
 | `@tanstack/react-virtual` | React | Draws only the visible rows of a long grid |
 | `@tauri-apps/api` | TypeScript | Calls Rust commands and listens to Rust events from the UI |
 
@@ -78,7 +78,7 @@ Tools used only while developing (not shipped): Vite, Vitest and Testing Library
 
 ## The journey of a click: rejecting a photo
 
-The user looks at a photo in the viewer window and clicks „Odrzuć” (or presses Delete), with the folder „Odrzucone” chosen as the destination.
+The user looks at a photo in the viewer window and clicks Reject (or presses Delete), with the Rejected folder chosen as the destination.
 
 ```mermaid
 sequenceDiagram
@@ -89,10 +89,10 @@ sequenceDiagram
     participant Disk as Disk + SQLite
     participant Main as Main window (ui/)
 
-    User->>UI: click „Odrzuć” / Delete
+    User->>UI: click Reject / Delete
     UI->>Cmd: invoke('reject_photo', { id, destination: 'folder' })
     Cmd->>Cmd: move to a worker thread, look up the photo's path by id
-    Cmd->>Core: prepare: pick a free name in Odrzucone/
+    Cmd->>Core: prepare: pick a free name in the Rejected folder
     Cmd->>Core: record_reject
     Core->>Disk: write the undo entry (before moving)
     Cmd->>Core: complete: move the files
@@ -100,11 +100,11 @@ sequenceDiagram
     alt success
         Cmd-->>Main: event timeline-changed
         Cmd-->>UI: { name }
-        UI->>User: next photo + toast „<name> → Odrzucone”
+        UI->>User: next photo + toast "<name> → Rejected"
         Main->>Main: reload the grid without the photo
     else error
         Cmd-->>UI: { code }, e.g. { code: "noTrash" }
-        UI->>User: toast with the Polish message for that code
+        UI->>User: toast with the message for that code
     end
 ```
 
@@ -114,11 +114,11 @@ Step by step, with the files involved:
 2. **The UI hook.** The handler in [ViewerApp.tsx](../ui/src/features/viewer/ViewerApp.tsx) ignores a second click while one is running and calls `rejectPhoto(id, destination)`.
 3. **The typed wrapper.** `rejectPhoto` in [features/reject/api.ts](../ui/src/features/reject/api.ts) is the only place that calls Tauri's `invoke('reject_photo', …)`. Tauri sends the arguments to the Rust process as JSON. Only the photo's id goes over, never its path or image data.
 4. **The Tauri command.** `reject_photo` in [src-tauri/src/reject.rs](../src-tauri/src/reject.rs) moves the work off the UI thread (`off_main_thread`), so the window stays responsive. It looks up the path for the id in the current scan, checks that the file is still there, and picks the folder or trash path (`reject/folder.rs`, `reject/trash.rs`).
-5. **The core logic.** In [crates/core/src/reject.rs](../crates/core/src/reject.rs), `prepare` picks a free name inside `Odrzucone` (`(2)`, `(3)` … if taken) and collects the photo's other files (its RAW twin, its Takeout date file). The command then writes the undo entry with `record_reject` in [actions.rs](../crates/core/src/actions.rs) *before* anything moves, and calls `complete`, which moves the files through the exclusive move in [reject/exclusive.rs](../crates/core/src/reject/exclusive.rs). If the move fails, the log entry is removed again and the files already moved go back.
+5. **The core logic.** In [crates/core/src/reject.rs](../crates/core/src/reject.rs), `prepare` picks a free name inside the Rejected folder (`(2)`, `(3)` … if taken) and collects the photo's other files (its RAW twin, its Takeout date file). The command then writes the undo entry with `record_reject` in [actions.rs](../crates/core/src/actions.rs) *before* anything moves, and calls `complete`, which moves the files through the exclusive move in [reject/exclusive.rs](../crates/core/src/reject/exclusive.rs). If the move fails, the log entry is removed again and the files already moved go back.
 6. **Back in the command.** The photo is taken off the in-memory timeline, and a `timeline-changed` event goes to every window. The command returns `{ name }`, or on failure an error code such as `{ code: "noTrash" }`, never an English message.
-7. **Back in the UI.** The viewer shows the next photo and a toast whose text comes from `pl.json`; an error code is turned into its Polish message the same way. The main window hears `timeline-changed` (via `useTimelineRevision`) and reloads its grid, now without the rejected photo.
+7. **Back in the UI.** The viewer shows the next photo and a toast whose text comes from the translation file; an error code is turned into its message the same way. The main window hears `timeline-changed` (via `useTimelineRevision`) and reloads its grid, now without the rejected photo.
 
-„Cofnij” runs the same way backwards: `undo_reject` reads the newest entry from the action log and moves the files back.
+Undo runs the same way backwards: `undo_reject` reads the newest entry from the action log and moves the files back.
 
 Images take a different road from commands. The grid and the viewer show photos through `thumb://` and `photo://` addresses, which the Rust side answers with image bytes: registered in [lib.rs](../src-tauri/src/lib.rs), served by `src-tauri/src/thumbnails.rs` and `src-tauri/src/viewer/photo_protocol.rs`, with shared parts in [protocol.rs](../src-tauri/src/protocol.rs). This keeps the commands small and fast.
 
@@ -133,7 +133,7 @@ Most of Sito is the same on Windows and macOS. The differences sit in a few plac
 | File | Windows | macOS (and Linux) |
 |---|---|---|
 | [core/src/reject/exclusive.rs](../crates/core/src/reject/exclusive.rs): moving a file without replacing another | `MoveFileExW` from `kernel32` | `renamex_np` with `RENAME_EXCL` (Linux: `renameat2`), through the `libc` crate; a check before a plain rename on volumes without it |
-| [core/src/trash.rs](../crates/core/src/trash.rs): the system trash (`trash` crate) | move and restore | move only; macOS has no restore API yet, so „Cofnij” skips these |
+| [core/src/trash.rs](../crates/core/src/trash.rs): the system trash (`trash` crate) | move and restore | move only; macOS has no restore API yet, so Undo skips these |
 | [src-tauri/src/reject/drive.rs](../src-tauri/src/reject/drive.rs): does the drive have a trash? | `GetDriveTypeW`: only fixed drives | always yes |
 | [src-tauri/src/about.rs](../src-tauri/src/about.rs): the app menu | a menu bar in the window | the menu bar at the top of the screen, with the app menu macOS expects |
 
@@ -143,7 +143,7 @@ A system-specific dependency is declared the same way: `libc` is listed under `[
 
 **In the UI.** The TypeScript code has no per-system branches. The one difference is the shortcut modifier: [keymap.ts](../ui/src/shortcuts/keymap.ts) treats Ctrl and Cmd alike, so Ctrl+Z on Windows is Cmd+Z on macOS.
 
-**Packaging.** [tauri.conf.json](../src-tauri/tauri.conf.json) lists the installer types: NSIS (a per-user Windows installer with Polish text, built from `src-tauri/installer/`) and DMG/app for macOS. The [release workflow](../.github/workflows/release.yml) builds each on its own system (`windows-latest`, `macos-latest`), since an app is compiled separately for each system.
+**Packaging.** [tauri.conf.json](../src-tauri/tauri.conf.json) lists the installer types: NSIS (a per-user Windows installer, built from `src-tauri/installer/`) and DMG/app for macOS. The [release workflow](../.github/workflows/release.yml) builds each on its own system (`windows-latest`, `macos-latest`), since an app is compiled separately for each system.
 
 ## Where to read next
 
