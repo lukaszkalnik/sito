@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 28b – Viewer stuck on its first photo
 
-Found by the real-app e2e suite of [slice 28](28-real-app-e2e.md) on CI (2026-11-15). Cause found and plan approved by the user on 2026-11-16; nothing is implemented yet, step 1 of the plan comes next.
+Found by the real-app e2e suite of [slice 28](28-real-app-e2e.md) on CI (2026-11-15). Cause found and plan approved by the user on 2026-11-16. Steps 1 to 4 implemented on 2026-11-16 (what they established is in [docs/domain/timeline.md](../domain/timeline.md): Reopening a folder, Viewer); the [Verification](#verification) comes next.
 
 ## The bug
 
