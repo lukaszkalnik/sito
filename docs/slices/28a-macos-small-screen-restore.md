@@ -65,7 +65,7 @@ One commit per step, checks green.
 
 ### To settle at the review
 
-- **Reading the plugin's file.** Its format is not a public API, so a plugin update could change it. The fallback (a warning, then the window opens at its default place) makes that visible and harmless, and the restart spec fails on all platforms if it happens. The alternative is to keep our own copy of the state when saving, which duplicates what the plugin does; proposed: read the plugin's file.
+- **Settled: the plugin stays, and its file is read.** After this slice the plugin only loads, tracks and saves the state; restoring is ours. It stays because the saving half holds the platform quirks (a minimized window on Windows reports -32000, a maximized one the screen's frame) and works today. Its file format is not a public API, but `Cargo.lock` pins the plugin, so the format changes only with a deliberate update, and then the fallback (a warning, the window at its default place) and the restart spec on all platforms show it. Replacing the plugin with our own tracking and saving would be a slice of its own; `placement` and the restore path would stay as they are.
 - **One path on all platforms**, not a macOS-only branch. On Windows and Linux the setters apply at once, so the result should not change, and the monitor choice gets better there too.
 
 ## Verification
