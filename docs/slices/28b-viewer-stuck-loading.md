@@ -65,6 +65,6 @@ The plan was approved as written: the viewer shows the proposed message (it is n
   - **Without step 1** (commit before the fix, harness of then, the delay; run 43964232571): the viewer spec failed 19 of 20 times on Linux and 14 of 20 on Windows, each time with the viewer stuck on its first photo.
   - **With steps 1 and 2** (harness of then, step 3 reverted, the delay; run 43964238240): Windows 20 of 20; Linux 19 of 20. In the failed run the app log shows the older scan waiting for the later opening, and the backend answers the viewer's request with the photo for its scan id; the failure is a click on a tile in the main window that never reached the app (the main window frames only the first photo, the backend still holds the first request). Not this bug.
   - **The whole suite with the fix, no delay** (run 43960579586): Windows 20 of 20; Linux 17 of 20. Every failed run shows one page load and one opening in its app log, so none is this bug:
-    - restart spec, twice the same: the main window came back at x 20, y 40 instead of x 0, y 112;
+    - restart spec, once: the main window came back at x 20, y 40 instead of x 0, y 112;
     - scan spec, twice: „the tile of canon_12-00-06.jpg is not shown”, while the screenshot shows the tile with its thumbnail (WebKitWebDriver's visibility check).
 - **These three Linux flakes** (lost tile click, restart window place, tile visibility) are new and not part of this slice; they need fixes of their own.
