@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 28b – Viewer stuck on its first photo
 
-Found by the real-app e2e suite of [slice 28](28-real-app-e2e.md) on CI (2026-11-15). Cause found on 2026-11-16; the plan below waits for review.
+Found by the real-app e2e suite of [slice 28](28-real-app-e2e.md) on CI (2026-11-15). Cause found and plan approved by the user on 2026-11-16; nothing is implemented yet, step 1 of the plan comes next.
 
 ## The bug
 
@@ -47,10 +47,9 @@ One commit per step, checks green.
 3. **The harness opens the folder once (`test:`).** `openFolder` waits until the first page shows its start screen (the „Wybierz folder ze zdjęciami” button) before it writes `sito.lastFolder` and reloads, so every spec runs exactly one scan and no longer depends on timing. The overlap is covered by the unit tests of step 1, which are deterministic.
 4. **Docs (`docs:`).** `docs/domain/timeline.md`: of two openings the later one wins; what the viewer shows when its folder is no longer open. This file and the roadmap get the status.
 
-### Open questions for the review
+### Settled at the review
 
-- The wording of the viewer's message in step 2, or closing the viewer window instead when another folder is opened.
-- Whether step 3 should keep one spec that reloads the main window during a scan on purpose. The unit tests cover the logic; such a spec would again depend on timing.
+The plan was approved as written: the viewer shows the proposed message (it is not closed when another folder is opened), and no spec reloads the main window during a scan.
 
 ## Verification
 
