@@ -10,13 +10,24 @@ const LAST_FOLDER_KEY = 'sito.lastFolder';
 
 /**
  * Opens `dir` in the main window the way the app reopens its last folder on
- * start: the folder picker is native and out of WebDriver's reach.
+ * start: the folder picker is native and out of WebDriver's reach. Waits for
+ * the start screen first, so the page the reload replaces has started and
+ * opens nothing itself: each spec opens its folder exactly once.
  */
 export async function openFolder(dir: string): Promise<void> {
   await switchToWindow('main');
+  await waitForStartScreen();
   await browser.execute((key, path) => localStorage.setItem(key, path), LAST_FOLDER_KEY, dir);
   // WebDriver's own reload: a script that navigates away never returns on WebView2.
   await browser.refresh();
+}
+
+/** Waits until the main window shows the start screen, ready to pick a folder. */
+async function waitForStartScreen(): Promise<void> {
+  const choose = button(t('scan.chooseFolder'));
+  await browser.waitUntil(() => choose.isEnabled().catch(() => false), {
+    timeoutMsg: 'the main window never showed its start screen',
+  });
 }
 
 /** The full summary of the main window's status line („Znaleziono 6 zdjęć. …”). */
