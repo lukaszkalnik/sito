@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ViewerPhoto, ViewerRequest } from './api';
+import type { ViewerAnswer, ViewerRequest } from './api';
 import { ViewerPageCache, type LoadPage } from './viewerPageCache';
 
 function request(id: number, changes: Partial<ViewerRequest> = {}): ViewerRequest {
   return { id, scanId: 1, mode: 'all', gap: 10, ...changes };
 }
 
-/** A loader that answers every request with `null`, counting the calls. */
+/** A loader that answers every request with `missing`, counting the calls. */
 function loader() {
-  return vi.fn<LoadPage>(() => Promise.resolve<ViewerPhoto | null>(null));
+  return vi.fn<LoadPage>(() => Promise.resolve<ViewerAnswer>({ kind: 'missing' }));
 }
 
 describe('ViewerPageCache', () => {
@@ -41,11 +41,11 @@ describe('ViewerPageCache', () => {
     const load = vi
       .fn<LoadPage>()
       .mockRejectedValueOnce(new Error('busy'))
-      .mockResolvedValueOnce(null);
+      .mockResolvedValueOnce({ kind: 'missing' });
     const cache = new ViewerPageCache(load);
 
     await expect(cache.get(request(1), 0)).rejects.toThrow('busy');
-    await expect(cache.get(request(1), 0)).resolves.toBeNull();
+    await expect(cache.get(request(1), 0)).resolves.toEqual({ kind: 'missing' });
 
     expect(load).toHaveBeenCalledTimes(2);
   });

@@ -40,12 +40,17 @@ export interface PhotoDetails {
   readonly resolution: { readonly width: number; readonly height: number } | null;
 }
 
-/**
- * What the viewer shows for `request`, or `null` if the photo is not on the
- * timeline of that scan (e.g. a restored photo that is not back yet).
- */
-export async function getViewerPhoto(request: ViewerRequest): Promise<ViewerPhoto | null> {
-  return invoke<ViewerPhoto | null>('get_viewer_photo', { request });
+/** What the viewer gets for one request. Mirrors `ViewerAnswer`. */
+export type ViewerAnswer =
+  | { readonly kind: 'photo'; readonly photo: ViewerPhoto }
+  /** The photo is not on the timeline of its scan (e.g. a restored photo that is not back yet). */
+  | { readonly kind: 'missing' }
+  /** The request's scan is no longer the one shown: another folder was opened meanwhile. */
+  | { readonly kind: 'scanReplaced' };
+
+/** What the viewer shows for `request`. */
+export async function getViewerPhoto(request: ViewerRequest): Promise<ViewerAnswer> {
+  return invoke<ViewerAnswer>('get_viewer_photo', { request });
 }
 
 /** What is gone of a photo whose file cannot be found: the file, or the whole open folder. */

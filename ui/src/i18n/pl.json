@@ -84,6 +84,7 @@
     "loadError": "Nie udało się wczytać zdjęcia.",
     "photoMissing": "Tego zdjęcia nie ma już w otwartym folderze – zostało przeniesione, zmieniło nazwę lub usunięto je.",
     "folderMissing": "Otwartego folderu nie ma już na dysku. Wybierz go ponownie w oknie głównym.",
+    "scanReplaced": "Ten folder nie jest już otwarty w oknie głównym. Wybierz zdjęcie w oknie głównym.",
     "refreshFolder": "Odśwież folder",
     "loading": "Wczytywanie zdjęcia…",
     "empty": "Brak zdjęć do pokazania.",

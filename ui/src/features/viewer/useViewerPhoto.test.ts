@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { onTimelineChanged } from '../reject/api';
 import type { TimelineEntry } from '../timeline/api';
-import { getViewerPhoto, type ViewerPhoto, type ViewerRequest } from './api';
+import { getViewerPhoto, type ViewerAnswer, type ViewerPhoto, type ViewerRequest } from './api';
 import { useViewerPhoto } from './useViewerPhoto';
 
 vi.mock('./api', () => ({ getViewerPhoto: vi.fn() }));
@@ -37,6 +37,8 @@ function page(id: number): ViewerPhoto {
   };
 }
 
+const found = (photo: ViewerPhoto): ViewerAnswer => ({ kind: 'photo', photo });
+
 function request(id: number): ViewerRequest {
   return { id, scanId: 1, mode: 'all', gap: 10 };
 }
@@ -46,7 +48,7 @@ const requestedIds = () => mockedPage.mock.calls.map(([r]) => r.id);
 describe('useViewerPhoto', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockedPage.mockImplementation((r) => Promise.resolve(page(r.id)));
+    mockedPage.mockImplementation((r) => Promise.resolve(found(page(r.id))));
     vi.mocked(onTimelineChanged).mockImplementation((handler) => {
       announceChange = handler;
       return Promise.resolve(() => {});
@@ -85,13 +87,22 @@ describe('useViewerPhoto', () => {
   });
 
   it('reports a photo that is not on the timeline, and finds it once the timeline changes', async () => {
-    mockedPage.mockResolvedValueOnce(null);
+    mockedPage.mockResolvedValueOnce({ kind: 'missing' });
     const { result } = renderHook(() => useViewerPhoto(request(5)));
     await waitFor(() => expect(result.current).toEqual({ kind: 'missing' }));
 
     act(() => announceChange());
 
     await waitFor(() => expect(result.current).toEqual({ kind: 'ready', photo: page(5) }));
+  });
+
+  it('reports a scan that another opening replaced', async () => {
+    mockedPage.mockResolvedValue({ kind: 'scanReplaced' });
+
+    const { result } = renderHook(() => useViewerPhoto(request(5)));
+
+    await waitFor(() => expect(result.current).toEqual({ kind: 'scanReplaced' }));
+    expect(requestedIds()).toEqual([5]);
   });
 
   it('reports a failed load', async () => {

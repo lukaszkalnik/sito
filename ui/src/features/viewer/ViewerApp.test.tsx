@@ -14,6 +14,7 @@ import {
   onViewerContext,
   onViewerShow,
   sendViewerShown,
+  type ViewerAnswer,
   type ViewerPhoto,
 } from './api';
 import { ViewerApp } from './ViewerApp';
@@ -59,9 +60,9 @@ function entry(id: number): TimelineEntry {
   };
 }
 
-/** Photos 3 and 4, each continuing with the other after a rejection. */
-function page(id: number, afterReject: number | null): ViewerPhoto {
-  return {
+/** The answer with photo `id`, going on to `afterReject` after a rejection. */
+function page(id: number, afterReject: number | null): ViewerAnswer {
+  const photo: ViewerPhoto = {
     entry: entry(id),
     previous: null,
     next: null,
@@ -69,6 +70,7 @@ function page(id: number, afterReject: number | null): ViewerPhoto {
     afterReject,
     details: { sizeBytes: 812 * 1024, resolution: null },
   };
+  return { kind: 'photo', photo };
 }
 
 const spinner = () => screen.queryByRole('status', { name: 'Wczytywanie zdjęcia…' });
@@ -110,7 +112,7 @@ describe('ViewerApp', () => {
     });
     let gone = false;
     vi.mocked(getViewerPhoto).mockImplementation((request) =>
-      Promise.resolve(request.id === 3 && gone ? null : page(request.id, 4)),
+      Promise.resolve(request.id === 3 && gone ? { kind: 'missing' } : page(request.id, 4)),
     );
     render(<ViewerApp />);
     await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
@@ -146,6 +148,17 @@ describe('ViewerApp', () => {
 
     await vi.waitFor(() => expect(getViewerPhoto).toHaveBeenCalled());
     expect(spinner()).toBeInTheDocument();
+  });
+
+  it('says so when the folder of its scan is no longer open', async () => {
+    vi.mocked(getViewerPhoto).mockResolvedValue({ kind: 'scanReplaced' });
+
+    render(<ViewerApp />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Ten folder nie jest już otwarty w oknie głównym. Wybierz zdjęcie w oknie głównym.',
+    );
+    expect(spinner()).not.toBeInTheDocument();
   });
 
   it('shows its photo without loading the whole timeline', async () => {

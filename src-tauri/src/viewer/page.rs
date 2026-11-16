@@ -91,28 +91,56 @@ impl PhotoDetailsDto {
     }
 }
 
-/// What the viewer shows for `request`: `None` if the photo is not on the
-/// timeline of the request's scan (another scan replaced it, or a restored
-/// photo is not back yet).
+/// What the viewer gets for one request.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+pub enum ViewerAnswer {
+    /// The photo, to be shown.
+    Photo {
+        /// What the viewer shows.
+        photo: Box<ViewerPhotoDto>,
+    },
+    /// The photo is not on the timeline of its scan (a restored photo that
+    /// is not back yet, or one that left the timeline).
+    Missing,
+    /// The request's scan is no longer the one shown: another folder was
+    /// opened (or the folder opened again) meanwhile.
+    ScanReplaced,
+}
+
+/// What the viewer shows for `request`; see [`ViewerAnswer`].
 #[tauri::command]
 pub async fn get_viewer_photo(
     request: ViewerRequest,
     app: AppHandle,
-) -> Result<Option<ViewerPhotoDto>, CommandError> {
+) -> Result<ViewerAnswer, CommandError> {
     off_main_thread(move || viewer_photo(&app.state::<AppState>(), request)).await
 }
 
 /// See [`get_viewer_photo`].
-pub(crate) fn viewer_photo(state: &AppState, request: ViewerRequest) -> Option<ViewerPhotoDto> {
-    let grouping = cached_series(state, Duration::from_secs(request.gap.into()))?;
+pub(crate) fn viewer_photo(state: &AppState, request: ViewerRequest) -> ViewerAnswer {
+    let Some(grouping) = cached_series(state, Duration::from_secs(request.gap.into())) else {
+        return ViewerAnswer::ScanReplaced;
+    };
     let (page, photo) = {
         let scan = state.scan();
-        let scan = scan.as_ref().filter(|scan| scan.id == request.scan_id)?;
-        page(scan, &grouping, request)?
+        let Some(scan) = scan.as_ref().filter(|scan| scan.id == request.scan_id) else {
+            return ViewerAnswer::ScanReplaced;
+        };
+        let Some(found) = page(scan, &grouping, request) else {
+            return ViewerAnswer::Missing;
+        };
+        found
     };
     // Read from the file once the scan is unlocked, so thumbnails never wait.
     let details = PhotoDetailsDto::of(&photo);
-    Some(ViewerPhotoDto { page, details })
+    ViewerAnswer::Photo {
+        photo: Box::new(ViewerPhotoDto { page, details }),
+    }
 }
 
 /// The page of `request.id` in `scan`, grouped as `grouping`, and the photo.
@@ -163,6 +191,16 @@ mod tests {
         (state, scan_id)
     }
 
+    /// What the viewer shows for `request`; panics if it shows no photo.
+    fn photo_for(state: &AppState, request: ViewerRequest) -> ViewerPhotoDto {
+        match viewer_photo(state, request) {
+            ViewerAnswer::Photo { photo } => *photo,
+            other @ (ViewerAnswer::Missing | ViewerAnswer::ScanReplaced) => {
+                panic!("no photo: {other:?}")
+            }
+        }
+    }
+
     fn request(scan_id: u64, id: usize, mode: ViewMode) -> ViewerRequest {
         ViewerRequest {
             id,
@@ -197,7 +235,7 @@ mod tests {
         let (state, scan_id) = scanned();
         let members = series_ids(&state);
 
-        let shown = viewer_photo(&state, request(scan_id, members[0], ViewMode::Series)).unwrap();
+        let shown = photo_for(&state, request(scan_id, members[0], ViewMode::Series));
 
         assert_eq!(ids(&shown.page.series), members);
         assert_eq!(shown.page.previous, None);
@@ -219,7 +257,7 @@ mod tests {
             .unwrap();
         let position = state.scan().as_ref().unwrap().position_of(single).unwrap();
 
-        let shown = viewer_photo(&state, request(scan_id, single, ViewMode::All)).unwrap();
+        let shown = photo_for(&state, request(scan_id, single, ViewMode::All));
 
         assert_eq!(shown.page.series, []);
         let scan = state.scan();
@@ -252,28 +290,54 @@ mod tests {
         ]
         .map(id_of);
 
-        let shown = viewer_photo(&state, request(scan_id, canon_old, ViewMode::All)).unwrap();
+        let shown = photo_for(&state, request(scan_id, canon_old, ViewMode::All));
 
         assert_eq!(ids(&shown.page.series), [canon_new, canon_old]);
         assert_eq!(shown.page.previous, Some(canon_new));
         assert_eq!(shown.page.next, Some(pixel_new));
-        let shown = viewer_photo(&state, request(scan_id, pixel_new, ViewMode::All)).unwrap();
+        let shown = photo_for(&state, request(scan_id, pixel_new, ViewMode::All));
         assert_eq!(shown.page.next, Some(pixel_old));
     }
 
     #[test]
-    fn nothing_for_another_scan_or_a_photo_off_the_timeline() {
+    fn another_scan_is_told_apart_from_a_photo_off_the_timeline() {
         let (state, scan_id) = scanned();
         let id = series_ids(&state)[0];
 
         assert_eq!(
             viewer_photo(&state, request(scan_id + 1, id, ViewMode::All)),
-            None
+            ViewerAnswer::ScanReplaced
         );
         state.scan().as_mut().unwrap().remove(id);
         assert_eq!(
             viewer_photo(&state, request(scan_id, id, ViewMode::All)),
-            None
+            ViewerAnswer::Missing
+        );
+    }
+
+    #[test]
+    fn no_scan_at_all_is_a_replaced_scan() {
+        assert_eq!(
+            viewer_photo(&AppState::default(), request(1, 0, ViewMode::All)),
+            ViewerAnswer::ScanReplaced
+        );
+    }
+
+    #[test]
+    fn answers_are_tagged_by_kind() {
+        let (state, scan_id) = scanned();
+        let id = series_ids(&state)[0];
+
+        let photo = serde_json::to_value(viewer_photo(&state, request(scan_id, id, ViewMode::All)));
+        let replaced = serde_json::to_value(ViewerAnswer::ScanReplaced).unwrap();
+
+        let photo = photo.unwrap();
+        assert_eq!(photo["kind"], "photo");
+        assert!(photo["photo"].get("entry").is_some());
+        assert_eq!(replaced, serde_json::json!({ "kind": "scanReplaced" }));
+        assert_eq!(
+            serde_json::to_value(ViewerAnswer::Missing).unwrap(),
+            serde_json::json!({ "kind": "missing" })
         );
     }
 
@@ -291,7 +355,10 @@ mod tests {
         let installed = state.set_timeline(older, build_timeline(&fixtures, |_| {}).unwrap());
 
         assert_eq!(installed, None);
-        assert!(viewer_photo(&state, request(scan_id, id, ViewMode::Series)).is_some());
+        assert!(matches!(
+            viewer_photo(&state, request(scan_id, id, ViewMode::Series)),
+            ViewerAnswer::Photo { .. }
+        ));
     }
 
     #[test]
@@ -306,7 +373,7 @@ mod tests {
             .map(|(id, photo)| (id, photo.path.clone()))
             .unwrap();
 
-        let shown = viewer_photo(&state, request(scan_id, id, ViewMode::All)).unwrap();
+        let shown = photo_for(&state, request(scan_id, id, ViewMode::All));
 
         // Stored 16 × 12, shown turned by 90°.
         assert_eq!(

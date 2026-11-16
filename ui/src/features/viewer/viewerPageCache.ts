@@ -1,10 +1,10 @@
-import type { ViewerPhoto, ViewerRequest } from './api';
+import type { ViewerAnswer, ViewerRequest } from './api';
 
 /** Most pages kept for one view; stepping through more starts over. */
 const MAX_PAGES = 200;
 
 /** Loads the page of one photo. */
-export type LoadPage = (request: ViewerRequest) => Promise<ViewerPhoto | null>;
+export type LoadPage = (request: ViewerRequest) => Promise<ViewerAnswer>;
 
 /**
  * Viewer pages of one view (scan, mode, gap and timeline revision), each
@@ -14,7 +14,7 @@ export type LoadPage = (request: ViewerRequest) => Promise<ViewerPhoto | null>;
  */
 export class ViewerPageCache {
   private view = '';
-  private readonly pages = new Map<number, Promise<ViewerPhoto | null>>();
+  private readonly pages = new Map<number, Promise<ViewerAnswer>>();
   private readonly load: LoadPage;
 
   constructor(load: LoadPage) {
@@ -22,7 +22,7 @@ export class ViewerPageCache {
   }
 
   /** The page of `request` at timeline `revision`. */
-  get(request: ViewerRequest, revision: number): Promise<ViewerPhoto | null> {
+  get(request: ViewerRequest, revision: number): Promise<ViewerAnswer> {
     const view = `${request.scanId}/${request.mode}/${request.gap}/${revision}`;
     if (view !== this.view || this.pages.size >= MAX_PAGES) {
       this.pages.clear();

@@ -149,6 +149,17 @@ function ViewerLoading() {
   );
 }
 
+/** The viewer with only a message instead of a photo. */
+function ViewerMessage({ text }: { text: string }) {
+  return (
+    <main className="viewer">
+      <p role="alert" className="viewer-error">
+        {text}
+      </p>
+    </main>
+  );
+}
+
 /** Moves on to `next` (as after a rejection) when the photo shown left the timeline. */
 function MoveOn({ next, onShowId }: { next: number | null; onShowId: (id: number) => void }) {
   useEffect(() => onShowId(next ?? NO_PHOTO), [next, onShowId]);
@@ -166,14 +177,10 @@ function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerPr
       return <ViewerLoading />;
     case 'gone':
       return <MoveOn next={state.afterReject} onShowId={onShowId} />;
+    case 'scanReplaced':
+      return <ViewerMessage text={t('viewer.scanReplaced')} />;
     case 'error':
-      return (
-        <main className="viewer">
-          <p role="alert" className="viewer-error">
-            {t('viewer.loadError')}
-          </p>
-        </main>
-      );
+      return <ViewerMessage text={t('viewer.loadError')} />;
     case 'ready':
       return (
         <ReadyViewer

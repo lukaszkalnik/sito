@@ -234,7 +234,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       const entries = timeline() as { id: number }[];
       const ranges = series(request.gap) as { start: number; len: number }[];
       const position = entries.findIndex((e) => e.id === request.id);
-      if (position < 0) return null;
+      if (position < 0) return { kind: 'missing' };
       const order =
         request.mode === 'all'
           ? entries.map((_, i) => i)
@@ -247,7 +247,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         after = position + 1 < own.start + own.len ? position + 1 : position - 1;
       }
       const idAt = (p: number | undefined) => (p === undefined ? null : entries[p].id);
-      return {
+      const photo = {
         entry: { ...entries[position], ...m.viewerEntry },
         previous: idAt(previous),
         next: idAt(next),
@@ -255,6 +255,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         afterReject: idAt(after),
         details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
       };
+      return { kind: 'photo', photo };
     }
 
     const internals = {

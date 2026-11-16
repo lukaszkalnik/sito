@@ -14,6 +14,8 @@ export type ViewerPhotoState =
    * `afterReject` is the photo that took its place, as after a rejection.
    */
   | { kind: 'gone'; afterReject: number | null }
+  /** The folder of the request's scan is no longer open in the main window. */
+  | { kind: 'scanReplaced' }
   | { kind: 'error' };
 
 /** What was loaded last, for which scan and photo. */
@@ -76,10 +78,16 @@ export function useViewerPhoto(request: ViewerRequest): ViewerPhotoState {
     const absent = () =>
       !cancelled && setLoaded((before) => ({ scanId, id, state: absentState(before, scanId, id) }));
     cache.get({ ...view, id }, revision).then(
-      (photo) => {
-        if (photo === null) return absent();
-        done({ kind: 'ready', photo });
-        prefetch(cache, view, revision, [photo.next, photo.previous]);
+      (answer) => {
+        switch (answer.kind) {
+          case 'missing':
+            return absent();
+          case 'scanReplaced':
+            return done({ kind: 'scanReplaced' });
+          case 'photo':
+            done({ kind: 'ready', photo: answer.photo });
+            return prefetch(cache, view, revision, [answer.photo.next, answer.photo.previous]);
+        }
       },
       () => done({ kind: 'error' }),
     );
