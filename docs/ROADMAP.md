@@ -57,6 +57,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | ✅ |
 | 28b | [Viewer stuck on its first photo](slices/28b-viewer-stuck-loading.md) | 🧪 |
 | 28a | [Window places on small Mac screens](slices/28a-macos-small-screen-restore.md) | 📝 |
+| 28c | [Flaky real-app tests on Linux](slices/28c-linux-e2e-flakes.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |

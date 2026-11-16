@@ -67,4 +67,4 @@ The plan was approved as written: the viewer shows the proposed message (it is n
   - **The whole suite with the fix, no delay** (run 43960579586): Windows 20 of 20; Linux 17 of 20. Every failed run shows one page load and one opening in its app log, so none is this bug:
     - restart spec, once: the main window came back at x 20, y 40 instead of x 0, y 112;
     - scan spec, twice: „the tile of canon_12-00-06.jpg is not shown”, while the screenshot shows the tile with its thumbnail (WebKitWebDriver's visibility check).
-- **These three Linux flakes** (lost tile click, restart window place, tile visibility) are new and not part of this slice; they need fixes of their own.
+- **These three Linux flakes** (lost tile click, restart window place, tile visibility) are new and not part of this slice: [slice 28c](28c-linux-e2e-flakes.md).
