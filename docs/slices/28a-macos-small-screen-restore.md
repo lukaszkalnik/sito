@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 28a – Window places on small Mac screens
 
-Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below awaits review.
+Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below was approved on 2026-11-16; nothing is implemented yet.
 
 ## The bug
 
@@ -63,10 +63,10 @@ One commit per step, checks green.
    - **Real-app spec:** `e2e-app/specs/restart.spec.ts` drops `CHECKS_FRAMES`, so macOS compares the frames again. The macOS runner's screen shows the bug on every run, which makes it the regression test; the Windows and Linux runs guard the platforms that worked before.
 2. **Docs (`docs:`).** A new `docs/domain/windows.md` (indexed in the README): both windows come back at their remembered size and place, a maximized one maximized; a window that would lie outside the visible part of its screen is moved and shrunk into it; one remembered on a disconnected monitor comes back on the primary one. This file and the roadmap get the status.
 
-### To settle at the review
+### Settled at the review
 
-- **Settled: the plugin stays, and its file is read.** After this slice the plugin only loads, tracks and saves the state; restoring is ours. It stays because the saving half holds the platform quirks (a minimized window on Windows reports -32000, a maximized one the screen's frame) and works today. Its file format is not a public API, but `Cargo.lock` pins the plugin, so the format changes only with a deliberate update, and then the fallback (a warning, the window at its default place) and the restart spec on all platforms show it. Replacing the plugin with our own tracking and saving would be a slice of its own; `placement` and the restore path would stay as they are.
-- **One path on all platforms**, not a macOS-only branch. On Windows and Linux the setters apply at once, so the result should not change, and the monitor choice gets better there too.
+- **The plugin stays, and its file is read.** After this slice the plugin only loads, tracks and saves the state; restoring is ours. It stays because the saving half holds the platform quirks (a minimized window on Windows reports -32000, a maximized one the screen's frame) and works today. Its file format is not a public API, but `Cargo.lock` pins the plugin, so the format changes only with a deliberate update, and then the fallback (a warning, the window at its default place) and the restart spec on all platforms show it. Replacing the plugin with our own tracking and saving would be a slice of its own; `placement` and the restore path would stay as they are.
+- **One path on all platforms**, not a macOS-only branch, as proposed. On Windows and Linux the setters apply at once, so the result should not change, and the monitor choice gets better there too.
 
 ## Verification
 
