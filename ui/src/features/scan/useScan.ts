@@ -77,7 +77,10 @@ export function useScan(): {
       dispatch({ type: 'scanFinished', summary });
       saveLastFolder(path);
     } catch (err) {
-      dispatch({ type: 'scanFailed', code: err instanceof ScanError ? err.code : 'internal' });
+      const code = err instanceof ScanError ? err.code : 'internal';
+      // A later opening (by a reloaded page) shows its own result.
+      if (code === 'superseded') return;
+      dispatch({ type: 'scanFailed', code });
     }
   }, []);
 

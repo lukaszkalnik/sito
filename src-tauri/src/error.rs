@@ -28,6 +28,9 @@ pub enum CommandError {
     RejectedDirIsLink,
     /// This system cannot restore files from the trash.
     TrashUndoUnsupported,
+    /// A later opening of a folder began before this one finished; its
+    /// result is the one shown.
+    Superseded,
     /// Unexpected failure inside the app.
     Internal,
 }

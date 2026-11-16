@@ -249,29 +249,54 @@ impl Scan {
     }
 }
 
-/// Which opening of a folder some background work belongs to; work of an
-/// earlier one stops (see [`AppState::is_latest`]).
+/// Which opening or refresh of a folder some background work belongs to;
+/// work of an earlier one stops (see [`AppState::is_latest`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Generation(u64);
+
+/// One opening of a folder; a later opening outdates it (see
+/// [`AppState::is_latest_opening`]). Unlike [`Generation`], a refresh does
+/// not, so a refresh never cancels a folder that is still being opened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Opening(u64);
 
 /// App-wide state managed by Tauri.
 #[derive(Debug, Default)]
 pub struct AppState {
     scan: Mutex<Option<Scan>>,
+    /// How many times a folder has been opened or refreshed.
+    generations: AtomicU64,
     /// How many times a folder has been opened.
-    opened: AtomicU64,
+    openings: AtomicU64,
 }
 
 impl AppState {
-    /// Starts opening a folder: from now on, background work of folders
-    /// opened before is no longer [`Self::is_latest`].
-    pub fn begin_scan(&self) -> Generation {
-        Generation(self.opened.fetch_add(1, Ordering::SeqCst) + 1)
+    /// Starts opening a folder: from now on, earlier openings are no longer
+    /// [`Self::is_latest_opening`], and background work of folders opened
+    /// before is no longer [`Self::is_latest`].
+    pub fn begin_opening(&self) -> (Opening, Generation) {
+        let opening = Opening(self.openings.fetch_add(1, Ordering::SeqCst) + 1);
+        (opening, self.next_generation())
     }
 
-    /// Whether no folder has been opened since `generation`.
+    /// Starts refreshing the open folder: from now on, its background work
+    /// started before is no longer [`Self::is_latest`].
+    pub fn begin_refresh(&self) -> Generation {
+        self.next_generation()
+    }
+
+    fn next_generation(&self) -> Generation {
+        Generation(self.generations.fetch_add(1, Ordering::SeqCst) + 1)
+    }
+
+    /// Whether no folder has been opened or refreshed since `generation`.
     pub fn is_latest(&self, generation: Generation) -> bool {
-        self.opened.load(Ordering::SeqCst) == generation.0
+        self.generations.load(Ordering::SeqCst) == generation.0
+    }
+
+    /// Whether no folder has been opened since `opening`.
+    pub fn is_latest_opening(&self, opening: Opening) -> bool {
+        self.openings.load(Ordering::SeqCst) == opening.0
     }
 
     /// The last finished scan, if any.
@@ -281,9 +306,16 @@ impl AppState {
         self.scan.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// Replaces the stored scan with `timeline` and returns the new scan id.
-    pub fn set_timeline(&self, timeline: Timeline) -> u64 {
+    /// Replaces the stored scan with `timeline`, the result of `opening`,
+    /// and returns the new scan id; `None`, changing nothing, if a later
+    /// opening has begun meanwhile (its result is the one to show).
+    pub fn set_timeline(&self, opening: Opening, timeline: Timeline) -> Option<u64> {
         let mut scan = self.scan();
+        // Checked under the lock: a later opening installs its scan only after
+        // it has begun, so it always comes after this one.
+        if !self.is_latest_opening(opening) {
+            return None;
+        }
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX));
@@ -291,7 +323,14 @@ impl AppState {
             .as_ref()
             .map_or(now, |previous| now.max(previous.id + 1));
         *scan = Some(Scan::new(id, timeline));
-        id
+        Some(id)
+    }
+
+    /// Opens a folder with `timeline` at once; returns the scan id.
+    #[cfg(test)]
+    pub(crate) fn open(&self, timeline: Timeline) -> u64 {
+        let (opening, _) = self.begin_opening();
+        self.set_timeline(opening, timeline).unwrap()
     }
 
     /// Refreshes scan `scan_id` with a newer `timeline` of its folder (see
@@ -346,13 +385,56 @@ mod tests {
     #[test]
     fn opening_a_folder_makes_earlier_work_outdated() {
         let state = AppState::default();
-        let first = state.begin_scan();
+        let (_, first) = state.begin_opening();
         assert!(state.is_latest(first));
 
-        let second = state.begin_scan();
+        let (_, second) = state.begin_opening();
 
         assert!(!state.is_latest(first));
         assert!(state.is_latest(second));
+    }
+
+    #[test]
+    fn a_refresh_makes_earlier_work_outdated_but_not_the_opening() {
+        let state = AppState::default();
+        let (opening, generation) = state.begin_opening();
+
+        let refresh = state.begin_refresh();
+
+        assert!(!state.is_latest(generation));
+        assert!(state.is_latest(refresh));
+        assert!(state.is_latest_opening(opening));
+        assert!(state.set_timeline(opening, timeline(&["a.jpg"])).is_some());
+    }
+
+    #[test]
+    fn an_older_opening_that_finishes_last_is_not_shown() {
+        let state = AppState::default();
+        let (older, _) = state.begin_opening();
+        let (newer, _) = state.begin_opening();
+
+        let current = state.set_timeline(newer, timeline(&["a.jpg"])).unwrap();
+
+        assert!(!state.is_latest_opening(older));
+        assert_eq!(state.set_timeline(older, timeline(&["old.jpg"])), None);
+        assert!(state.is_current(current));
+        assert_eq!(
+            state.photo(current, 0).map(|p| p.path),
+            Some(PathBuf::from("a.jpg"))
+        );
+    }
+
+    #[test]
+    fn the_newest_opening_is_shown_after_an_older_one() {
+        let state = AppState::default();
+        let (older, _) = state.begin_opening();
+        let old = state.set_timeline(older, timeline(&["a.jpg"])).unwrap();
+        let (newer, _) = state.begin_opening();
+
+        let current = state.set_timeline(newer, timeline(&["b.jpg"])).unwrap();
+
+        assert!(current > old);
+        assert!(state.is_current(current));
     }
 
     /// Photos named `names`, one second apart, newest first.
@@ -398,8 +480,8 @@ mod tests {
     fn every_scan_gets_a_new_id() {
         let state = AppState::default();
 
-        let first = state.set_timeline(timeline(&["a.jpg"]));
-        let second = state.set_timeline(timeline(&["a.jpg"]));
+        let first = state.open(timeline(&["a.jpg"]));
+        let second = state.open(timeline(&["a.jpg"]));
 
         assert!(second > first);
     }
@@ -407,8 +489,8 @@ mod tests {
     #[test]
     fn photo_is_looked_up_in_the_current_scan_only() {
         let state = AppState::default();
-        let old = state.set_timeline(timeline(&["old.jpg"]));
-        let current = state.set_timeline(timeline(&["a.jpg", "b.jpg"]));
+        let old = state.open(timeline(&["old.jpg"]));
+        let current = state.open(timeline(&["a.jpg", "b.jpg"]));
 
         assert_eq!(
             state.photo(current, 1).map(|p| p.path),
@@ -686,8 +768,8 @@ mod tests {
     #[test]
     fn a_refresh_of_a_replaced_scan_changes_nothing() {
         let state = AppState::default();
-        let old = state.set_timeline(timeline(&["a.jpg"]));
-        let current = state.set_timeline(timeline(&["b.jpg"]));
+        let old = state.open(timeline(&["a.jpg"]));
+        let current = state.open(timeline(&["b.jpg"]));
 
         assert!(!state.refresh(old, timeline(&["c.jpg"]), &[]));
         assert!(state.refresh(current, timeline(&["b.jpg", "d.jpg"]), &[]));
@@ -737,8 +819,8 @@ mod tests {
     #[test]
     fn updates_of_a_replaced_scan_change_nothing() {
         let state = AppState::default();
-        let old = state.set_timeline(timeline(&["a.jpg"]));
-        let current = state.set_timeline(timeline(&["a.jpg"]));
+        let old = state.open(timeline(&["a.jpg"]));
+        let current = state.open(timeline(&["a.jpg"]));
 
         assert!(!state.is_current(old));
         assert!(state.is_current(current));

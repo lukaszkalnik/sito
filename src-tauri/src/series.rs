@@ -131,7 +131,7 @@ mod tests {
     fn scanned() -> AppState {
         let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/exif");
         let state = AppState::default();
-        state.set_timeline(build_timeline(&fixtures, |_| {}).unwrap());
+        state.open(build_timeline(&fixtures, |_| {}).unwrap());
         state
     }
 

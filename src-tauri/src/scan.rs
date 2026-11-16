@@ -184,8 +184,8 @@ impl From<ScanError> for CommandError {
             ScanError::NotFound(_) => Self::NotFound,
             ScanError::NotADirectory(_) => Self::NotADirectory,
             ScanError::Io { .. } => Self::Io,
-            // Only background scans are stopped, and they report nothing.
-            ScanError::Stopped => Self::Internal,
+            // An opening is stopped only once a later one has begun.
+            ScanError::Stopped => Self::Superseded,
         }
     }
 }
@@ -204,6 +204,9 @@ pub const SCAN_REFRESHED: &str = "scan-refreshed";
 /// afterwards in the background (see [`completion::complete_in_background`]).
 ///
 /// Opening a folder stops the background work of the folder opened before.
+/// Of two openings that overlap (the main window reloaded meanwhile), the
+/// later one wins: the earlier one fails with [`CommandError::Superseded`]
+/// and leaves the scan of the later one in place.
 #[tauri::command]
 pub async fn start_scan(
     path: PathBuf,
@@ -211,12 +214,14 @@ pub async fn start_scan(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, CommandError> {
-    let generation = state.begin_scan();
+    let (opening, generation) = state.begin_opening();
     if path.is_dir()
         && let Some(cached) = app.state::<PhotoCacheState>().cached_timeline(&path)
     {
         let mut summary = ScanSummaryDto::new(0, &cached);
-        summary.scan_id = state.set_timeline(cached);
+        summary.scan_id = state
+            .set_timeline(opening, cached)
+            .ok_or(CommandError::Superseded)?;
         summary.refreshing = true;
         refresh_in_background(app, path, summary.scan_id, generation);
         return Ok(summary);
@@ -224,15 +229,13 @@ pub async fn start_scan(
 
     let scanner = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        // Never stopped: the UI opens no other folder while it waits for this one.
-        scanner.state::<PhotoCacheState>().scan(
-            &path,
-            || false,
-            |progress| {
+        let should_stop = || !scanner.state::<AppState>().is_latest_opening(opening);
+        scanner
+            .state::<PhotoCacheState>()
+            .scan(&path, should_stop, |progress| {
                 // A closed channel only means the UI stopped listening.
                 let _ = on_progress.send(progress.into());
-            },
-        )
+            })
     })
     .await;
 
@@ -242,11 +245,14 @@ pub async fn start_scan(
             let timeline = scan.timeline;
             let mut summary = ScanSummaryDto::new(0, &timeline);
             let root = timeline.root.clone();
-            summary.scan_id = state.set_timeline(timeline);
+            summary.scan_id = state
+                .set_timeline(opening, timeline)
+                .ok_or(CommandError::Superseded)?;
             completion::complete_in_background(app.clone(), root, summary.scan_id, generation);
             clean_thumbnails_in_background(app);
             Ok(summary)
         }
+        Ok(Err(ScanError::Stopped)) => Err(CommandError::Superseded),
         Ok(Err(err)) => {
             log::warn!("scan failed: {err}");
             Err(err.into())
@@ -438,6 +444,7 @@ mod tests {
         let cases = [
             (ScanError::NotFound(PathBuf::new()), "notFound"),
             (ScanError::NotADirectory(PathBuf::new()), "notADirectory"),
+            (ScanError::Stopped, "superseded"),
             (
                 ScanError::Io {
                     path: PathBuf::new(),

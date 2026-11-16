@@ -17,16 +17,29 @@ export interface ScanSummary {
   refreshing: boolean;
 }
 
-/** Error codes sent by the backend. Mirrors `CommandError`. */
+/** Error codes sent by the backend that the UI shows. Mirrors `CommandError`. */
 export type ScanErrorCode = 'notFound' | 'notADirectory' | 'io' | 'internal';
 
-const errorCodes: readonly ScanErrorCode[] = ['notFound', 'notADirectory', 'io', 'internal'];
+/**
+ * Every way {@link scanFolder} fails: a shown {@link ScanErrorCode}, or
+ * `superseded` when a later opening of a folder began first (its result is
+ * the one shown, so this one is ignored).
+ */
+export type ScanFailureCode = ScanErrorCode | 'superseded';
+
+const errorCodes: readonly ScanFailureCode[] = [
+  'notFound',
+  'notADirectory',
+  'io',
+  'internal',
+  'superseded',
+];
 
 /** Error thrown by {@link scanFolder}; carries a code the UI translates. */
 export class ScanError extends Error {
-  readonly code: ScanErrorCode;
+  readonly code: ScanFailureCode;
 
-  constructor(code: ScanErrorCode) {
+  constructor(code: ScanFailureCode) {
     super(`Scan failed: ${code}`);
     this.name = 'ScanError';
     this.code = code;
@@ -36,8 +49,8 @@ export class ScanError extends Error {
 function toScanError(raw: unknown): ScanError {
   if (typeof raw === 'object' && raw !== null && 'code' in raw) {
     const code = (raw as { code: unknown }).code;
-    if (errorCodes.includes(code as ScanErrorCode)) {
-      return new ScanError(code as ScanErrorCode);
+    if (errorCodes.includes(code as ScanFailureCode)) {
+      return new ScanError(code as ScanFailureCode);
     }
   }
   return new ScanError('internal');

@@ -159,7 +159,7 @@ mod tests {
     fn scanned() -> (AppState, u64) {
         let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/exif");
         let state = AppState::default();
-        let scan_id = state.set_timeline(build_timeline(&fixtures, |_| {}).unwrap());
+        let scan_id = state.open(build_timeline(&fixtures, |_| {}).unwrap());
         (state, scan_id)
     }
 
@@ -233,7 +233,7 @@ mod tests {
     fn stepping_goes_through_each_cameras_series_in_one_piece() {
         let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/cameras");
         let state = AppState::default();
-        let scan_id = state.set_timeline(build_timeline(&fixtures, |_| {}).unwrap());
+        let scan_id = state.open(build_timeline(&fixtures, |_| {}).unwrap());
         let id_of = |name: &str| {
             state
                 .scan()
@@ -275,6 +275,23 @@ mod tests {
             viewer_photo(&state, request(scan_id, id, ViewMode::All)),
             None
         );
+    }
+
+    #[test]
+    fn an_older_opening_finishing_last_keeps_the_newer_ones_photos() {
+        let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/exif");
+        let state = AppState::default();
+        let (older, _) = state.begin_opening();
+        let (newer, _) = state.begin_opening();
+        let scan_id = state
+            .set_timeline(newer, build_timeline(&fixtures, |_| {}).unwrap())
+            .unwrap();
+        let id = series_ids(&state)[0];
+
+        let installed = state.set_timeline(older, build_timeline(&fixtures, |_| {}).unwrap());
+
+        assert_eq!(installed, None);
+        assert!(viewer_photo(&state, request(scan_id, id, ViewMode::Series)).is_some());
     }
 
     #[test]

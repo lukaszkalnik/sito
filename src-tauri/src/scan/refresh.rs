@@ -33,7 +33,7 @@ pub fn refresh_folder(app: AppHandle, state: State<'_, AppState>) {
     else {
         return;
     };
-    let generation = state.begin_scan();
+    let generation = state.begin_refresh();
     if let Err(err) = app.emit(SCAN_REFRESHING, scan_id) {
         log::warn!("cannot announce the refresh: {err}");
     }

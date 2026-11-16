@@ -228,6 +228,17 @@ describe('ScanScreen', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(text);
   });
 
+  it('ignores an opening superseded by a later one', async () => {
+    mockedScan.mockRejectedValue(new ScanError('superseded'));
+    render(<ScanScreen />);
+
+    await userEvent.click(screen.getByRole('button'));
+
+    await waitFor(() => expect(mockedScan).toHaveBeenCalled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toBeDisabled();
+  });
+
   it('stays idle when the folder dialog is cancelled', async () => {
     mockedPick.mockResolvedValue(null);
     render(<ScanScreen />);
