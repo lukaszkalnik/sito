@@ -55,7 +55,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 57 | [Fuzz the file parsers](slices/57-fuzz-parsers.md) | ✅ |
 | 38 | [Files changed outside Sito](slices/38-files-changed-outside.md) | ✅ |
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | ✅ |
-| 28b | [Viewer stuck on its first photo](slices/28b-viewer-stuck-loading.md) | 🚧 |
+| 28b | [Viewer stuck on its first photo](slices/28b-viewer-stuck-loading.md) | 🧪 |
 | 28a | [Window places on small Mac screens](slices/28a-macos-small-screen-restore.md) | 📝 |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
