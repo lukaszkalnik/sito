@@ -56,3 +56,15 @@ The plan was approved as written: the viewer shows the proposed message (it is n
 - `cargo fmt`, `clippy`, `cargo test`, frontend lint, typecheck, Vitest and the mocked e2e green; `npm run e2e:app` on the Mac.
 - **Proof on CI,** on a throwaway branch run by hand and deleted afterwards: with a delay before the first scan installs its timeline (so the older opening always finishes last) and the harness of today, the viewer spec fails without step 1 and passes with it. Then the whole suite 20 times on Linux and Windows with the fix, without the delay. The result goes into this file.
 - Two consecutive green runs of `e2e-app.yml` on `main`.
+
+### Result (2026-11-16)
+
+- **Checks:** all green for every step, also the mocked e2e; `npm run e2e:app` on the Mac: 4 of 4 specs.
+- **Proof on CI** (`workflow_dispatch`, throwaway branches `proof/28b-before`, `proof/28b-after` and `proof/28b-suite`, deleted afterwards; three branches because the workflow's concurrency group cancels a second run on the same ref). Each job ran the spec, or the suite, 20 times in a loop.
+  - The delay: the first full scan of the process installs its timeline only once a later opening has begun and installed its own (at most 5 s). A first try with a fixed 3 s delay proved nothing: before the fix the viewer spec passed 20 of 20 on both systems, as the spec was done with the viewer before the older scan took over.
+  - **Without step 1** (commit before the fix, harness of then, the delay; run 43964232571): the viewer spec failed 19 of 20 times on Linux and 14 of 20 on Windows, each time with the viewer stuck on its first photo.
+  - **With steps 1 and 2** (harness of then, step 3 reverted, the delay; run 43964238240): Windows 20 of 20; Linux 19 of 20. In the failed run the app log shows the older scan waiting for the later opening, and the backend answers the viewer's request with the photo for its scan id; the failure is a click on a tile in the main window that never reached the app (the main window frames only the first photo, the backend still holds the first request). Not this bug.
+  - **The whole suite with the fix, no delay** (run 43960579586): Windows 20 of 20; Linux 17 of 20. Every failed run shows one page load and one opening in its app log, so none is this bug:
+    - restart spec, twice the same: the main window came back at x 20, y 40 instead of x 0, y 112;
+    - scan spec, twice: „the tile of canon_12-00-06.jpg is not shown”, while the screenshot shows the tile with its thumbnail (WebKitWebDriver's visibility check).
+- **These three Linux flakes** (lost tile click, restart window place, tile visibility) are new and not part of this slice; they need fixes of their own.
