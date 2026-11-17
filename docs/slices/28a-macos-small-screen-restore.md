@@ -1,10 +1,10 @@
 ---
-status: 🧪 testing
+status: ✅ done
 ---
 
 # Slice 28a – Window places on small Mac screens
 
-Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below was approved on 2026-11-16 and implemented on 2026-11-17 (`7395a76`); what it established is in [windows.md](../domain/windows.md).
+Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below was approved on 2026-11-16 and implemented on 2026-11-17 (`7395a76`); what it established is in [windows.md](../domain/windows.md). Tested and accepted by the user on 2026-11-17; the zoom problem found while testing went to [slice 28d](28d-macos-unzoom-after-restart.md).
 
 ## The bug
 
@@ -82,5 +82,8 @@ The restart spec (`e2e-app/specs/restart.spec.ts`) compares window frames after 
 
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, e2e-app lint and typecheck: green.
 - `npm run e2e:app` on the dev Mac with the frame comparison on: 4 of 4 specs pass, the restart spec included.
-- By hand on the dev Mac: pending (move and resize both windows and restart; zoom the main window and restart; remove `.window-state.json` and start).
+- By hand on the dev Mac (2026-11-17):
+  - Moved and resized both windows, quit, started again: both came back at their size and place.
+  - Zoomed the main window, quit, started again: it came back zoomed, but un-zooming put it in the top-left corner instead of its frame from before the zoom. Within one run of the app un-zooming is right (macOS keeps that frame itself). Not caused by this slice: the plugin's `prev_x`/`prev_y`, which this slice and the plugin's own restore both use, are overwritten on every move, and the zoom animation moves the window several times, so the saved file held a point from the animation (2,64) instead of the earlier position (308,556). Left to [slice 28d](28d-macos-unzoom-after-restart.md).
+  - Moved `.window-state.json` away and started: both windows opened centred at their default size.
 - CI: `e2e-app.yml` green on `main` on Windows, Linux and macOS twice in a row (run 44179198869 for `7395a76`, run 44181042573 started by hand), with the macOS frame comparison on: the bug is gone on the runner's small screen.
