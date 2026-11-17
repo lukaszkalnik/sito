@@ -49,6 +49,15 @@ function entries(count: number): TimelineEntry[] {
   }));
 }
 
+/**
+ * Waits until the status line holds `text`. The line shows the photo count
+ * before the series arrive, so finding it is not enough.
+ */
+async function expectStatus(text: string) {
+  const status = await screen.findByRole('status');
+  await vi.waitFor(() => expect(status).toHaveTextContent(text));
+}
+
 /** `count` series of two photos each. */
 function pairs(count: number): Series[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -158,7 +167,7 @@ describe('TimelineView', () => {
     const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
     expect(slider).toHaveValue('4');
     expect(screen.getByText('4 s')).toBeInTheDocument();
-    expect(await screen.findByRole('status')).toHaveTextContent('1 seria (2 zdjęcia).');
+    await expectStatus('1 seria (2 zdjęcia).');
     expect(mockedSeries).toHaveBeenLastCalledWith(4);
 
     fireEvent.change(slider, { target: { value: '30' } });
@@ -234,7 +243,7 @@ describe('TimelineView', () => {
     mockedSeries.mockResolvedValue(grouping(pairs(count), 2 * count));
     renderView(2 * count);
 
-    expect(await screen.findByRole('status')).toHaveTextContent(text);
+    await expectStatus(text);
   });
 
   it('starts with the series view and switches to all photos', async () => {
