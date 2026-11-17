@@ -1,5 +1,4 @@
 import { $, $$, browser } from '@wdio/globals';
-import type { ChainablePromiseElement } from 'webdriverio';
 
 import { startAppAgain, waitForAppExit } from './driver.ts';
 import { plural, t } from './strings.ts';
@@ -54,8 +53,11 @@ export async function expectCounts(photos: number, series?: number): Promise<voi
   );
 }
 
+/** CSS selector of the tile of photo `name` in the main window's grid. */
+const tileSelector = (name: string) => `button[aria-label="${t('timeline.open', { name })}"]`;
+
 /** The tile of photo `name` in the main window's grid. */
-export const tile = (name: string) => $(`button[aria-label="${t('timeline.open', { name })}"]`);
+export const tile = (name: string) => $(tileSelector(name));
 
 /** XPath of the buttons named `name`: by their label, or their text. */
 export const buttonSelector = (name: string) =>
@@ -85,15 +87,22 @@ export async function windowCount(): Promise<number> {
 }
 
 /**
- * Waits until `element` is displayed. Polled by hand: WebKitWebDriver reports
- * a stale element instead of a result while React re-renders.
+ * Waits until the main window's grid shows the tile of photo `name`: it is in
+ * the document and has a size. Checked in the page by selector, as
+ * WebKitWebDriver sometimes cannot hand out a found element („Stale element
+ * found when trying to create the node handle”) for many seconds.
  */
-export async function waitForDisplayed(
-  element: ChainablePromiseElement,
-  what: string,
-): Promise<void> {
-  await browser.waitUntil(() => element.isDisplayed().catch(() => false), {
-    timeoutMsg: `${what} is not shown`,
+export async function waitForTile(name: string): Promise<void> {
+  const shown = () =>
+    browser.execute((selector) => {
+      const button = document.querySelector(selector);
+      if (!button?.isConnected) return false;
+      const { width, height } = button.getBoundingClientRect();
+      const visible = 'checkVisibility' in button ? button.checkVisibility() : true;
+      return width > 0 && height > 0 && visible;
+    }, tileSelector(name));
+  await browser.waitUntil(() => shown().catch(() => false), {
+    timeoutMsg: `the tile of ${name} is not shown`,
   });
 }
 

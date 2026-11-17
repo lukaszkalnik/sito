@@ -1,6 +1,6 @@
 import { browser } from '@wdio/globals';
 
-import { expectCounts, openFolder, tile, waitForDisplayed } from '../support/app.ts';
+import { expectCounts, openFolder, waitForTile } from '../support/app.ts';
 import { EXPECTED, SERIES_ORDER, makeGallery } from '../support/gallery.ts';
 
 describe('scan', () => {
@@ -10,7 +10,7 @@ describe('scan', () => {
     await openFolder(gallery.dir);
 
     await expectCounts(EXPECTED.photos, EXPECTED.series);
-    for (const name of SERIES_ORDER) await waitForDisplayed(tile(name), `the tile of ${name}`);
+    for (const name of SERIES_ORDER) await waitForTile(name);
     // A thumbnail with a size came through the app's thumb: protocol.
     await browser.waitUntil(
       async () =>
