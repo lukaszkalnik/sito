@@ -38,19 +38,41 @@ export async function windowRect(label: WindowLabel): Promise<Rect> {
   return { ...position, ...size };
 }
 
+/** How long a window may take to reach the place it was given. */
+const PLACE_TIMEOUT_MS = 5000;
+
+const sameRect = (a: Rect, b: Rect) =>
+  a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+
 /**
  * Moves window `label` to `x`, `y` and gives its content `width` × `height`,
  * all in logical pixels; returns where the window ended up, which the system
- * may adjust (frames, menu bar).
+ * may adjust (frames, menu bar). Some systems (GTK) apply the move later, so
+ * it waits until the frame has left the one from before and two reads in a
+ * row agree; the new place must therefore differ from the old one.
  */
 export async function placeWindow(
   label: WindowLabel,
   place: { x: number; y: number; width: number; height: number },
 ): Promise<Rect> {
   const { x, y, width, height } = place;
+  const before = await windowRect(label);
   await windowCommand('set_size', { label, value: { Logical: { width, height } } });
   await windowCommand('set_position', { label, value: { Logical: { x, y } } });
-  return windowRect(label);
+  let last = before;
+  await browser.waitUntil(
+    async () => {
+      const previous = last;
+      last = await windowRect(label);
+      return !sameRect(last, before) && sameRect(last, previous);
+    },
+    {
+      timeout: PLACE_TIMEOUT_MS,
+      interval: 100,
+      timeoutMsg: `the ${label} window did not settle at its new place (last frame ${JSON.stringify(last)})`,
+    },
+  );
+  return last;
 }
 
 /**
