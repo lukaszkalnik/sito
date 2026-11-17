@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimelineEntry } from './api';
 import { buildRows, DAY_ROW_HEIGHT, TILE_GAP, TILE_ROW_HEIGHT } from './layout';
 import type { Reveal } from './reveal';
-import { FOLLOW_DELAY_MS, useGridScroll } from './useGridScroll';
+import { FOLLOW_DELAY_MS, useElementWidth, useGridScroll } from './useGridScroll';
 import { SAVE_DELAY_MS, type SavedPosition } from './useSavedPosition';
 
 const VIEW_HEIGHT = 600;
@@ -227,5 +227,53 @@ describe('useGridScroll keeping the position of the folder', () => {
     unmount();
 
     expect(saved.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('useElementWidth', () => {
+  type Callback = (entries: { contentRect: { width: number } }[]) => void;
+  let observed: Callback | null = null;
+
+  beforeEach(() => {
+    observed = null;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: Callback) {
+          observed = callback;
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  function paddedElement(clientWidth: number): HTMLElement {
+    const element = document.createElement('div');
+    element.style.padding = '0 16px';
+    Object.defineProperty(element, 'clientWidth', { value: clientWidth });
+    return element;
+  }
+
+  it('reports the content width right after mount, without the padding', () => {
+    const { result } = renderHook(() => useElementWidth({ current: paddedElement(1032) }));
+
+    expect(result.current).toBe(1000);
+  });
+
+  it('follows a resize', () => {
+    const ref = { current: paddedElement(1032) };
+    const { result } = renderHook(() => useElementWidth(ref));
+
+    act(() => observed?.([{ contentRect: { width: 640 } }]));
+
+    expect(result.current).toBe(640);
+  });
+
+  it('reports nothing while there is no element to measure', () => {
+    const { result } = renderHook(() => useElementWidth({ current: null }));
+
+    expect(result.current).toBeNull();
   });
 });

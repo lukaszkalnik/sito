@@ -13,12 +13,25 @@ export const FOLLOW_DELAY_MS = 150;
 
 type ScrollTopRef = RefObject<number>;
 
-/** Tracks an element's content width; 0 until it has been measured. */
-export function useElementWidth(ref: RefObject<HTMLElement | null>): number {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
+/** The content width of `element`: its `clientWidth` without the horizontal padding, as `contentRect` gives it. */
+function contentWidth(element: HTMLElement): number {
+  const style = getComputedStyle(element);
+  const padding = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+  return Math.max(0, element.clientWidth - padding);
+}
+
+/**
+ * Tracks an element's content width. `null` until it has been measured, which
+ * happens in a layout effect, so the first measure is known before the first
+ * paint; a `ResizeObserver` then follows it.
+ */
+export function useElementWidth(ref: RefObject<HTMLElement | null>): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
     const element = ref.current;
-    if (!element || typeof ResizeObserver === 'undefined') return;
+    if (!element) return;
+    setWidth(contentWidth(element));
+    if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(([first]) => {
       if (first) setWidth(first.contentRect.width);
     });

@@ -39,14 +39,18 @@ interface TimelineGridProps {
   revision?: number;
 }
 
-/** The rows of the grid for the measured `width`. */
+/**
+ * The rows of the grid for the measured `width`; none before it is measured,
+ * so the rows are never built for a width the grid does not have.
+ */
 function useRows(
   entries: readonly TimelineEntry[],
   series: readonly Series[],
   mode: TimelineMode,
-  width: number,
-): TimelineRow[] {
+  width: number | null,
+): readonly TimelineRow[] {
   return useMemo(() => {
+    if (width === null) return [];
     const columns = columnsFor(width);
     // Series blocks may use all of the measured width, not only whole columns.
     return buildRows(entries, series, columns, mode, Math.max(width, blockWidth(columns)));
@@ -106,7 +110,7 @@ export function TimelineGrid({
     onRevealed,
     follow: followed,
     saved: savedPosition,
-    measured: width > 0,
+    measured: width !== null && width > 0,
   });
   const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed, revision };
 
