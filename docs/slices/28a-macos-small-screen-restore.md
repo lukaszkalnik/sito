@@ -83,4 +83,4 @@ The restart spec (`e2e-app/specs/restart.spec.ts`) compares window frames after 
 - `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, e2e-app lint and typecheck: green.
 - `npm run e2e:app` on the dev Mac with the frame comparison on: 4 of 4 specs pass, the restart spec included.
 - By hand on the dev Mac: pending (move and resize both windows and restart; zoom the main window and restart; remove `.window-state.json` and start).
-- CI: pending, `e2e-app.yml` green on `main` on all three platforms twice in a row.
+- CI: `e2e-app.yml` green on `main` on Windows, Linux and macOS twice in a row (run 44179198869 for `7395a76`, run 44181042573 started by hand), with the macOS frame comparison on: the bug is gone on the runner's small screen.
