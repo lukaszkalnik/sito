@@ -1,10 +1,10 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 28c – Flaky real-app tests on Linux
 
-Found while verifying [slice 28b](28b-viewer-stuck-loading.md) (2026-11-16): with 28b fixed, the real-app suite (`e2e-app/`) still fails now and then on the Linux runner (WebKitGTK, `tauri-driver`). Cause found with a diagnostic run (throwaway branch `debug/slice-28c`, deleted; `workflow_dispatch` run 43968893663, the suite 40 times on Linux) and a local run on the Mac. Plan written on 2026-11-16 and approved by the user on 2026-11-17 as written. Steps 1 to 4 implemented on 2026-11-17; the [Verification](#verification) comes next. What the grid fix established is in [Timeline: Staying responsive](../domain/timeline.md#staying-responsive).
+Found while verifying [slice 28b](28b-viewer-stuck-loading.md) (2026-11-16): with 28b fixed, the real-app suite (`e2e-app/`) still fails now and then on the Linux runner (WebKitGTK, `tauri-driver`). Cause found with a diagnostic run (throwaway branch `debug/slice-28c`, deleted; `workflow_dispatch` run 43968893663, the suite 40 times on Linux) and a local run on the Mac. Plan written on 2026-11-16 and approved by the user on 2026-11-17 as written. Steps 1 to 4 implemented and verified on 2026-11-17 ([Result](#result-2026-11-17)); waiting for the user's OK. What the grid fix established is in [Timeline: Staying responsive](../domain/timeline.md#staying-responsive).
 
 ## The failures
 
@@ -49,3 +49,13 @@ One commit per step, checks green.
 - `cargo fmt`, `clippy`, `cargo test` (nothing in Rust changes), frontend lint, typecheck, Vitest and the mocked e2e green; `npm run e2e:app` on the Mac.
 - **Proof on CI,** on a throwaway branch run by hand and deleted afterwards: the suite 40 times on Linux and 20 times on Windows and macOS with the fix. No failure of the three kinds above; any other failure is looked into before this slice is done. The result goes into this file.
 - Two consecutive green runs of `e2e-app.yml` on `main`.
+
+## Result (2026-11-17)
+
+- Checks green: frontend lint, typecheck, Vitest, the mocked e2e suite (93 passed; the new `ui/e2e/grid-opening.spec.ts` saw 8 tiles replaced without the fix and none with it) and `npm run e2e:app` on the Mac (4 specs). Nothing in Rust changed.
+- **Proof on CI:** throwaway branch `debug/slice-28c-proof` (deleted), `workflow_dispatch` run 44167051625, each job repeating the suite: **Linux 0 of 40 runs failed, Windows 0 of 20, macOS 0 of 20.** None of the three failures came back. The macOS job first sat in the queue until it was cancelled without running a step; its rerun is the one counted.
+- **On `main`:** `e2e-app.yml` green twice in a row on all three systems (runs 44166948267 and 44168148993).
+
+## Fixes from testing
+
+- A flaky unit test turned up while running Vitest repeatedly under CPU load: `TimelineView.test.tsx` found the status line and checked its text once, but the line shows the photo count before the series arrive. Its two such checks now wait for the text (`test:` commit 8c2488b). The app was right; only the test was racy.
