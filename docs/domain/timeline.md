@@ -81,5 +81,6 @@ Nothing watches the disk: Sito notices changes when the user asks for a refresh,
 
 ## Staying responsive
 
+- The grid lays out its rows once, for its measured width, before it first shows them: opening a folder never builds the rows for a width the grid does not have and then replaces every tile, so a click on a tile right after opening always lands.
 - Building the timeline and its series (seconds for tens of thousands of photos) never blocks the app: clicks, scrolling and thumbnails keep working while it reloads.
 - During the background EXIF pass of a first scan ([Photos](photos.md#first-scan-of-a-takeout)) the timeline is reloaded at most every 30 s.

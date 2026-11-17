@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 28c – Flaky real-app tests on Linux
 
-Found while verifying [slice 28b](28b-viewer-stuck-loading.md) (2026-11-16): with 28b fixed, the real-app suite (`e2e-app/`) still fails now and then on the Linux runner (WebKitGTK, `tauri-driver`). Cause found with a diagnostic run (throwaway branch `debug/slice-28c`, deleted; `workflow_dispatch` run 43968893663, the suite 40 times on Linux) and a local run on the Mac. Plan written on 2026-11-16 and approved by the user on 2026-11-17 as written; nothing is implemented yet, step 1 of the plan comes next.
+Found while verifying [slice 28b](28b-viewer-stuck-loading.md) (2026-11-16): with 28b fixed, the real-app suite (`e2e-app/`) still fails now and then on the Linux runner (WebKitGTK, `tauri-driver`). Cause found with a diagnostic run (throwaway branch `debug/slice-28c`, deleted; `workflow_dispatch` run 43968893663, the suite 40 times on Linux) and a local run on the Mac. Plan written on 2026-11-16 and approved by the user on 2026-11-17 as written. Steps 1 to 4 implemented on 2026-11-17; the [Verification](#verification) comes next. What the grid fix established is in [Timeline: Staying responsive](../domain/timeline.md#staying-responsive).
 
 ## The failures
 
