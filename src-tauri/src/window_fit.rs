@@ -3,8 +3,10 @@
 //! excludes the taskbar), even when they were remembered on a larger or
 //! disconnected monitor.
 
+mod saved;
+
 use tauri::{Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, Window, WindowEvent};
-use tauri_plugin_window_state::{AppHandleExt, StateFlags, WindowExt};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 /// What the window-state plugin remembers of each window.
 pub const STATE_FLAGS: StateFlags = StateFlags::SIZE
@@ -17,17 +19,19 @@ pub const STATE_FLAGS: StateFlags = StateFlags::SIZE
 /// edge measures slightly larger than what is visible.
 const BORDER_SLACK: i64 = 16;
 
-/// Restores `window`'s remembered size and position, keeps it on screen, and
+/// Puts `window` at its remembered size and position, kept on screen, and
 /// shows it. The window must have been created hidden, so it never visibly jumps.
+///
+/// The frame is worked out from the remembered state and set once; nothing is
+/// read back from the window after a set, because on macOS the setters only
+/// take effect later (they are dispatched to the main queue).
 pub fn show_placed<R: Runtime>(window: &WebviewWindow<R>) {
-    if let Err(err) = window.restore_state(STATE_FLAGS) {
-        log::warn!("cannot restore the {} window's size: {err}", window.label());
-    }
-    if let Err(err) = fit_to_screen(window) {
-        log::warn!(
-            "cannot fit the {} window to the screen: {err}",
-            window.label()
-        );
+    let placed = match saved::load(window.app_handle(), window.label()) {
+        Some(saved) => place(window, saved),
+        None => fit_to_screen(window),
+    };
+    if let Err(err) = placed {
+        log::warn!("cannot place the {} window: {err}", window.label());
     }
     if let Err(err) = window.show() {
         log::warn!("cannot show the {} window: {err}", window.label());
@@ -85,23 +89,182 @@ fn clamp_start(start: i32, len: u32, area_start: i32, area_len: u32) -> i32 {
     start.clamp(area_start, area_start.saturating_add(room))
 }
 
-/// Shrinks and moves `window` so it lies within the work area of its monitor
-/// (or the primary monitor if it is on none). Maximized windows and windows
-/// that only overlap by their invisible borders are left alone.
-fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
-    if window.is_maximized()? {
-        return Ok(());
+/// A point in physical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Point {
+    pub x: i32,
+    pub y: i32,
+}
+
+/// A size in physical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Size {
+    pub width: u32,
+    pub height: u32,
+}
+
+/// The remembered frame of a window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Saved {
+    /// Outer position (top-left corner of the frame); for a maximized window,
+    /// the position before it was maximized.
+    pub position: Point,
+    /// Size of the window's content, without title bar and borders.
+    pub inner_size: Size,
+    pub maximized: bool,
+}
+
+/// A monitor's full area and its work area (without taskbar, dock, menu bar).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MonitorArea {
+    pub area: Rect,
+    pub work_area: Rect,
+}
+
+/// Where to put a window: its outer position and inner size, and whether to
+/// maximize it afterwards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Placement {
+    pub position: Point,
+    pub inner_size: Size,
+    pub maximize: bool,
+}
+
+/// Where a window remembered as `saved` goes. `frame_extra` is its title bar
+/// and borders (outer size minus inner size). The remembered frame stays on the
+/// monitor it overlaps most (the `primary` one if it overlaps none) and is moved
+/// and shrunk into that monitor's work area if it does not lie within it.
+#[must_use]
+pub fn placement(
+    saved: Saved,
+    frame_extra: Size,
+    monitors: &[MonitorArea],
+    primary: Option<MonitorArea>,
+) -> Placement {
+    let frame = Rect {
+        x: saved.position.x,
+        y: saved.position.y,
+        width: saved.inner_size.width.saturating_add(frame_extra.width),
+        height: saved.inner_size.height.saturating_add(frame_extra.height),
+    };
+    let placed = monitor_of(frame, monitors)
+        .or(primary)
+        .map_or(frame, |monitor| keep_within(frame, monitor.work_area));
+    Placement {
+        position: Point {
+            x: placed.x,
+            y: placed.y,
+        },
+        inner_size: Size {
+            width: placed.width.saturating_sub(frame_extra.width),
+            height: placed.height.saturating_sub(frame_extra.height),
+        },
+        maximize: saved.maximized,
     }
+}
+
+/// `frame` as it is if it lies within `area`, otherwise fitted into it.
+fn keep_within(frame: Rect, area: Rect) -> Rect {
+    if fits_within(frame, area, BORDER_SLACK) {
+        frame
+    } else {
+        fit_into(frame, area)
+    }
+}
+
+/// The monitor whose area `frame` overlaps most, if it overlaps any.
+fn monitor_of(frame: Rect, monitors: &[MonitorArea]) -> Option<MonitorArea> {
+    monitors
+        .iter()
+        .map(|monitor| (overlap(frame, monitor.area), *monitor))
+        .filter(|(shared, _)| *shared > 0)
+        .max_by_key(|(shared, _)| *shared)
+        .map(|(_, monitor)| monitor)
+}
+
+/// The area (square pixels) that `a` and `b` share.
+fn overlap(a: Rect, b: Rect) -> u64 {
+    span_overlap(a.x, a.width, b.x, b.width) * span_overlap(a.y, a.height, b.y, b.height)
+}
+
+/// How long the spans `[a, a + a_len]` and `[b, b + b_len]` share.
+fn span_overlap(a: i32, a_len: u32, b: i32, b_len: u32) -> u64 {
+    let start = i64::from(a.max(b));
+    let end = (i64::from(a) + i64::from(a_len)).min(i64::from(b) + i64::from(b_len));
+    u64::try_from(end - start).unwrap_or(0)
+}
+
+impl From<tauri::PhysicalRect<i32, u32>> for Rect {
+    fn from(rect: tauri::PhysicalRect<i32, u32>) -> Self {
+        Self {
+            x: rect.position.x,
+            y: rect.position.y,
+            width: rect.size.width,
+            height: rect.size.height,
+        }
+    }
+}
+
+impl From<&tauri::Monitor> for MonitorArea {
+    fn from(monitor: &tauri::Monitor) -> Self {
+        Self {
+            area: Rect {
+                x: monitor.position().x,
+                y: monitor.position().y,
+                width: monitor.size().width,
+                height: monitor.size().height,
+            },
+            work_area: Rect::from(*monitor.work_area()),
+        }
+    }
+}
+
+/// Sets `window` to its remembered frame, kept on screen, and maximizes it if
+/// it was maximized. Reads the window only before setting anything.
+fn place<R: Runtime>(window: &WebviewWindow<R>, saved: Saved) -> tauri::Result<()> {
+    let frame_extra = frame_extra(window)?;
+    let monitors: Vec<MonitorArea> = window
+        .available_monitors()?
+        .iter()
+        .map(MonitorArea::from)
+        .collect();
+    let primary = window.primary_monitor()?.as_ref().map(MonitorArea::from);
+    let placement = placement(saved, frame_extra, &monitors, primary);
+    // Position before size, as the window-state plugin restores: this order
+    // keeps the remembered place on macOS.
+    window.set_position(PhysicalPosition::new(
+        placement.position.x,
+        placement.position.y,
+    ))?;
+    window.set_size(PhysicalSize::new(
+        placement.inner_size.width,
+        placement.inner_size.height,
+    ))?;
+    if placement.maximize {
+        window.maximize()?;
+    }
+    Ok(())
+}
+
+/// The window's title bar and borders: its outer size minus its inner size.
+fn frame_extra<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<Size> {
+    let outer = window.outer_size()?;
+    let inner = window.inner_size()?;
+    Ok(Size {
+        width: outer.width.saturating_sub(inner.width),
+        height: outer.height.saturating_sub(inner.height),
+    })
+}
+
+/// Shrinks and moves a window with nothing remembered (first launch) so it lies
+/// within the work area of its monitor (or the primary monitor if it is on
+/// none). Windows that only overlap by their invisible borders are left alone.
+/// Nothing has been set on the window yet, so reading its frame is safe.
+fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     let Some(monitor) = window.current_monitor()?.or(window.primary_monitor()?) else {
         return Ok(());
     };
-    let work = monitor.work_area();
-    let area = Rect {
-        x: work.position.x,
-        y: work.position.y,
-        width: work.size.width,
-        height: work.size.height,
-    };
+    let area = Rect::from(*monitor.work_area());
     let position = window.outer_position()?;
     let outer = window.outer_size()?;
     let current = Rect {
@@ -115,12 +278,10 @@ fn fit_to_screen<R: Runtime>(window: &WebviewWindow<R>) -> tauri::Result<()> {
     }
     let fitted = fit_into(current, area);
     // `set_size` sets the inner size, so keep the frame's extra size out of it.
-    let inner = window.inner_size()?;
-    let frame_width = outer.width.saturating_sub(inner.width);
-    let frame_height = outer.height.saturating_sub(inner.height);
+    let extra = frame_extra(window)?;
     window.set_size(PhysicalSize::new(
-        fitted.width.saturating_sub(frame_width),
-        fitted.height.saturating_sub(frame_height),
+        fitted.width.saturating_sub(extra.width),
+        fitted.height.saturating_sub(extra.height),
     ))?;
     window.set_position(PhysicalPosition::new(fitted.x, fitted.y))?;
     Ok(())
@@ -253,6 +414,121 @@ mod tests {
                 width: 1280,
                 height: 800
             }
+        );
+    }
+
+    /// The macOS CI runner: a 1024×768 screen with the menu bar and the dock
+    /// outside the work area.
+    const RUNNER: MonitorArea = MonitorArea {
+        area: Rect {
+            x: 0,
+            y: 0,
+            width: 1024,
+            height: 768,
+        },
+        work_area: Rect {
+            x: 0,
+            y: 31,
+            width: 1024,
+            height: 674,
+        },
+    };
+
+    /// A title bar of 28 px and no side borders, as on macOS.
+    const TITLE_BAR: Size = Size {
+        width: 0,
+        height: 28,
+    };
+
+    fn saved(x: i32, y: i32, width: u32, height: u32) -> Saved {
+        Saved {
+            position: Point { x, y },
+            inner_size: Size { width, height },
+            maximized: false,
+        }
+    }
+
+    fn placed(x: i32, y: i32, width: u32, height: u32) -> Placement {
+        Placement {
+            position: Point { x, y },
+            inner_size: Size { width, height },
+            maximize: false,
+        }
+    }
+
+    #[test]
+    fn a_remembered_frame_that_fits_its_screen_stays_where_it_was() {
+        let main = saved(20, 40, 920, 620);
+        assert_eq!(
+            placement(main, TITLE_BAR, &[RUNNER], Some(RUNNER)),
+            placed(20, 40, 920, 620)
+        );
+    }
+
+    #[test]
+    fn a_frame_larger_than_the_work_area_is_shrunk_into_it_with_room_for_the_title_bar() {
+        let large = saved(-128, -32, 1280, 800);
+        assert_eq!(
+            placement(large, TITLE_BAR, &[RUNNER], Some(RUNNER)),
+            placed(0, 31, 1024, 646)
+        );
+    }
+
+    #[test]
+    fn a_frame_on_a_disconnected_monitor_comes_back_on_the_primary_one() {
+        let gone = saved(2500, 100, 800, 600);
+        assert_eq!(
+            placement(gone, TITLE_BAR, &[RUNNER], Some(RUNNER)),
+            placed(224, 77, 800, 600)
+        );
+    }
+
+    #[test]
+    fn a_frame_is_fitted_into_the_monitor_it_lies_on_not_the_primary_one() {
+        // A second screen to the right, without a menu bar.
+        let right = MonitorArea {
+            area: Rect {
+                x: 1024,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            work_area: Rect {
+                x: 1024,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        };
+        // Mostly on the right screen, hanging below its bottom edge.
+        let window = saved(1000, 600, 1200, 600);
+        assert_eq!(
+            placement(window, TITLE_BAR, &[RUNNER, right], Some(RUNNER)),
+            placed(1024, 452, 1200, 600)
+        );
+    }
+
+    #[test]
+    fn a_maximized_window_is_placed_at_its_earlier_frame_and_maximized() {
+        let window = Saved {
+            maximized: true,
+            ..saved(300, 180, 600, 420)
+        };
+        assert_eq!(
+            placement(window, TITLE_BAR, &[RUNNER], Some(RUNNER)),
+            Placement {
+                maximize: true,
+                ..placed(300, 180, 600, 420)
+            }
+        );
+    }
+
+    #[test]
+    fn without_any_monitor_the_remembered_frame_is_kept() {
+        let main = saved(-500, -500, 920, 620);
+        assert_eq!(
+            placement(main, TITLE_BAR, &[], None),
+            placed(-500, -500, 920, 620)
         );
     }
 }

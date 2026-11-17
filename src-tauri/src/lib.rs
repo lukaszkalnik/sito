@@ -29,9 +29,10 @@ pub fn run() -> tauri::Result<()> {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(navigation::init())
-        // Remembers the size and position of both windows across launches. The
-        // windows are placed by `window_fit::show_placed` instead of the plugin, whose
-        // own restore runs later on the main thread and would move a shown window.
+        // Tracks and saves the size and position of both windows across launches.
+        // The windows are placed by `window_fit::show_placed` from the saved state
+        // instead of the plugin, whose own restore runs later on the main thread and
+        // would move a shown window.
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(window_fit::STATE_FLAGS)
