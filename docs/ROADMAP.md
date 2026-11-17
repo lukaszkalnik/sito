@@ -6,7 +6,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 
 **Numbers are IDs, not order.** A slice keeps its number forever, like a ticket; a new slice gets the next free number. The order of the table is the order of work: the first slice not done is next. Refer to other slices by number and link.
 
-**Status:** ⬜ not started · 📝 concept drafted or planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user)
+**Status:** ⬜ not started · 📝 concept drafted or planned · 🚧 in progress · 🧪 ready for testing · ✅ done (tested by the user) · 🚫 rejected (decided not to do it; its file says why)
 
 **Scale:** galleries have 10,000+ photos per folder. Every slice must stay responsive at that size (no blocking the UI, no rendering or loading everything at once).
 
@@ -57,7 +57,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 28 | [End-to-end tests of the real app](slices/28-real-app-e2e.md) | ✅ |
 | 28b | [Viewer stuck on its first photo](slices/28b-viewer-stuck-loading.md) | 🧪 |
 | 28a | [Window places on small Mac screens](slices/28a-macos-small-screen-restore.md) | ✅ |
-| 28d | [Un-zooming after a restart on macOS](slices/28d-macos-unzoom-after-restart.md) | 📝 |
+| 28d | [Un-zooming after a restart on macOS](slices/28d-macos-unzoom-after-restart.md) | 🚫 |
 | 28c | [Flaky real-app tests on Linux](slices/28c-linux-e2e-flakes.md) | ✅ |
 | 14 | [Edit series](slices/14-edit-series.md) | ⬜ |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |

@@ -6,7 +6,7 @@ Where Sito's two windows, the main window and the viewer, open.
 
 - Both windows remember their size and position across restarts, and whether they were maximized (on macOS: zoomed). The state is saved whenever a window closes, so also when the viewer is closed and reopened in the same run, and before an update's installer closes Sito.
 - A window opens hidden and is shown once placed, so it never visibly jumps.
-- A window comes back at its remembered size and position. A maximized one comes back maximized and, when un-maximized, returns to the frame it had before. Known exception: on macOS, a window zoomed when Sito quit un-zooms to the right size but not to its earlier position ([slice 28d](../slices/28d-macos-unzoom-after-restart.md)).
+- A window comes back at its remembered size and position. A maximized one comes back maximized and, when un-maximized, returns to the frame it had before. Known exception: on macOS, a window zoomed when Sito quit un-zooms to the right size but not to its earlier position, near the top-left corner of its screen instead; left as it is ([slice 28d](../slices/28d-macos-unzoom-after-restart.md)).
 - A window that would lie outside the visible part of its screen (the work area, without taskbar, dock and menu bar) is moved into it, and shrunk where it is larger. A window reaching only a few pixels past an edge (the invisible resize borders on Windows) is left where it is.
 - A window stays on the screen it was on (the one it overlaps most). One remembered on a screen that is no longer connected comes back on the primary screen.
 
