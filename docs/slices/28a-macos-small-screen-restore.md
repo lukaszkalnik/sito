@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 testing
 ---
 
 # Slice 28a – Window places on small Mac screens
 
-Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below was approved on 2026-11-16; nothing is implemented yet.
+Found by the real-app restart spec of [slice 28](28-real-app-e2e.md) on the macOS CI runner (2026-11-15). The plan below was approved on 2026-11-16 and implemented on 2026-11-17 (`7395a76`); what it established is in [windows.md](../domain/windows.md).
 
 ## The bug
 
@@ -77,3 +77,10 @@ One commit per step, checks green.
 ## Tests
 
 The restart spec (`e2e-app/specs/restart.spec.ts`) compares window frames after a restart. Until this slice is done it skips that comparison on macOS (the saved-state check still runs there); this slice turns it back on. The macOS runner's screen is small enough to show the bug on every run.
+
+## Verification result (2026-11-17)
+
+- `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, e2e-app lint and typecheck: green.
+- `npm run e2e:app` on the dev Mac with the frame comparison on: 4 of 4 specs pass, the restart spec included.
+- By hand on the dev Mac: pending (move and resize both windows and restart; zoom the main window and restart; remove `.window-state.json` and start).
+- CI: pending, `e2e-app.yml` green on `main` on all three platforms twice in a row.
