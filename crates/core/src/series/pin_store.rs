@@ -1,6 +1,6 @@
 //! Pins of edited series in the action log's database, by path, so edits
 //! survive restarts and rescans. Edits are not logged as actions: the user
-//! takes one back with „Przywróć automatyczny podział”, and undo is only for
+//! takes one back with „Przywróć automatyczne grupowanie”, and undo is only for
 //! rejections.
 
 use std::path::{Path, PathBuf};

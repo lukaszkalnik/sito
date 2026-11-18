@@ -1,4 +1,4 @@
-//! What „Przywróć automatyczny podział” unpins: the whole stretch of edited
+//! What „Przywróć automatyczne grupowanie” unpins: the whole stretch of edited
 //! photos around a photo, so taking a photo out of a series (or cutting one)
 //! can be taken back from any of the photos the edit touched.
 

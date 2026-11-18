@@ -37,12 +37,12 @@ The plan below uses approach 2.
   - **„Wyjmij z serii”** (on a series photo): the photo becomes a single photo at its place in time; the rest stays one series (or a single photo if only one is left).
   - **„Dołącz do poprzedniej serii”** / **„Dołącz do następnej serii”** (on a photo whose previous / next photo in display order belongs to another series): the photo joins that series. If it came from another series, that one keeps the rest.
   - **„Rozdziel serię”** (header): every photo of the series becomes a single photo.
-  - **„Przywróć automatyczny podział”** (header of an edited series, and the menu of a pinned single photo): unpins those photos, so they are grouped automatically again.
-- A **toast** confirms each edit („Podzielono serię”, „Wyjęto <name> z serii”, „Dołączono <name> do serii”, „Rozdzielono serię”, „Przywrócono automatyczny podział”). Edits are not part of „Cofnij” (it stays for rejections, [slice 43](43-undo-rejections-only.md)); „Przywróć automatyczny podział” takes an edit back.
+  - **„Przywróć automatyczne grupowanie”** (header of an edited series, and the menu of a pinned single photo): unpins those photos, so they are grouped automatically again.
+- A **toast** confirms each edit („Podzielono serię”, „Wyjęto <name> z serii”, „Dołączono <name> do serii”, „Rozdzielono serię”, „Przywrócono automatyczne grupowanie”). Edits are not part of „Cofnij” (it stays for rejections, [slice 43](43-undo-rejections-only.md)); „Przywróć automatyczne grupowanie” takes an edit back.
 - **Edited series are marked**: their header gets a small pencil icon after the text, with the tooltip and accessible name „Seria edytowana ręcznie – nie zmienia się z odstępem”.
 - **Edits win and last**: an edited series and pinned single photos stay as they are with any gap, after a refresh, a reopened folder and a restart. Rejected photos stay in their manual series (they still count, as for automatic series); photos trashed or gone leave it. A manual series with one photo left shows as a series of one, as automatic series do after rejections; with none left it is gone.
 - **Pinned photos are barriers.** Pinned photos stay in their camera's chain of photos ([Grouping](../domain/grouping.md#by-time-and-camera)), and automatic grouping never links two unpinned photos across a pinned one. Without this, two unpinned photos on either side of an edited series could form a series "around" it at a larger gap. So an edit cuts the chain at the edges of what it touches. A pinned single photo inside a long burst also splits the burst around it, at every gap.
-- **Unpinning regroups at once.** „Przywróć automatyczny podział” gives the photos back to automatic grouping at the current gap, so they may end up differently than before the edit (e.g. merged with neighbours after the gap was raised). Unpinning a photo also removes it as a barrier, so automatic series on both sides of it may join.
+- **Unpinning regroups at once.** „Przywróć automatyczne grupowanie” gives the photos back to automatic grouping at the current gap, so they may end up differently than before the edit (e.g. merged with neighbours after the gap was raised). Unpinning a photo also removes it as a barrier, so automatic series on both sides of it may join.
 - Moved and renamed photos ([Photos](../domain/photos.md#moved-and-renamed-photos)) keep their pin, like accepted marks.
 - Both windows follow: an edit changes the timeline's grouping, so the grid and the viewer (its strip, previous/next) update as after a rejection. The summary's series count follows.
 - Labels (camera names on overlapping series) are worked out over manual and automatic series together.
@@ -60,24 +60,24 @@ The plan below uses approach 2.
 
 1. Pinned membership (approach 2), with pinned photos as barriers to automatic grouping.
 2. Edits in the grid only; editing in the viewer is [slice 59](59-edit-series-in-viewer.md).
-3. No restore for the whole folder: „Przywróć automatyczny podział” per series and per pinned single photo is enough.
+3. No restore for the whole folder: „Przywróć automatyczne grupowanie” per series and per pinned single photo is enough.
 
 ## Implementation notes
 
 - Core: `crates/core/src/series/pins.rs` (pins, grouping with barriers in `series::group`), `series/edit.rs` (`plan_edit`), `series/pin_store.rs` (migration 5, `series_pins`). New manual series ids are unique across all folders (`next_series_id`), so series of a folder and of its subfolder never mix.
 - Tauri: `src-tauri/src/series/edit.rs` (`edit_series`, `load_pins`, `follow_moves`); the scan holds the folder's pins (read when a folder is opened or refreshed). `GroupingDto` sends `edited` per series and the display positions of pinned single photos (`pinned`). New error code `seriesChanged`.
 - UI: `ui/src/features/series-edit/` (`editOptions.ts` lists the edits for a photo or a series and is independent of the grid; `useSeriesMenu`, `SeriesMenu`, `EditedIcon`); the grid only reports menu requests (`timeline/menuRequest.ts`). Keymap actions `menu` (Shift+F10; the Menu key fires `contextmenu` by itself), `menuUp`, `menuDown`.
-- Deviation from the plan: the tile menu also lists the edits of the photo's whole series („Rozdziel serię”, „Przywróć automatyczny podział”), so they are reachable by keyboard; headers are not focusable.
+- Deviation from the plan: the tile menu also lists the edits of the photo's whole series („Rozdziel serię”, „Przywróć automatyczne grupowanie”), so they are reachable by keyboard; headers are not focusable.
 
 ## Fixes from testing
 
 - Tested in the debug app on 2026-11-18 (34 296 photos): take out and restore, menu entries for series of 2 and 21, split from the keyboard (Shift+F10, ↓, Escape, Enter), join, gaps of 1 s and 60 s (edited series and pinned photos unchanged, no series around them), restart, restore of a whole stretch at 60 s, viewer on an edited series.
 - No menu entry did anything on macOS: WebKit does not focus a clicked button, so pressing an entry blurred the menu with no new focus, and the menu closed before the click. The menu now closes on blur only when the focus moves to another element (outside clicks close it via `pointerdown`). Regression unit test in `SeriesMenu.test.tsx`; checked in the debug app (cut, take out, restore).
 
-- „Przywróć automatyczny podział” on a photo taken out of a series changed nothing visible: the rest of the series stayed pinned and kept the photo apart. Restoring now unpins the whole stretch of edited photos around the photo (`series/restore.rs`), so an extraction or a cut is taken back from any photo or header it touched.
+- „Przywróć automatyczne grupowanie” on a photo taken out of a series changed nothing visible: the rest of the series stayed pinned and kept the photo apart. Restoring now unpins the whole stretch of edited photos around the photo (`series/restore.rs`), so an extraction or a cut is taken back from any photo or header it touched.
 - The menu offered edits with the same outcome: on a series of two, „Podziel…”, „Wyjmij…” and „Rozdziel serię” all leave two single photos, and splitting before the last photo equals taking it out. Only the distinct ones are offered now.
 - Joining a single photo to a series and taking it out again left both marked as edited (pinned single photo, edited series), though the grouping was the automatic one again. An edit now clears the pins of its stretch when the result equals automatic grouping (`without_needless_pins` in `series/restore.rs`).
-- Near the window's right edge, „Przywróć automatyczny podział” wrapped onto two lines; menu entries no longer wrap.
+- Near the window's right edge, „Przywróć automatyczne grupowanie” wrapped onto two lines; menu entries no longer wrap.
 - Photos taken out of a series could not be told apart from other single photos: their tiles now carry a pencil badge.
 
 ## Later slices

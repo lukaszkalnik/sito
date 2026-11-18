@@ -8,7 +8,7 @@ Split off from [slice 14](14-edit-series.md) in its review (2026-11-18); concept
 
 ## Idea
 
-The edits of slice 14 („Podziel serię przed tym zdjęciem”, „Wyjmij z serii”, „Dołącz do poprzedniej/następnej serii”, „Rozdziel serię”, „Przywróć automatyczny podział”) also in the viewer, where the user looks closely at a series: from the bar or the series strip, with keys from `ui/src/shortcuts/keymap.ts`.
+The edits of slice 14 („Podziel serię przed tym zdjęciem”, „Wyjmij z serii”, „Dołącz do poprzedniej/następnej serii”, „Rozdziel serię”, „Przywróć automatyczne grupowanie”) also in the viewer, where the user looks closely at a series: from the bar or the series strip, with keys from `ui/src/shortcuts/keymap.ts`.
 
 ## Try
 
