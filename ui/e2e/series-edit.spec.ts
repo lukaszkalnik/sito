@@ -94,11 +94,16 @@ test('ungroups a series from its header and restores a photo of it', async ({ pa
   await menu(page).getByRole('menuitem', { name: 'Rozdziel serię' }).click();
   await expect(page.getByTestId('toast')).toHaveText('Rozdzielono serię');
   await expect(headers(page)).toHaveCount(0);
+  const pinnedMarks = page.getByRole('img', {
+    name: 'Wyjęte z serii ręcznie – nie łączy się w serię z odstępem',
+  });
+  await expect(pinnedMarks).toHaveCount(4);
 
   await tile(page, 'IMG_00003.jpg').click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Przywróć automatyczny podział' }).click();
 
   await expect(page.getByTestId('toast')).toHaveText('Przywrócono automatyczny podział');
+  await expect(pinnedMarks).toHaveCount(3);
   expect(await edits(page)).toEqual([
     { edit: { kind: 'ungroup', photo: 0 }, maxGapSeconds: 10 },
     { edit: { kind: 'restore', photo: 3 }, maxGapSeconds: 10 },

@@ -188,6 +188,7 @@
     "restoreDone": "Przywrócono automatyczny podział",
     "edited": "Seria edytowana ręcznie – nie zmienia się z odstępem",
     "seriesChanged": "Nie można zmienić serii – zmieniła się w międzyczasie.",
-    "failed": "Nie udało się zmienić serii."
+    "failed": "Nie udało się zmienić serii.",
+    "pinned": "Wyjęte z serii ręcznie – nie łączy się w serię z odstępem"
   }
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
 import { AcceptedBadge } from '../accept/AcceptedBadge';
+import { PinnedBadge } from '../series-edit/EditedIcon';
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
 import { menuRequest, type MenuRequest } from './menuRequest';
@@ -32,6 +33,8 @@ interface TimelineTileProps {
   followed?: boolean;
   /** Marked with a check: the user accepted it. */
   accepted?: boolean;
+  /** Marked with a pencil: taken out of its series by hand. */
+  pinned?: boolean;
   /**
    * Counts the timeline's changes. A thumbnail that failed loads again when
    * it changes, e.g. once a refresh found the photo's file at its new place.
@@ -165,6 +168,7 @@ export function TimelineTile({
   highlight = null,
   followed = false,
   accepted = false,
+  pinned = false,
   revision = 0,
   onMenu,
 }: TimelineTileProps) {
@@ -203,9 +207,19 @@ export function TimelineTile({
       {status === 'error' && <BrokenThumbnail />}
       <TileCaption entry={entry} showFolder={showFolder} />
       <TileBadges entry={entry} />
-      {accepted && <AcceptedBadge />}
+      <TileMarks accepted={accepted} pinned={pinned} />
       <OpenButton entry={entry} onOpen={onOpen} />
     </li>
+  );
+}
+
+/** The marks of the user's decisions on a tile: accepted, taken out of its series. */
+function TileMarks({ accepted, pinned }: { accepted: boolean; pinned: boolean }) {
+  return (
+    <>
+      {accepted && <AcceptedBadge />}
+      {pinned && <PinnedBadge />}
+    </>
   );
 }
 

@@ -123,6 +123,7 @@ function TimelineBody(props: TimelineBodyProps) {
           mode={mode}
           scanId={scanId}
           acceptedIds={acceptedIds}
+          pinnedIds={timeline.pinnedIds}
           reveal={reveal}
           onRevealed={onRevealed}
           followed={followed}

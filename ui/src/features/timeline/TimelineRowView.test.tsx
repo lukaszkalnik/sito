@@ -113,6 +113,22 @@ describe('edited series', () => {
 });
 
 describe('tiles', () => {
+  it('mark a photo taken out of its series by hand with a pencil', () => {
+    const entries = [entry(0, '2024-06-01T17:00:22'), entry(1, '2024-06-01T17:00:11')];
+    render(
+      <TimelineRowView
+        row={{ kind: 'tiles', key: 'tiles-0', entries, inSeries: false, seriesEnd: false }}
+        context={{ ...context, pinnedIds: new Set([1]) }}
+      />,
+    );
+
+    const pencils = screen.getAllByRole('img', {
+      name: 'Wyjęte z serii ręcznie – nie łączy się w serię z odstępem',
+    });
+    expect(pencils).toHaveLength(1);
+    expect(screen.getAllByRole('listitem')[1]).toContainElement(pencils[0] ?? null);
+  });
+
   it('open the menu of their photo, below the tile when opened from the keyboard', () => {
     const entries = [entry(0, '2024-06-01T17:00:22')];
     const onMenu = vi.fn();

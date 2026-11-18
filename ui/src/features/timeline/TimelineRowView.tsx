@@ -18,6 +18,8 @@ export interface TileContext {
   onOpen: (entry: TimelineEntry) => void;
   /** The accepted photos, marked with a check. */
   acceptedIds: ReadonlySet<number>;
+  /** The photos taken out of their series by hand, marked with a pencil. */
+  pinnedIds?: ReadonlySet<number>;
   /** The photo to highlight, if any. */
   highlighted: Reveal | null;
   /** The photo the viewer shows, if any. */
@@ -105,6 +107,7 @@ function TileList({
           highlight={entry.id === context.highlighted?.id ? context.highlighted.reason : null}
           followed={entry.id === context.followed}
           accepted={context.acceptedIds.has(entry.id)}
+          pinned={context.pinnedIds?.has(entry.id) ?? false}
           revision={context.revision}
           onMenu={context.onMenu}
         />

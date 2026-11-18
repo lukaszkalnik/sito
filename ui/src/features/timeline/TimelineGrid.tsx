@@ -26,6 +26,8 @@ interface TimelineGridProps {
   scanId: number;
   /** The accepted photos, marked with a check. */
   acceptedIds: ReadonlySet<number>;
+  /** The photos taken out of their series by hand, marked with a pencil. */
+  pinnedIds?: ReadonlySet<number>;
   /** Opens a photo full size. */
   onOpen: (entry: TimelineEntry) => void;
   /** A photo to scroll into view and highlight once the rows show it, e.g. one just restored. */
@@ -99,7 +101,7 @@ export function TimelineGrid({
   followed = null,
   savedPosition,
   revision = 0,
-  // What the tiles need as it is: scanId, acceptedIds, onMenu.
+  // What the tiles need as it is: scanId, acceptedIds, pinnedIds, onMenu.
   ...tiles
 }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
