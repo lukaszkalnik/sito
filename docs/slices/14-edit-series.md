@@ -69,6 +69,10 @@ The plan below uses approach 2.
 - UI: `ui/src/features/series-edit/` (`editOptions.ts` lists the edits for a photo or a series and is independent of the grid; `useSeriesMenu`, `SeriesMenu`, `EditedIcon`); the grid only reports menu requests (`timeline/menuRequest.ts`). Keymap actions `menu` (Shift+F10; the Menu key fires `contextmenu` by itself), `menuUp`, `menuDown`.
 - Deviation from the plan: the tile menu also lists the edits of the photo's whole series („Rozdziel serię”, „Przywróć automatyczny podział”), so they are reachable by keyboard; headers are not focusable.
 
+## Fixes from testing
+
+- No menu entry did anything on macOS: WebKit does not focus a clicked button, so pressing an entry blurred the menu with no new focus, and the menu closed before the click. The menu now closes on blur only when the focus moves to another element (outside clicks close it via `pointerdown`). Regression unit test in `SeriesMenu.test.tsx`; checked in the debug app (cut, take out, restore).
+
 ## Later slices
 
 - [Slice 59](59-edit-series-in-viewer.md) adds the same edits to the viewer. Keep the edit command (`edit_series`) and the pure function listing the possible edits for a photo independent of the grid, so the viewer only adds its controls.

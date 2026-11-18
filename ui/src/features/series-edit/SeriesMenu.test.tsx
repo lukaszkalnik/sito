@@ -64,6 +64,14 @@ describe('SeriesMenu', () => {
     expect(onChoose).toHaveBeenCalledWith(options[1]);
   });
 
+  it('stays open when an item loses focus to nothing, as a click does in WebKit', () => {
+    const { onClose } = renderMenu();
+
+    fireEvent.blur(item('Podziel serię przed tym zdjęciem'), { relatedTarget: null });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('closes with Escape, giving the focus back', () => {
     const { onClose } = renderMenu();
 

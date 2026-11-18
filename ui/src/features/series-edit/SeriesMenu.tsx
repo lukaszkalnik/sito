@@ -85,7 +85,11 @@ export function SeriesMenu({ menu, onChoose, onClose }: SeriesMenuProps) {
       aria-label={t('seriesEdit.menu')}
       style={{ left: menu.x, top: menu.y }}
       onBlur={(event) => {
-        if (!ref.current?.contains(event.relatedTarget)) onClose(false);
+        // Only focus moving to another element closes it: WebKit does not
+        // focus a clicked button, so pressing an item blurs the menu with no
+        // new focus, and closing then would swallow the click.
+        const to = event.relatedTarget;
+        if (to instanceof Node && !ref.current?.contains(to)) onClose(false);
       }}
     >
       {menu.options.map((option) => (
