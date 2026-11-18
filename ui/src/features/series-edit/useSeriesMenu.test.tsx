@@ -24,10 +24,10 @@ function entry(id: number): TimelineEntry {
   };
 }
 
-/** Photos 0–1 a series, 2 a single photo. */
+/** Photos 0–2 a series, 3 a single photo. */
 const arranged: Arranged = {
-  entries: [entry(0), entry(1), entry(2)],
-  series: [{ start: 0, len: 2, label: { kind: 'plain' }, edited: false }],
+  entries: [entry(0), entry(1), entry(2), entry(3)],
+  series: [{ start: 0, len: 3, label: { kind: 'plain' }, edited: false }],
   pinnedIds: new Set(),
 };
 
@@ -53,7 +53,7 @@ describe('useSeriesMenu', () => {
   it('stays closed when there is nothing to edit', () => {
     const { result } = renderHook(() => useSeriesMenu({ ...arranged, series: [] }, 10, vi.fn()));
 
-    act(() => result.current.open({ target: { kind: 'photo', id: 2 }, x: 0, y: 0 }));
+    act(() => result.current.open({ target: { kind: 'photo', id: 3 }, x: 0, y: 0 }));
 
     expect(result.current.menu).toBeNull();
   });

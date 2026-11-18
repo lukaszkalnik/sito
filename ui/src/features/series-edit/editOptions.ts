@@ -49,8 +49,26 @@ function joinOption(
 }
 
 /**
- * The edits offered for photo `id`: splitting its series before it (not
- * before its first photo), taking it out, joining the series of the photo
+ * Splitting the series `own` before the photo `id` at `position`, and taking
+ * the photo out, where they do something „Rozdziel serię” or the other does
+ * not: a series of one or two photos only offers „Rozdziel serię” (any of the
+ * three leaves single photos), and splitting before the last photo is taking
+ * it out.
+ */
+function partOptions(own: Series | undefined, position: number, id: number): EditOption[] {
+  if (!own || own.len <= 2) return [];
+  const last = own.start + own.len - 1;
+  const options: EditOption[] = [];
+  if (position > own.start && position < last) {
+    options.push({ action: 'cut', edit: { kind: 'cut', photo: id } });
+  }
+  options.push({ action: 'remove', edit: { kind: 'remove', photo: id } });
+  return options;
+}
+
+/**
+ * The edits offered for photo `id`: splitting its series before it and
+ * taking it out (see {@link partOptions}), joining the series of the photo
  * shown before or after it when that is another series, and the edits of its
  * whole series. A single photo pinned by an edit can be restored.
  */
@@ -58,10 +76,7 @@ export function photoEditOptions(arranged: Arranged, id: number): EditOption[] {
   const position = arranged.entries.findIndex((entry) => entry.id === id);
   if (position < 0) return [];
   const own = seriesAt(arranged.series, position);
-  const options: EditOption[] = [];
-  if (own && position > own.start)
-    options.push({ action: 'cut', edit: { kind: 'cut', photo: id } });
-  if (own) options.push({ action: 'remove', edit: { kind: 'remove', photo: id } });
+  const options: EditOption[] = [...partOptions(own, position, id)];
   options.push(...joinOption(arranged, id, own, position - 1, 'joinPrevious'));
   options.push(...joinOption(arranged, id, own, position + 1, 'joinNext'));
   if (own) options.push(...wholeSeriesOptions(arranged.entries, own));

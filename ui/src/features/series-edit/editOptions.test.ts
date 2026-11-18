@@ -32,16 +32,22 @@ const arranged: Arranged = {
 const actions = (id: number) => photoEditOptions(arranged, id).map((o) => o.action);
 
 describe('photoEditOptions', () => {
-  it('offers no split before the first photo of a series', () => {
+  it('offers no split before the first or the last photo of a series', () => {
     expect(actions(10)).toEqual(['remove', 'ungroup']);
+    // Splitting before the last photo would only take it out.
+    expect(actions(12)).toEqual(['remove', 'ungroup']);
   });
 
-  it('splits a series before any later photo', () => {
+  it('splits a series before a photo in its middle', () => {
     expect(photoEditOptions(arranged, 11)[0]).toEqual({
       action: 'cut',
       edit: { kind: 'cut', photo: 11 },
     });
-    expect(actions(12)).toEqual(['cut', 'remove', 'ungroup']);
+    expect(actions(11)).toEqual(['cut', 'remove', 'ungroup']);
+  });
+
+  it('only ungroups a series of two, where every edit leaves two single photos', () => {
+    expect(actions(17)).toEqual(['ungroup']);
   });
 
   it('lets a single photo join the series before and after it', () => {
@@ -56,11 +62,11 @@ describe('photoEditOptions', () => {
       action: 'joinNext',
       edit: { kind: 'join', photo: 15, into: 16 },
     });
-    expect(actions(16)).toEqual(['remove', 'joinPrevious', 'ungroup']);
+    expect(actions(16)).toEqual(['joinPrevious', 'ungroup']);
   });
 
   it('offers restoring an edited series and a pinned single photo', () => {
-    expect(actions(14)).toEqual(['remove', 'ungroup', 'restore']);
+    expect(actions(14)).toEqual(['ungroup', 'restore']);
     expect(actions(18)).toEqual(['joinPrevious', 'restore']);
   });
 
