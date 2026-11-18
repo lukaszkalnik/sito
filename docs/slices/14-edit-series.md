@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 14 – Edit series
 
-Plan drafted on 2026-11-18, waiting for the user's review.
+Plan drafted and approved by the user on 2026-11-18.
 
 ## Idea
 
@@ -56,12 +56,13 @@ The plan below uses approach 2.
 5. **Tests**: Vitest for the menu entries and component; Playwright (mocked) for cut, remove, join, ungroup and restore in the grid; a core integration test (`crates/core/tests/`) that edits, rescans and finds the edits kept; one real-app spec only if the restart case needs it (it likely does not: the core test covers persistence).
 6. **Docs**: grouping domain file (edits, pins, how they interact with the gap), timeline file (context menu, pencil); this slice's status.
 
-## Questions for the review
+## Decisions (review, 2026-11-18)
 
-1. Approach 2 (pinned membership: an edited series no longer follows the gap) rather than approach 1?
-2. Grid only in this slice, or also in the viewer (e.g. „Podziel tutaj” and „Wyjmij z serii” in the strip or bar, with keys)? The viewer is where the user looks closely at a series, but adding it roughly doubles the UI work; it could be a follow-up slice.
-3. Is a per-series „Przywróć automatyczny podział” enough, or should there also be one for the whole folder?
+1. Pinned membership (approach 2), with pinned photos as barriers to automatic grouping.
+2. Edits in the grid only; editing in the viewer is [slice 59](59-edit-series-in-viewer.md).
+3. No restore for the whole folder: „Przywróć automatyczny podział” per series and per pinned single photo is enough.
 
 ## Later slices
 
+- [Slice 59](59-edit-series-in-viewer.md) adds the same edits to the viewer. Keep the edit command (`edit_series`) and the pure function listing the possible edits for a photo independent of the grid, so the viewer only adds its controls.
 - [Slice 19](19-split-by-content.md) (split by content) should leave pinned photos alone: it splits automatic series only, so it can run on the unpinned photos like the time grouping does.
