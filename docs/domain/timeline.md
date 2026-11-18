@@ -36,6 +36,15 @@ Nothing watches the disk: Sito notices changes when the user asks for a refresh,
 
 - Each series has a header with its photo count and time range (e.g. „3 zdjęcia · 17:00:11–17:00:22”); when it overlaps a series of another camera, the header also names its camera ([Grouping](grouping.md#several-cameras-at-one-event)). A series that fits on one row is a tinted block next to other blocks and single photos.
 
+## Editing series
+
+- A **context menu** on a tile (right-click, or the Menu key / Shift+F10 on a focused tile) lists the edits that fit the photo ([Grouping](grouping.md#series-edited-by-hand)): „Podziel serię przed tym zdjęciem” (not on a series' first photo), „Wyjmij z serii”, „Dołącz do poprzedniej serii” / „Dołącz do następnej serii” (when the photo shown before / after it is in another series), then the edits of its whole series, „Rozdziel serię” and, for an edited series, „Przywróć automatyczny podział”. On a single photo pinned by an edit it offers „Przywróć automatyczny podział”. A photo with no edit to offer opens no menu.
+- Right-clicking a **series header** lists the edits of the whole series.
+- The menu is used by keyboard: the first entry has the focus, ↑/↓ move (wrapping around), Enter picks, Escape closes and gives the focus back to the tile; a click outside closes it too.
+- A toast confirms each edit: „Podzielono serię”, „Wyjęto <name> z serii”, „Dołączono <name> do serii”, „Rozdzielono serię”, „Przywrócono automatyczny podział”, without „Cofnij”. An edit that no longer fits (the series changed in another window) says so in an error toast.
+- **Edited series** have a small pencil after their header text, with the tooltip and accessible name „Seria edytowana ręcznie – nie zmienia się z odstępem”.
+- After an edit both windows follow, as after a rejection: the grid, the summary's series count and the viewer (its strip, previous/next).
+
 ## Thumbnails in the grid
 
 - Every tile is a landscape box. A landscape thumbnail fills it and is cropped to it; a portrait thumbnail (taller than wide, after the EXIF orientation) is shown whole, with the tile background at its sides. So a portrait file whose scene lies on its side (e.g. a sideways scan without an orientation tag) is recognisable as such; Sito does not turn it, since nothing in the file says how.

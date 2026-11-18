@@ -1,10 +1,10 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 14 – Edit series
 
-Plan drafted and approved by the user on 2026-11-18.
+Plan drafted and approved by the user on 2026-11-18. Implemented on 2026-11-18, ready for testing; what it established is in [Grouping](../domain/grouping.md#series-edited-by-hand) and [Timeline](../domain/timeline.md#editing-series).
 
 ## Idea
 
@@ -61,6 +61,13 @@ The plan below uses approach 2.
 1. Pinned membership (approach 2), with pinned photos as barriers to automatic grouping.
 2. Edits in the grid only; editing in the viewer is [slice 59](59-edit-series-in-viewer.md).
 3. No restore for the whole folder: „Przywróć automatyczny podział” per series and per pinned single photo is enough.
+
+## Implementation notes
+
+- Core: `crates/core/src/series/pins.rs` (pins, grouping with barriers in `series::group`), `series/edit.rs` (`plan_edit`), `series/pin_store.rs` (migration 5, `series_pins`). New manual series ids are unique across all folders (`next_series_id`), so series of a folder and of its subfolder never mix.
+- Tauri: `src-tauri/src/series/edit.rs` (`edit_series`, `load_pins`, `follow_moves`); the scan holds the folder's pins (read when a folder is opened or refreshed). `GroupingDto` sends `edited` per series and the display positions of pinned single photos (`pinned`). New error code `seriesChanged`.
+- UI: `ui/src/features/series-edit/` (`editOptions.ts` lists the edits for a photo or a series and is independent of the grid; `useSeriesMenu`, `SeriesMenu`, `EditedIcon`); the grid only reports menu requests (`timeline/menuRequest.ts`). Keymap actions `menu` (Shift+F10; the Menu key fires `contextmenu` by itself), `menuUp`, `menuDown`.
+- Deviation from the plan: the tile menu also lists the edits of the photo's whole series („Rozdziel serię”, „Przywróć automatyczny podział”), so they are reachable by keyboard; headers are not focusable.
 
 ## Later slices
 

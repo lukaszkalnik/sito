@@ -17,3 +17,4 @@ Step through a chained series in the viewer, cut it where the moment changes and
 ## Builds on
 
 - [Slice 14](14-edit-series.md): pinned membership, the `edit_series` command and the pure function listing the possible edits for a photo. This slice only adds the viewer's controls and keys.
+  - `ui/src/features/series-edit/editOptions.ts`: `photoEditOptions(arranged, id)` takes the photos in display order, the series ranges and the pinned ids; the viewer can build that from its own page data. `editSeries(edit, gap)` in `series-edit/api.ts`, and the toast texts in `useSeriesMenu.ts` (worth moving into a shared hook when the viewer needs them).
