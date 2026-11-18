@@ -59,6 +59,13 @@ impl Pins {
             .map(|(path, _)| path.as_path())
     }
 
+    /// Every pinned path with its pin, in no particular order.
+    pub fn iter(&self) -> impl Iterator<Item = (&Path, Pin)> {
+        self.by_path
+            .iter()
+            .map(|(path, pin)| (path.as_path(), *pin))
+    }
+
     /// Applies `changes`: first the pins to clear, then the pins to set.
     pub fn apply(&mut self, changes: &PinChanges) {
         for path in &changes.clear {

@@ -6,7 +6,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use super::pins::{ManualSeriesId, Pin, PinChanges, Pins};
-use super::restore::restored_paths;
+use super::restore::{restored_paths, without_needless_pins};
 use super::{Series, SeriesKind, group};
 use crate::timeline::Photo;
 
@@ -77,7 +77,8 @@ pub enum EditError {
 /// A part of a series left with one photo (counting rejected ones, which
 /// still belong to it) is pinned as a single photo; a part with more becomes
 /// a manual series. Every photo of an edited series is pinned, so it stays
-/// as the user left it.
+/// as the user left it, unless the edit brings its stretch back to how
+/// automatic grouping has it (see [`without_needless_pins`]).
 ///
 /// # Errors
 ///
@@ -105,13 +106,14 @@ pub fn plan_edit(
             });
         }
     };
-    Ok(PinChanges {
+    let changes = PinChanges {
         set: set
             .into_iter()
             .map(|(position, pin)| (current.photos[position].path.clone(), pin))
             .collect(),
         clear: Vec::new(),
-    })
+    };
+    Ok(without_needless_pins(photos, max_gap, pins, &changes))
 }
 
 /// Hands out ids for new manual series.
@@ -517,6 +519,39 @@ mod tests {
         );
 
         assert_eq!(result, Err(EditError::UnknownPhoto(path(5))));
+    }
+
+    #[test]
+    fn joining_a_photo_and_taking_it_out_again_leaves_nothing_edited() {
+        // 30 is a single photo, 6 and 4 a series.
+        let photos = photos(&[4, 6, 30]);
+        let mut pins = Pins::default();
+        edited(
+            &photos,
+            &mut pins,
+            &Edit::Join {
+                photo: path(30),
+                into: path(6),
+            },
+            10,
+        );
+        assert!(!pins.is_empty());
+
+        let series = edited(&photos, &mut pins, &Edit::Remove { photo: path(30) }, 10);
+
+        assert_eq!(series, [(vec![6, 4], false)]);
+        assert!(pins.is_empty());
+    }
+
+    #[test]
+    fn an_edit_that_differs_from_automatic_grouping_keeps_its_pins() {
+        let photos = photos(&[0, 2, 4, 6]);
+        let mut pins = Pins::default();
+
+        let series = edited(&photos, &mut pins, &Edit::Cut { at: path(2) }, 10);
+
+        // Unpinned, the parts would join again, so both stay edited.
+        assert_eq!(series, [(vec![6, 4], true), (vec![2, 0], true)]);
     }
 
     #[test]
