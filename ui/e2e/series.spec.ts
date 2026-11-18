@@ -142,3 +142,15 @@ test('shows interleaved series of two cameras in one piece each, naming the came
     'Otwórz IMG_00001.jpg',
   ]);
 });
+
+test('keeps the series at the top in view when switching to all photos', async ({ page }) => {
+  // Fifty single photos come before the first series.
+  await openTimeline(page, [{ start: 50, len: 3 }]);
+  await expect(page.getByText('IMG_09950.jpg')).toBeVisible();
+  const before = await photoY(page, 'IMG_09950.jpg');
+
+  await showView(page, 'Wszystkie zdjęcia');
+
+  await expect(page.getByText('IMG_09950.jpg')).toBeVisible();
+  await expect.poll(() => photoY(page, 'IMG_09950.jpg')).toBe(before);
+});

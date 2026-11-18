@@ -285,6 +285,17 @@ describe('anchoredScrollTop', () => {
     expect(anchoredScrollTop(all, onlySeries, 0)).toBe(0);
   });
 
+  it('stays at the top when nothing was shown before', () => {
+    expect(anchoredScrollTop([], all, 0)).toBe(0);
+  });
+
+  it('keeps the first series in view when all photos are shown from the top', () => {
+    const shift = offsetOf(allGrouped, 6) - offsetOf(onlySeries, 6);
+    expect(shift).toBeGreaterThan(0);
+
+    expect(anchoredScrollTop(onlySeries, allGrouped, 0)).toBe(shift);
+  });
+
   it('keeps the top photo in place when series appear above it', () => {
     const scrollTop = offsetOf(all, 7) + 20;
 

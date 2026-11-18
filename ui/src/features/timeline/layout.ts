@@ -241,14 +241,14 @@ export function totalHeight(rows: readonly TimelineRow[]): number {
  * `oldRows` in place, for regrouped series or a switched mode. The anchor is
  * the topmost visible photo that `newRows` still shows (singles disappear in
  * `series` mode); it stays at the same distance from the top of the view.
+ * Also at the very top: the first series shown in `series` mode stays in
+ * view when switching to all photos, though newer single photos come before it.
  */
 export function anchoredScrollTop(
   oldRows: readonly TimelineRow[],
   newRows: readonly TimelineRow[],
   scrollTop: number,
 ): number {
-  if (scrollTop <= 0) return 0;
-
   const newTops = tileTops(newRows);
   for (const { entry, top } of tilePositions(oldRows)) {
     // Only the tiles count as visible, not a header or the space below them.
@@ -256,7 +256,9 @@ export function anchoredScrollTop(
     const newTop = newTops.get(entry.id);
     if (newTop !== undefined) return Math.max(0, newTop - (top - scrollTop));
   }
-  return totalHeight(newRows);
+  // Nothing seen is shown any more: past the end, unless it was at the top
+  // (e.g. the first rows of a folder).
+  return scrollTop <= 0 ? 0 : totalHeight(newRows);
 }
 
 /** A photo of the rows and the top of its tile in pixels. */
