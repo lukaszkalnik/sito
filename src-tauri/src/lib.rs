@@ -25,7 +25,7 @@ use tauri::Manager;
 /// Returns an error if the application fails to start.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> tauri::Result<()> {
-    with_e2e_driver(tauri::Builder::default())
+    with_protocols(with_e2e_driver(tauri::Builder::default()))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(navigation::init())
@@ -49,15 +49,6 @@ pub fn run() -> tauri::Result<()> {
         .manage(viewer::ViewerState::default())
         .manage(update::UpdateState::default())
         .manage(missing::Reported::default())
-        .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
-            thumbnails::handle(&ctx, &request, responder);
-        })
-        .register_asynchronous_uri_scheme_protocol(
-            viewer::photo_protocol::SCHEME,
-            |ctx, request, responder| {
-                viewer::photo_protocol::handle(&ctx, &request, responder);
-            },
-        )
         .setup(|app| setup(app))
         .invoke_handler(tauri::generate_handler![
             scan::start_scan,
@@ -79,6 +70,21 @@ pub fn run() -> tauri::Result<()> {
             update::open_release_page
         ])
         .run(tauri::generate_context!())
+}
+
+/// Registers the `thumb:` and `photo:` protocols that serve images to the
+/// windows.
+fn with_protocols(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
+        .register_asynchronous_uri_scheme_protocol(thumbnails::SCHEME, |ctx, request, responder| {
+            thumbnails::handle(&ctx, &request, responder);
+        })
+        .register_asynchronous_uri_scheme_protocol(
+            viewer::photo_protocol::SCHEME,
+            |ctx, request, responder| {
+                viewer::photo_protocol::handle(&ctx, &request, responder);
+            },
+        )
 }
 
 /// Adds the embedded `WebDriver` server of the end-to-end tests (feature `e2e`,
