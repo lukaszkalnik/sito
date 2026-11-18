@@ -1,5 +1,5 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 14 – Edit series
