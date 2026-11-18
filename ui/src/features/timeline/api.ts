@@ -44,6 +44,8 @@ export interface Series {
   readonly start: number;
   readonly len: number;
   readonly label: SeriesLabel;
+  /** Edited by hand, so it keeps its photos with any gap. */
+  readonly edited: boolean;
 }
 
 /** The series and the display order of the timeline entries. Mirrors `GroupingDto`. */
@@ -52,6 +54,8 @@ export interface Grouping {
   readonly order: readonly number[];
   /** The series as ranges of display positions, sorted by start. */
   readonly series: readonly Series[];
+  /** Display positions of the photos pinned as single photos by an edit, ascending. */
+  readonly pinned: readonly number[];
 }
 
 /**

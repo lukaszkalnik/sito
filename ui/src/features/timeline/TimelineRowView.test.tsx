@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { SeriesLabel, TimelineEntry } from './api';
@@ -34,7 +34,10 @@ const context = {
 function renderHeader(label: SeriesLabel) {
   const entries = [entry(0, '2024-06-01T17:00:22'), entry(1, '2024-06-01T17:00:11')];
   render(
-    <TimelineRowView row={{ kind: 'series', key: 'series-0', entries, label }} context={context} />,
+    <TimelineRowView
+      row={{ kind: 'series', key: 'series-0', entries, label, edited: false }}
+      context={context}
+    />,
   );
   return screen.getByRole('heading', { level: 3 });
 }
@@ -61,7 +64,9 @@ describe('series header', () => {
         row={{
           kind: 'blocks',
           key: 'blocks-0',
-          groups: [{ kind: 'series', entries, label: { kind: 'camera', name: 'Pixel 8' } }],
+          groups: [
+            { kind: 'series', entries, label: { kind: 'camera', name: 'Pixel 8' }, edited: false },
+          ],
         }}
         context={context}
       />,
@@ -71,7 +76,58 @@ describe('series header', () => {
   });
 });
 
+describe('edited series', () => {
+  const entries = [entry(4, '2024-06-01T17:00:22'), entry(5, '2024-06-01T17:00:11')];
+
+  function renderSeries(edited: boolean, onMenu = vi.fn()) {
+    render(
+      <TimelineRowView
+        row={{ kind: 'series', key: 'series-4', entries, label: { kind: 'plain' }, edited }}
+        context={{ ...context, onMenu }}
+      />,
+    );
+    return onMenu;
+  }
+
+  it('marks an edited series with a pencil', () => {
+    renderSeries(true);
+
+    expect(
+      screen.getByRole('img', { name: 'Seria edytowana ręcznie – nie zmienia się z odstępem' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows no pencil on a series found automatically', () => {
+    renderSeries(false);
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('opens the menu of the series from its header, at the pointer', () => {
+    const onMenu = renderSeries(false);
+
+    fireEvent.contextMenu(screen.getByRole('heading', { level: 3 }), { clientX: 30, clientY: 40 });
+
+    expect(onMenu).toHaveBeenCalledWith({ target: { kind: 'series', firstId: 4 }, x: 30, y: 40 });
+  });
+});
+
 describe('tiles', () => {
+  it('open the menu of their photo, below the tile when opened from the keyboard', () => {
+    const entries = [entry(0, '2024-06-01T17:00:22')];
+    const onMenu = vi.fn();
+    render(
+      <TimelineRowView
+        row={{ kind: 'tiles', key: 'tiles-0', entries, inSeries: false, seriesEnd: false }}
+        context={{ ...context, onMenu }}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByRole('button', { name: /IMG_0\.jpg/ }));
+
+    expect(onMenu).toHaveBeenCalledWith({ target: { kind: 'photo', id: 0 }, x: 0, y: 0 });
+  });
+
   it('marks the photo the viewer shows as current, and only that one', () => {
     const entries = [entry(0, '2024-06-01T17:00:22'), entry(1, '2024-06-01T17:00:11')];
     render(

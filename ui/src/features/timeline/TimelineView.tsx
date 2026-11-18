@@ -11,12 +11,15 @@ import { useTimelineRevision } from '../reject/useTimelineRevision';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
 import { openViewer, sendViewerContext } from '../viewer/api';
 import { DestinationSetting } from '../reject/DestinationPicker';
+import { SeriesMenu } from '../series-edit/SeriesMenu';
+import { useSeriesMenu } from '../series-edit/useSeriesMenu';
 import { Toast } from '../reject/Toast';
 import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
 import { FolderInfo } from './FolderInfo';
 import { GapSlider } from './GapSlider';
 import type { TimelineMode } from './layout';
+import type { MenuRequest } from './menuRequest';
 import type { Reveal } from './reveal';
 import { TimelineGrid } from './TimelineGrid';
 import { useFolderPosition, useGap, useMode } from './useFolderView';
@@ -85,12 +88,14 @@ interface TimelineBodyProps {
   savedPosition: SavedPosition;
   /** Counts the timeline's changes; failed thumbnails load again with each. */
   revision: number;
+  /** Opens the edit menu of a photo or series. */
+  onMenu: (request: MenuRequest) => void;
 }
 
 /** Below the bar: the grid, or a message while loading, on error or without series. */
 function TimelineBody(props: TimelineBodyProps) {
   const { timeline, mode, gap, scanId, acceptedIds, reveal, onRevealed, followed } = props;
-  const { savedPosition, revision } = props;
+  const { savedPosition, revision, onMenu } = props;
   const { t } = useTranslation();
   switch (timeline.status) {
     case 'loading':
@@ -123,6 +128,7 @@ function TimelineBody(props: TimelineBodyProps) {
           followed={followed}
           savedPosition={savedPosition}
           revision={revision}
+          onMenu={onMenu}
           onOpen={(entry) =>
             void openViewer({ id: entry.id, scanId, mode, gap }).catch((err: unknown) =>
               console.error('Cannot open the viewer', err),
@@ -193,7 +199,8 @@ export function TimelineView(props: TimelineViewProps) {
   const [mode, setMode] = useMode(path);
   const savedPosition = useFolderPosition(path);
   const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
-  const { undoState, undo, toast } = useUndo(showRestored);
+  const { undoState, undo, toast, showToast } = useUndo(showRestored);
+  const seriesMenu = useSeriesMenu(timeline.status === 'ready' ? timeline : null, gap, showToast);
   const acceptedIds = useAcceptedIds(summary.scanId);
   const revision = useTimelineRevision();
   const refresh = useRefresh(summary, busy, onRefresh);
@@ -219,6 +226,12 @@ export function TimelineView(props: TimelineViewProps) {
         followed={followed}
         savedPosition={savedPosition}
         revision={revision}
+        onMenu={seriesMenu.open}
+      />
+      <SeriesMenu
+        menu={seriesMenu.menu}
+        onChoose={(option) => void seriesMenu.choose(option)}
+        onClose={seriesMenu.close}
       />
       <Toast message={toast} onUndo={() => void undo()} />
       <ScanNotes

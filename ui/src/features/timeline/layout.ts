@@ -25,13 +25,19 @@ export const BLOCK_ROW_HEIGHT = SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT + SERIES_END
 
 /** Photos side by side in a row of blocks: one short series (a tinted block with a header), or consecutive single photos. */
 export type RowGroup =
-  | { kind: 'series'; entries: TimelineEntry[]; label: SeriesLabel }
+  | { kind: 'series'; entries: TimelineEntry[]; label: SeriesLabel; edited: boolean }
   | { kind: 'singles'; entries: TimelineEntry[] };
 
 /** One row of the virtualized timeline. */
 export type TimelineRow =
   | { kind: 'day'; key: string; date: string }
-  | { kind: 'series'; key: string; entries: TimelineEntry[]; label: SeriesLabel }
+  | {
+      kind: 'series';
+      key: string;
+      entries: TimelineEntry[];
+      label: SeriesLabel;
+      edited: boolean;
+    }
   | { kind: 'tiles'; key: string; entries: TimelineEntry[]; inSeries: boolean; seriesEnd: boolean }
   /** Short series, each in its own block with a header, mixed with single photos. */
   | { kind: 'blocks'; key: string; groups: RowGroup[] };
@@ -97,7 +103,7 @@ export function buildRows(
     const entry = entries[i] as TimelineEntry;
     const s = seriesAt.get(i);
     if (s) {
-      builder.addSeries(entries.slice(i, i + s.len), s.label);
+      builder.addSeries(entries.slice(i, i + s.len), s);
       i += s.len;
     } else {
       if (mode === 'all') builder.addSingle(entry);
@@ -123,16 +129,16 @@ class RowBuilder {
   }
 
   /** Adds a series: a block in the open row if it fits on one row, else its own rows. */
-  addSeries(members: TimelineEntry[], label: SeriesLabel): void {
+  addSeries(members: TimelineEntry[], { label, edited }: Series): void {
     const first = members[0];
     if (!first) return;
     this.enterDay(first);
     if (members.length <= this.columns) {
-      this.placeBlock(members, label);
+      this.placeBlock({ kind: 'series', entries: members, label, edited });
       return;
     }
     this.closeRow();
-    this.rows.push({ kind: 'series', key: `series-${first.id}`, entries: members, label });
+    this.rows.push({ kind: 'series', key: `series-${first.id}`, entries: members, label, edited });
     this.pushSeriesTiles(members);
   }
 
@@ -159,9 +165,8 @@ class RowBuilder {
     return this.rows;
   }
 
-  private placeBlock(members: TimelineEntry[], label: SeriesLabel): void {
-    const needed = blockWidth(members.length);
-    const group: RowGroup = { kind: 'series', entries: members, label };
+  private placeBlock(group: RowGroup & { kind: 'series' }): void {
+    const needed = blockWidth(group.entries.length);
     if (this.open && this.open.used + BLOCK_GAP + needed <= this.width) {
       this.open.groups.push(group);
       this.open.used += BLOCK_GAP + needed;

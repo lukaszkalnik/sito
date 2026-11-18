@@ -73,7 +73,7 @@ describe('restoredScrollTop', () => {
   });
 
   it('finds the photo in the series view', () => {
-    const series: Series[] = [{ start: 10, len: 12, label: { kind: 'plain' } }];
+    const series: Series[] = [{ start: 10, len: 12, label: { kind: 'plain' }, edited: false }];
     const rows = buildRows(entries, series, 4, 'series');
     // Day and series headers, then photos 10–13 above the row of photo 15.
     const rowTop = DAY_ROW_HEIGHT + SERIES_ROW_HEIGHT + TILE_ROW_HEIGHT;

@@ -98,7 +98,7 @@ describe('buildRows', () => {
     entry(5, '2024-06-01T07:00:00'),
     entry(6, '2024-05-31T18:15:00'),
   ];
-  const series: Series[] = [{ start: 1, len: 3, label: PLAIN }];
+  const series: Series[] = [{ start: 1, len: 3, label: PLAIN, edited: false }];
 
   it('returns no rows for an empty timeline', () => {
     expect(buildRows([], [], 3, 'all')).toEqual([]);
@@ -148,7 +148,12 @@ describe('buildRows', () => {
     const pairs = Array.from({ length: 8 }, (_, i) =>
       entry(i, `2024-06-01T${String(20 - Math.floor(i / 2)).padStart(2, '0')}:00:0${i % 2}`),
     );
-    const pairSeries = [0, 2, 4, 6].map((start): Series => ({ start, len: 2, label: PLAIN }));
+    const pairSeries = [0, 2, 4, 6].map((start): Series => ({
+      start,
+      len: 2,
+      label: PLAIN,
+      edited: false,
+    }));
     // Five columns: two blocks of two need 2 × blockWidth(2) + gap = 696 px,
     // less than blockWidth(5) = 848 px; a third does not fit.
     expect(shape(buildRows(pairs, pairSeries, 5, 'series'))).toEqual([
@@ -168,8 +173,8 @@ describe('buildRows', () => {
     const camera: SeriesLabel = { kind: 'camera', name: 'Canon EOS R6' };
     const photos = Array.from({ length: 4 }, (_, i) => entry(i, `2024-06-01T12:00:0${4 - i}`));
     const series: Series[] = [
-      { start: 0, len: 2, label: camera },
-      { start: 2, len: 2, label: PLAIN },
+      { start: 0, len: 2, label: camera, edited: false },
+      { start: 2, len: 2, label: PLAIN, edited: false },
     ];
 
     const rows = buildRows(photos, series, 1, 'series');
@@ -192,7 +197,12 @@ describe('buildRows', () => {
       entry(5, '2024-06-01T20:00:01'),
       entry(6, '2024-06-01T20:00:00'),
     ];
-    const pairsOf = [0, 3, 5].map((start): Series => ({ start, len: 2, label: PLAIN }));
+    const pairsOf = [0, 3, 5].map((start): Series => ({
+      start,
+      len: 2,
+      label: PLAIN,
+      edited: false,
+    }));
 
     expect(shape(buildRows(mixed, pairsOf, 6, 'all'))).toEqual([
       '2024-06-02',
@@ -210,18 +220,13 @@ describe('buildRows', () => {
     ];
     // Three columns (512 px): a block of two (344 px) leaves room for no
     // single photo (8 px gap + 176 px); the singles fill the next row.
-    expect(shape(buildRows(photos, [{ start: 0, len: 2, label: PLAIN }], 3, 'all'))).toEqual([
-      '2024-06-01',
-      'blocks:0,1',
-      [2, 3, 4],
-      [5],
-    ]);
+    expect(
+      shape(buildRows(photos, [{ start: 0, len: 2, label: PLAIN, edited: false }], 3, 'all')),
+    ).toEqual(['2024-06-01', 'blocks:0,1', [2, 3, 4], [5]]);
     // Four columns (680 px): one single fits next to the block, not two.
-    expect(shape(buildRows(photos, [{ start: 0, len: 2, label: PLAIN }], 4, 'all'))).toEqual([
-      '2024-06-01',
-      'blocks:0,1|·2',
-      [3, 4, 5],
-    ]);
+    expect(
+      shape(buildRows(photos, [{ start: 0, len: 2, label: PLAIN, edited: false }], 4, 'all')),
+    ).toEqual(['2024-06-01', 'blocks:0,1|·2', [3, 4, 5]]);
   });
 
   it('gives a series longer than a row its own header and tile rows', () => {
@@ -240,12 +245,9 @@ describe('buildRows', () => {
       entry(2, '2024-06-01T20:00:00'),
     ];
 
-    expect(shape(buildRows(night, [{ start: 0, len: 2, label: PLAIN }], 3, 'all'))).toEqual([
-      '2024-06-02',
-      'blocks:0,1',
-      '2024-06-01',
-      [2],
-    ]);
+    expect(
+      shape(buildRows(night, [{ start: 0, len: 2, label: PLAIN, edited: false }], 3, 'all')),
+    ).toEqual(['2024-06-02', 'blocks:0,1', '2024-06-01', [2]]);
   });
 
   it('gives every row a unique key', () => {
@@ -253,8 +255,8 @@ describe('buildRows', () => {
       entry(i, `2024-06-${String(10 - Math.floor(i / 10)).padStart(2, '0')}T12:00:00`),
     );
     const manySeries = [
-      { start: 3, len: 4, label: PLAIN },
-      { start: 20, len: 9, label: PLAIN },
+      { start: 3, len: 4, label: PLAIN, edited: false },
+      { start: 20, len: 9, label: PLAIN, edited: false },
     ];
 
     for (const mode of ['all', 'series'] as const) {
@@ -270,7 +272,7 @@ describe('anchoredScrollTop', () => {
     entry(id, `2024-06-01T12:00:${String(59 - id).padStart(2, '0')}`),
   );
   const all = buildRows(photos, [], 1, 'all');
-  const grouped: Series[] = [{ start: 6, len: 3, label: PLAIN }];
+  const grouped: Series[] = [{ start: 6, len: 3, label: PLAIN, edited: false }];
   const allGrouped = buildRows(photos, grouped, 1, 'all');
   const onlySeries = buildRows(photos, grouped, 1, 'series');
   /** Offset of the tile row showing photo `id`. */
@@ -334,7 +336,7 @@ describe('rowHeight', () => {
   it('gives headers less height than tile rows and adds space after a series', () => {
     const rows = buildRows(
       [entry(0, '2024-06-01T12:00:05'), entry(1, '2024-06-01T12:00:00')],
-      [{ start: 0, len: 2, label: PLAIN }],
+      [{ start: 0, len: 2, label: PLAIN, edited: false }],
       1,
       'all',
     );
@@ -353,7 +355,7 @@ describe('rowHeight', () => {
   it('gives a row of blocks room for header, tiles and the space below', () => {
     const [, blocks] = buildRows(
       [entry(0, '2024-06-01T12:00:05'), entry(1, '2024-06-01T12:00:00')],
-      [{ start: 0, len: 2, label: PLAIN }],
+      [{ start: 0, len: 2, label: PLAIN, edited: false }],
       3,
       'all',
     ) as [TimelineRow, TimelineRow];
@@ -371,7 +373,7 @@ describe('anchoredScrollTop with blocks', () => {
       entry(2, '2024-06-01T09:00:00'),
       entry(3, '2024-06-01T08:00:00'),
     ];
-    const pair: Series[] = [{ start: 2, len: 2, label: PLAIN }];
+    const pair: Series[] = [{ start: 2, len: 2, label: PLAIN, edited: false }];
     // One column: the pair is a header with two tile rows; three: one block.
     const narrow = buildRows(photos, pair, 1, 'all');
     const wide = buildRows(photos, pair, 3, 'all');

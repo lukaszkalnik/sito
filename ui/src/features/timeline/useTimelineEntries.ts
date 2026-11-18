@@ -5,16 +5,18 @@ import { getSeries, getTimeline, type Series, type TimelineEntry } from './api';
 import { arrangeEntries } from './arrange';
 
 export type TimelineEntriesState =
-  | { status: 'loading' }
-  /** `entries` are in display order; `series` are ranges of it. */
-  | { status: 'ready'; entries: TimelineEntry[]; series: readonly Series[] }
-  | { status: 'error' };
+  { status: 'loading' } | ({ status: 'ready' } & ArrangedTimeline) | { status: 'error' };
+
+/** The timeline as shown: `entries` in display order, `series` as ranges of it. */
+interface ArrangedTimeline {
+  entries: TimelineEntry[];
+  series: readonly Series[];
+  /** Ids of the photos pinned as single photos by a series edit. */
+  pinnedIds: ReadonlySet<number>;
+}
 
 /** The arranged timeline loaded for one scan; `null` means loading it failed. */
-type Loaded = {
-  scanKey: unknown;
-  value: { entries: TimelineEntry[]; series: readonly Series[] } | null;
-};
+type Loaded = { scanKey: unknown; value: ArrangedTimeline | null };
 
 /** Timeline entries in timeline order, with what they were loaded for. */
 type Fetched = { scanKey: unknown; revision: number; entries: TimelineEntry[] };
@@ -51,7 +53,11 @@ export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntri
           console.warn('Series do not match the timeline; waiting for the next change.');
           return;
         }
-        setLoaded({ scanKey, value: { entries: arranged, series: grouping.series } });
+        const pinnedIds = new Set(grouping.pinned.flatMap((p) => arranged[p]?.id ?? []));
+        setLoaded({
+          scanKey,
+          value: { entries: arranged, series: grouping.series, pinnedIds },
+        });
       },
       () => !cancelled && setLoaded({ scanKey, value: null }),
     );

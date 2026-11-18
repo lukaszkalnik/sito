@@ -51,11 +51,21 @@
 }
 
 .timeline-series {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 0;
   padding: 6px 8px 0;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--series-text);
+}
+
+.timeline-series-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Short series side by side: each a tinted block with its header and tiles,
@@ -85,9 +95,8 @@
 .timeline-block .timeline-series {
   box-sizing: border-box;
   height: 32px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* Centred in the header's height, where the text sat with the top padding. */
+  padding-top: 0;
   /* As wide as the tiles below, never wider: a long text is cut instead. */
   width: 0;
   min-width: 100%;

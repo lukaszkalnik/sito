@@ -11,6 +11,9 @@ interface Summary {
   refreshing?: boolean;
 }
 
+/** Series as ranges of display positions, as `get_series` returns them. */
+type SeriesRanges = { start: number; len: number; label?: unknown; edited?: boolean }[];
+
 /** Canned backend answers for one test. */
 export interface TauriMock {
   /** Folder returned by the folder dialog, or `null` for "cancelled". */
@@ -39,8 +42,13 @@ export interface TauriMock {
    * of `size` photos starting at every `every`-th photo, or `'byGap'` to group
    * the timeline by the requested gap like the backend does. Default: none.
    */
-  series?:
-    { start: number; len: number; label?: unknown }[] | { every: number; size: number } | 'byGap';
+  series?: SeriesRanges | { every: number; size: number } | 'byGap';
+  /**
+   * What each `edit_series` call leads to, in turn: the series and the
+   * pinned single photos (display positions) `get_series` returns from then
+   * on. An edit beyond the list fails with `seriesChanged`. Default: none.
+   */
+  seriesEdits?: { series: SeriesRanges; pinned?: number[] }[];
   /**
    * Display order returned by `get_series` (indices of the timeline entries).
    * Default: the timeline order.
@@ -138,6 +146,9 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     };
     // Ids of accepted photos.
     const accepted = new Set<number>(m.accepted ?? []);
+    // Display positions of the photos pinned on their own by the last edit.
+    let pinned: number[] = [];
+    let editsMade = 0;
     // Event name → callback ids registered with `listen`.
     const listeners = new Map<string, number[]>();
     const emit = (event: string, payload: unknown = null) =>
@@ -302,8 +313,22 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             const ranges = series((args.maxGapSeconds as number | undefined) ?? 10) as object[];
             return {
               order: m.order ?? timeline().map((_, i) => i),
-              series: ranges.map((range) => ({ label: { kind: 'plain' }, ...range })),
+              series: ranges.map((range) => ({
+                label: { kind: 'plain' },
+                edited: false,
+                ...range,
+              })),
+              pinned,
             };
+          }
+          case 'edit_series': {
+            const outcome = m.seriesEdits?.[editsMade];
+            if (!outcome) throw { code: 'seriesChanged' };
+            editsMade++;
+            m.series = outcome.series;
+            pinned = outcome.pinned ?? [];
+            emit('timeline-changed');
+            return { name: nameOf((args.edit as { photo: number }).photo) };
           }
           case 'get_viewer_photo':
             return viewerPhoto(args.request as { id: number; mode: string; gap: number });

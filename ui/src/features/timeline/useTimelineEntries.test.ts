@@ -17,8 +17,13 @@ const mockedSeries = vi.mocked(getSeries);
 
 /** Series of an empty timeline, given as `[start, len]` ranges. */
 function grouping(...ranges: [number, number][]): Grouping {
-  const series: Series[] = ranges.map(([start, len]) => ({ start, len, label: { kind: 'plain' } }));
-  return { order: [], series };
+  const series: Series[] = ranges.map(([start, len]) => ({
+    start,
+    len,
+    label: { kind: 'plain' },
+    edited: false,
+  }));
+  return { order: [], series, pinned: [] };
 }
 /** Announces `timeline-changed` to the hook, like the backend after a rejection. */
 let announceChange: () => void = () => {};
@@ -94,7 +99,7 @@ describe('useTimelineEntries', () => {
       format: 'jpeg' as const,
     });
     mockedTimeline.mockResolvedValue([entry(0), entry(1), entry(2)]);
-    mockedSeries.mockResolvedValue({ order: [0, 2, 1], series: [] });
+    mockedSeries.mockResolvedValue({ order: [0, 2, 1], series: [], pinned: [] });
     const scan = {};
     const { result, rerender } = renderHook(({ gap }) => useTimelineEntries(scan, gap), {
       initialProps: { gap: 10 },
@@ -105,7 +110,7 @@ describe('useTimelineEntries', () => {
       result.current.status === 'ready' ? result.current.entries.map((e) => e.id) : [];
     expect(ids()).toEqual([0, 2, 1]);
 
-    mockedSeries.mockResolvedValue({ order: [0, 1, 2], series: [] });
+    mockedSeries.mockResolvedValue({ order: [0, 1, 2], series: [], pinned: [] });
     rerender({ gap: 5 });
     await waitFor(() => expect(ids()).toEqual([0, 1, 2]));
     expect(mockedTimeline).toHaveBeenCalledTimes(1);
@@ -118,7 +123,7 @@ describe('useTimelineEntries', () => {
     const { result } = renderHook(() => useTimelineEntries(scan, 10));
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
-    mockedSeries.mockResolvedValue({ order: [0], series: [] });
+    mockedSeries.mockResolvedValue({ order: [0], series: [], pinned: [] });
     act(() => announceChange());
 
     await waitFor(() => expect(warn).toHaveBeenCalled());

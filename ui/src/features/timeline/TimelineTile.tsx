@@ -1,10 +1,11 @@
-import { type SyntheticEvent, useRef, useState } from 'react';
+import { type MouseEvent, type SyntheticEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
 import { AcceptedBadge } from '../accept/AcceptedBadge';
 import type { TimelineEntry } from './api';
 import { FORMAT_BADGES } from './formatBadges';
+import { menuRequest, type MenuRequest } from './menuRequest';
 import type { RevealReason } from './reveal';
 import { thumbnailUrl } from './thumbnails';
 import { timeOf } from './format';
@@ -36,6 +37,8 @@ interface TimelineTileProps {
    * it changes, e.g. once a refresh found the photo's file at its new place.
    */
   revision?: number;
+  /** Opens the photo's context menu; without it the tile has none of its own. */
+  onMenu?: (request: MenuRequest) => void;
 }
 
 /**
@@ -163,6 +166,7 @@ export function TimelineTile({
   followed = false,
   accepted = false,
   revision = 0,
+  onMenu,
 }: TimelineTileProps) {
   const tileRef = useRef<HTMLLIElement>(null);
   const src = thumbnailUrl(scanId, entry.id);
@@ -177,6 +181,7 @@ export function TimelineTile({
       data-shape={shape}
       title={entry.relativePath}
       data-testid="timeline-tile"
+      onContextMenu={onMenu && photoMenu(entry.id, onMenu)}
     >
       {(turn || instant) && status !== 'error' && (
         <img
@@ -202,6 +207,14 @@ export function TimelineTile({
       <OpenButton entry={entry} onOpen={onOpen} />
     </li>
   );
+}
+
+/** Opens the context menu of photo `id` instead of the webview's own. */
+function photoMenu(id: number, onMenu: (request: MenuRequest) => void) {
+  return (event: MouseEvent<HTMLLIElement>) => {
+    event.preventDefault();
+    onMenu(menuRequest({ kind: 'photo', id }, event));
+  };
 }
 
 /** Covers the whole tile, so a click or Enter anywhere opens the photo. */

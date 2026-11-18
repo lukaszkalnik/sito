@@ -99,8 +99,8 @@ describe('ScanScreen', () => {
     // Series of the first two photos, in the order of the timeline last answered.
     mockedSeries.mockImplementation(async () => {
       const timeline: TimelineEntry[] = (await mockedTimeline.mock.results.at(-1)?.value) ?? [];
-      const series: Series[] = [{ start: 0, len: 2, label: { kind: 'plain' } }];
-      return { order: timeline.map((_, i) => i), series };
+      const series: Series[] = [{ start: 0, len: 2, label: { kind: 'plain' }, edited: false }];
+      return { order: timeline.map((_, i) => i), series, pinned: [] };
     });
     vi.mocked(onScanRefreshed).mockImplementation((handler) => {
       announceRefresh = handler;

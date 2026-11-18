@@ -12,6 +12,7 @@ import {
   type TimelineMode,
   type TimelineRow,
 } from './layout';
+import type { MenuRequest } from './menuRequest';
 import type { Reveal } from './reveal';
 import { TimelineRowView } from './TimelineRowView';
 import { useElementWidth, useGridScroll } from './useGridScroll';
@@ -37,6 +38,8 @@ interface TimelineGridProps {
   savedPosition?: SavedPosition;
   /** Counts the timeline's changes; failed thumbnails load again with each. */
   revision?: number;
+  /** Opens the context menu of a photo or series. */
+  onMenu?: (request: MenuRequest) => void;
 }
 
 /**
@@ -90,14 +93,14 @@ export function TimelineGrid({
   entries,
   series,
   mode,
-  scanId,
-  acceptedIds,
   onOpen,
   reveal = null,
   onRevealed,
   followed = null,
   savedPosition,
   revision = 0,
+  // What the tiles need as it is: scanId, acceptedIds, onMenu.
+  ...tiles
 }: TimelineGridProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const width = useElementWidth(scrollRef);
@@ -112,7 +115,7 @@ export function TimelineGrid({
     saved: savedPosition,
     measured: width !== null && width > 0,
   });
-  const context = { scanId, showFolder, onOpen, acceptedIds, highlighted, followed, revision };
+  const context = { ...tiles, showFolder, onOpen, highlighted, followed, revision };
 
   return (
     <div ref={scrollRef} className="timeline" data-testid="timeline" onScroll={onScroll}>

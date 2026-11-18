@@ -172,5 +172,22 @@
       "openFailed": "System nie otworzył przeglądarki.",
       "internal": "Wystąpił nieoczekiwany błąd."
     }
+  },
+  "seriesEdit": {
+    "menu": "Edycja serii",
+    "cut": "Podziel serię przed tym zdjęciem",
+    "remove": "Wyjmij z serii",
+    "joinPrevious": "Dołącz do poprzedniej serii",
+    "joinNext": "Dołącz do następnej serii",
+    "ungroup": "Rozdziel serię",
+    "restore": "Przywróć automatyczny podział",
+    "cutDone": "Podzielono serię",
+    "removeDone": "Wyjęto {{name}} z serii",
+    "joinDone": "Dołączono {{name}} do serii",
+    "ungroupDone": "Rozdzielono serię",
+    "restoreDone": "Przywrócono automatyczny podział",
+    "edited": "Seria edytowana ręcznie – nie zmienia się z odstępem",
+    "seriesChanged": "Nie można zmienić serii – zmieniła się w międzyczasie.",
+    "failed": "Nie udało się zmienić serii."
   }
 }

@@ -64,12 +64,13 @@ function pairs(count: number): Series[] {
     start: 2 * i,
     len: 2,
     label: { kind: 'plain' },
+    edited: false,
   }));
 }
 
 /** `series` of a timeline of `count` photos shown in timeline order. */
 function grouping(series: Series[], count: number): Grouping {
-  return { order: Array.from({ length: count }, (_, i) => i), series };
+  return { order: Array.from({ length: count }, (_, i) => i), series, pinned: [] };
 }
 
 /** The „Widok” dropdown. */

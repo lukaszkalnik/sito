@@ -1,9 +1,11 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
+import { EditedIcon } from '../series-edit/EditedIcon';
 import type { SeriesLabel, TimelineEntry } from './api';
 import { formatDay, timeOf } from './format';
 import type { RowGroup, TimelineRow } from './layout';
+import { menuRequest, type MenuRequest } from './menuRequest';
 import type { Reveal } from './reveal';
 import { TimelineTile } from './TimelineTile';
 
@@ -22,6 +24,8 @@ export interface TileContext {
   followed: number | null;
   /** Counts the timeline's changes; failed thumbnails load again with each. */
   revision: number;
+  /** Opens the context menu of a photo or series; without it there is none. */
+  onMenu?: (request: MenuRequest) => void;
 }
 
 /** The camera a series header names, if any. */
@@ -36,15 +40,17 @@ function cameraOf(label: SeriesLabel, t: TFunction): string | null {
   }
 }
 
-/** Header above the photos of one series: count, time range and, when it overlaps another camera's series, its camera. */
-function SeriesHeader({
-  entries,
-  label,
-}: {
+/** What a series header shows. */
+interface SeriesHeaderProps {
   entries: readonly TimelineEntry[];
   label: SeriesLabel;
-}) {
-  const { t } = useTranslation();
+  /** Edited by hand: marked with a pencil. */
+  edited: boolean;
+  onMenu?: (request: MenuRequest) => void;
+}
+
+/** The text of a series header: count, time range and, when it overlaps another camera's series, its camera. */
+function headerText(entries: readonly TimelineEntry[], label: SeriesLabel, t: TFunction): string {
   const newest = entries[0];
   const oldest = entries[entries.length - 1];
   const from = oldest ? timeOf(oldest.takenAt) : '';
@@ -55,10 +61,26 @@ function SeriesHeader({
       ? t('series.headerAt', { photos, time: to })
       : t('series.header', { photos, from, to });
   const camera = cameraOf(label, t);
-  const text = camera === null ? header : t('series.withCamera', { header, camera });
+  return camera === null ? header : t('series.withCamera', { header, camera });
+}
+
+/** Header above the photos of one series, with its context menu. */
+function SeriesHeader({ entries, label, edited, onMenu }: SeriesHeaderProps) {
+  const { t } = useTranslation();
+  const text = headerText(entries, label, t);
+  const first = entries[0];
   return (
-    <h3 className="timeline-series" title={text}>
-      {text}
+    <h3
+      className="timeline-series"
+      title={text}
+      onContextMenu={(event) => {
+        if (!onMenu || !first) return;
+        event.preventDefault();
+        onMenu(menuRequest({ kind: 'series', firstId: first.id }, event));
+      }}
+    >
+      <span className="timeline-series-text">{text}</span>
+      {edited && <EditedIcon />}
     </h3>
   );
 }
@@ -84,6 +106,7 @@ function TileList({
           followed={entry.id === context.followed}
           accepted={context.acceptedIds.has(entry.id)}
           revision={context.revision}
+          onMenu={context.onMenu}
         />
       ))}
     </ul>
@@ -96,7 +119,12 @@ function BlockGroup({ group, context }: { group: RowGroup; context: TileContext 
   if (group.kind === 'singles') return <div className="timeline-singles">{tiles}</div>;
   return (
     <section className="timeline-block">
-      <SeriesHeader entries={group.entries} label={group.label} />
+      <SeriesHeader
+        entries={group.entries}
+        label={group.label}
+        edited={group.edited}
+        onMenu={context.onMenu}
+      />
       {tiles}
     </section>
   );
@@ -108,7 +136,14 @@ export function TimelineRowView({ row, context }: { row: TimelineRow; context: T
     case 'day':
       return <h2 className="timeline-day">{formatDay(row.date)}</h2>;
     case 'series':
-      return <SeriesHeader entries={row.entries} label={row.label} />;
+      return (
+        <SeriesHeader
+          entries={row.entries}
+          label={row.label}
+          edited={row.edited}
+          onMenu={context.onMenu}
+        />
+      );
     case 'tiles':
       return <TileList entries={row.entries} context={context} />;
     case 'blocks':
