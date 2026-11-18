@@ -71,10 +71,12 @@ The plan below uses approach 2.
 
 ## Fixes from testing
 
+- Tested in the debug app on 2026-11-18 (34 296 photos): take out and restore, menu entries for series of 2 and 21, split from the keyboard (Shift+F10, ↓, Escape, Enter), join, gaps of 1 s and 60 s (edited series and pinned photos unchanged, no series around them), restart, restore of a whole stretch at 60 s, viewer on an edited series.
 - No menu entry did anything on macOS: WebKit does not focus a clicked button, so pressing an entry blurred the menu with no new focus, and the menu closed before the click. The menu now closes on blur only when the focus moves to another element (outside clicks close it via `pointerdown`). Regression unit test in `SeriesMenu.test.tsx`; checked in the debug app (cut, take out, restore).
 
 - „Przywróć automatyczny podział” on a photo taken out of a series changed nothing visible: the rest of the series stayed pinned and kept the photo apart. Restoring now unpins the whole stretch of edited photos around the photo (`series/restore.rs`), so an extraction or a cut is taken back from any photo or header it touched.
 - The menu offered edits with the same outcome: on a series of two, „Podziel…”, „Wyjmij…” and „Rozdziel serię” all leave two single photos, and splitting before the last photo equals taking it out. Only the distinct ones are offered now.
+- Near the window's right edge, „Przywróć automatyczny podział” wrapped onto two lines; menu entries no longer wrap.
 - Photos taken out of a series could not be told apart from other single photos: their tiles now carry a pencil badge.
 
 ## Later slices

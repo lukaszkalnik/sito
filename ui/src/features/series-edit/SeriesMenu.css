@@ -19,6 +19,8 @@
   font: inherit;
   font-size: 0.875rem;
   text-align: left;
+  /* Near the window's edge the menu is moved in, never squeezed onto two lines. */
+  white-space: nowrap;
   color: inherit;
   background: none;
   border: 0;
