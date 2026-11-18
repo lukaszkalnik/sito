@@ -349,6 +349,9 @@ const MIGRATIONS: &[&str] = &[
     // 32–42) may also hold `accept` / `unaccept` rows in `actions`; accepting is
     // no longer logged, and undo ignores them.
     "CREATE TABLE IF NOT EXISTS accepted (path TEXT PRIMARY KEY);",
+    // 5: photos pinned by series edits, by path: to a manual series, or as a
+    // single photo when `series` is NULL.
+    "CREATE TABLE IF NOT EXISTS series_pins (path TEXT PRIMARY KEY, series INTEGER NULL);",
 ];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one

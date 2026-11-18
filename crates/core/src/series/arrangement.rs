@@ -99,13 +99,14 @@ impl Arrangement {
 
 #[cfg(test)]
 mod tests {
-    use super::super::SeriesLabel;
+    use super::super::{SeriesKind, SeriesLabel};
     use super::*;
 
     fn series(members: &[usize]) -> Series {
         Series {
             members: members.to_vec(),
             label: SeriesLabel::Plain,
+            kind: SeriesKind::Automatic,
         }
     }
 

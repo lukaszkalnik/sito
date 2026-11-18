@@ -377,7 +377,7 @@ impl AppState {
 mod tests {
     use chrono::NaiveDate;
     use sito_core::metadata::Orientation;
-    use sito_core::series::{Arrangement, Series, SeriesLabel};
+    use sito_core::series::{Arrangement, Series, SeriesKind, SeriesLabel};
     use sito_core::timeline::{ExifInfo, TimeSource};
 
     use super::*;
@@ -518,8 +518,10 @@ mod tests {
                 series: vec![Series {
                     members: vec![0, 1],
                     label: SeriesLabel::Plain,
+                    kind: SeriesKind::Automatic,
                 }],
                 arrangement: Arrangement::default(),
+                pinned_singles: Vec::new(),
             }),
         );
     }

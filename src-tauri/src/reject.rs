@@ -322,7 +322,7 @@ mod tests {
 
     use serde_json::json;
     use sito_core::accept::AcceptChange;
-    use sito_core::series::{DEFAULT_MAX_GAP, Grouping};
+    use sito_core::series::{DEFAULT_MAX_GAP, Grouping, Pins};
     use sito_core::timeline::build_timeline;
     use sito_core::trash::TrashError;
     use tempfile::TempDir;
@@ -370,7 +370,7 @@ mod tests {
     /// File names of each series' photos, newest first.
     fn series_names(scan: &Scan) -> Vec<Vec<String>> {
         let (all, removed) = scan.photos_with_removed();
-        Grouping::new(&all, &removed, DEFAULT_MAX_GAP)
+        Grouping::new(&all, &removed, DEFAULT_MAX_GAP, &Pins::default())
             .series
             .iter()
             .map(|s| {

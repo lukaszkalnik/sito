@@ -1,21 +1,27 @@
 //! Series: photos of one camera shot within seconds of each other.
 
 mod arrangement;
+mod edit;
 mod label;
+mod pin_store;
+mod pins;
 
 use std::collections::HashMap;
 use std::time::Duration;
 
 pub use arrangement::{Arrangement, SeriesRange};
+pub use edit::{Edit, EditError, plan_edit};
 pub use label::SeriesLabel;
+pub use pins::{ManualSeriesId, Pin, PinChanges, Pins};
 
 use crate::timeline::{ExifInfo, Photo};
 
 /// Default largest gap between two neighbouring photos of one series.
 pub const DEFAULT_MAX_GAP: Duration = Duration::from_secs(10);
 
-/// Photos of one camera taken in quick succession: at least two when found,
-/// fewer once photos of it were rejected (see [`without_removed`]).
+/// Photos of one camera taken in quick succession (at least two when found,
+/// fewer once photos of it were rejected, see [`without_removed`]), or a
+/// series the user edited by hand.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Series {
     /// Positions of the photos in the timeline, newest first. Photos of
@@ -23,6 +29,17 @@ pub struct Series {
     pub members: Vec<usize>,
     /// What the series' header says about its camera.
     pub label: SeriesLabel,
+    /// Whether the series was found or edited by hand.
+    pub kind: SeriesKind,
+}
+
+/// Where a series comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SeriesKind {
+    /// Found by grouping by time and camera.
+    Automatic,
+    /// Edited by hand: its photos are pinned to it (see [`Pins`]).
+    Manual(ManualSeriesId),
 }
 
 /// The series of a timeline and the order its photos are shown in.
@@ -33,22 +50,56 @@ pub struct Grouping {
     pub series: Vec<Series>,
     /// The photos left in display order, with the series as ranges.
     pub arrangement: Arrangement,
+    /// Positions of the photos left that are pinned as single photos, in
+    /// timeline order.
+    pub pinned_singles: Vec<usize>,
 }
 
 impl Grouping {
-    /// Finds the series of `all` photos (sorted newest first) and arranges
-    /// the photos not marked `true` in `removed` (same length as `all`).
+    /// Finds the series of `all` photos (sorted newest first) with the
+    /// series edited by hand in `pins` (see [`group`]), and arranges the
+    /// photos not marked `true` in `removed` (same length as `all`).
     /// Removed (rejected) photos still shape the series, so a series stays
     /// one while any of its photos is left.
     #[must_use]
-    pub fn new(all: &[Photo], removed: &[bool], max_gap: Duration) -> Self {
-        let series = without_removed(&find_series(all, max_gap), removed);
+    pub fn new(all: &[Photo], removed: &[bool], max_gap: Duration, pins: &Pins) -> Self {
+        let series = without_removed(&group(all, max_gap, pins), removed);
         let left = removed.iter().filter(|&&gone| !gone).count();
         Self {
             arrangement: Arrangement::new(left, &series),
             series,
+            pinned_singles: pins::pinned_singles(all, removed, pins),
         }
     }
+}
+
+/// Finds the series of `photos` (sorted newest first) with the edits in
+/// `pins`, sorted by their newest photo. Photos pinned to a manual series
+/// form it, whatever their times; pinned photos (also those pinned as single
+/// photos) are left out of the automatic series of [`find_series`] and stand
+/// between them: two unpinned photos never form a series across a pinned
+/// photo of their camera. Pins of photos not in `photos` are ignored.
+#[must_use]
+pub fn group(photos: &[Photo], max_gap: Duration, pins: &Pins) -> Vec<Series> {
+    let pin_of: Vec<Option<Pin>> = photos.iter().map(|p| pins.get(&p.path)).collect();
+    let automatic = automatic_groups(photos, max_gap, &pin_of)
+        .into_iter()
+        .map(|members| (members, SeriesKind::Automatic));
+    let mut groups: Vec<(Vec<usize>, SeriesKind)> =
+        automatic.chain(pins::manual_groups(&pin_of)).collect();
+    groups.sort_by_key(|(members, _)| members.first().copied());
+    let (lists, kinds): (Vec<Vec<usize>>, Vec<SeriesKind>) = groups.into_iter().unzip();
+    let labels = label::labels(photos, &lists);
+    lists
+        .into_iter()
+        .zip(labels)
+        .zip(kinds)
+        .map(|((members, label), kind)| Series {
+            members,
+            label,
+            kind,
+        })
+        .collect()
 }
 
 /// Finds series in `photos` (sorted newest first, as in
@@ -65,14 +116,30 @@ impl Grouping {
 /// when the photo was taken.
 #[must_use]
 pub fn find_series(photos: &[Photo], max_gap: Duration) -> Vec<Series> {
+    group(photos, max_gap, &Pins::default())
+}
+
+/// The automatic series of [`find_series`] as lists of positions, leaving
+/// out the photos with a pin in `pin_of` (same length as `photos`) and not
+/// linking photos across them.
+fn automatic_groups(
+    photos: &[Photo],
+    max_gap: Duration,
+    pin_of: &[Option<Pin>],
+) -> Vec<Vec<usize>> {
     let mut groups: Vec<Vec<usize>> = Vec::new();
     // The group each camera's last photo went into.
     let mut open: HashMap<Option<&str>, usize> = HashMap::new();
-    for (position, photo) in photos.iter().enumerate() {
+    for ((position, photo), pin) in photos.iter().enumerate().zip(pin_of) {
+        let camera = camera_of(photo);
+        if pin.is_some() {
+            // A pinned photo ends its camera's open series.
+            open.remove(&camera);
+            continue;
+        }
         if !photo.time_source.is_capture_time() {
             continue;
         }
-        let camera = camera_of(photo);
         let joined = open.get(&camera).copied().filter(|&group| {
             groups[group]
                 .last()
@@ -85,13 +152,7 @@ pub fn find_series(photos: &[Photo], max_gap: Duration) -> Vec<Series> {
             groups.push(vec![position]);
         }
     }
-    let found: Vec<Vec<usize>> = groups.into_iter().filter(|g| g.len() >= 2).collect();
-    let labels = label::labels(photos, &found);
-    found
-        .into_iter()
-        .zip(labels)
-        .map(|(members, label)| Series { members, label })
-        .collect()
+    groups.into_iter().filter(|g| g.len() >= 2).collect()
 }
 
 /// Maps `series` found on a list of photos to the same list without the
@@ -118,6 +179,7 @@ pub fn without_removed(series: &[Series], removed: &[bool]) -> Vec<Series> {
             (!members.is_empty()).then(|| Series {
                 members,
                 label: s.label.clone(),
+                kind: s.kind,
             })
         })
         .collect()
@@ -196,6 +258,7 @@ pub(crate) mod tests {
         Series {
             members: members.to_vec(),
             label: SeriesLabel::Plain,
+            kind: SeriesKind::Automatic,
         }
     }
 
@@ -331,6 +394,7 @@ pub(crate) mod tests {
         let series = [Series {
             members: vec![0, 1],
             label: SeriesLabel::Camera("Pixel 8".to_owned()),
+            kind: SeriesKind::Automatic,
         }];
 
         let kept = without_removed(&series, &[true, false]);
@@ -354,7 +418,12 @@ pub(crate) mod tests {
         // Newest first: b@6, a@4, b@2, a@0; a@4 is rejected.
         let all = shots(&[(0, a), (2, b), (4, a), (6, b)]);
 
-        let grouping = Grouping::new(&all, &[false, true, false, false], DEFAULT_MAX_GAP);
+        let grouping = Grouping::new(
+            &all,
+            &[false, true, false, false],
+            DEFAULT_MAX_GAP,
+            &Pins::default(),
+        );
 
         // Left: b@6, b@2, a@0; a's series keeps its one photo.
         assert_eq!(members(&grouping.series), [vec![0, 1], vec![2]]);

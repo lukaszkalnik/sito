@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
-use sito_core::series::{DEFAULT_MAX_GAP, Grouping, SeriesLabel, SeriesRange};
+use sito_core::series::{DEFAULT_MAX_GAP, Grouping, Pins, SeriesLabel, SeriesRange};
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -110,7 +110,7 @@ pub(crate) fn cached_series(state: &AppState, max_gap: Duration) -> Option<Arc<G
         let (all, removed) = scan.photos_with_removed();
         (scan.id, scan.revision(), all, removed)
     };
-    let grouping = Arc::new(Grouping::new(&all, &removed, max_gap));
+    let grouping = Arc::new(Grouping::new(&all, &removed, max_gap, &Pins::default()));
     if let Some(scan) = state.scan().as_mut().filter(|scan| scan.id == scan_id) {
         scan.store_series(revision, max_gap, Arc::clone(&grouping));
     }
@@ -122,7 +122,7 @@ mod tests {
     use std::path::PathBuf;
 
     use serde_json::json;
-    use sito_core::series::Series;
+    use sito_core::series::{Series, SeriesKind};
     use sito_core::timeline::build_timeline;
 
     use super::*;
@@ -141,15 +141,18 @@ mod tests {
             Series {
                 members: vec![0, 2],
                 label: SeriesLabel::Camera("Pixel 8".to_owned()),
+                kind: SeriesKind::Automatic,
             },
             Series {
                 members: vec![1],
                 label: SeriesLabel::UnknownCamera,
+                kind: SeriesKind::Automatic,
             },
         ];
         let grouping = Grouping {
             arrangement: sito_core::series::Arrangement::new(4, &series),
             series: series.to_vec(),
+            pinned_singles: Vec::new(),
         };
 
         assert_eq!(
