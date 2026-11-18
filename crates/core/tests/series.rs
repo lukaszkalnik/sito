@@ -135,12 +135,9 @@ fn edits_are_kept_across_rescans_and_gaps_until_restored() {
         to: renamed.clone(),
     };
     ActionLog::open(&db).unwrap().move_pins(&[moved]).unwrap();
+    // Restoring one photo of the split pair restores both, also the renamed one.
     let photo = canon("12-00-02");
     edit(root, &db, &Edit::Restore { photo });
-    // Only the restored photo is grouped again; the renamed one stays pinned.
-    assert_eq!(rescanned_series(root, &db, DEFAULT_MAX_GAP).len(), 1);
-
-    edit(root, &db, &Edit::Restore { photo: renamed });
     assert_eq!(
         rescanned_series(root, &db, DEFAULT_MAX_GAP),
         [

@@ -5,6 +5,7 @@ mod edit;
 mod label;
 mod pin_store;
 mod pins;
+mod restore;
 
 use std::collections::HashMap;
 use std::time::Duration;

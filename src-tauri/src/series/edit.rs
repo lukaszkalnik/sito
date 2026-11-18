@@ -239,26 +239,26 @@ mod tests {
     }
 
     #[test]
+    fn the_grouping_sent_to_the_ui_lists_the_pinned_photos() {
+        let mut scan = scan();
+        let log = ActionLog::open_in_memory().unwrap();
+        let photo = id_of(&scan, OLDER);
+        edit_in(&mut scan, &log, EditDto::Remove { photo }, DEFAULT_MAX_GAP).unwrap();
+
+        let dto = serde_json::to_value(crate::series::GroupingDto::from(&grouping(&scan))).unwrap();
+
+        assert_eq!(dto["pinned"].as_array().map(Vec::len), Some(2), "{dto}");
+    }
+
+    #[test]
     fn restoring_gives_the_photos_back_to_automatic_grouping() {
         let mut scan = scan();
         let log = ActionLog::open_in_memory().unwrap();
         let photo = id_of(&scan, NEWER);
-        let into = id_of(&scan, OLDER);
         edit_in(&mut scan, &log, EditDto::Ungroup { photo }, DEFAULT_MAX_GAP).unwrap();
-        edit_in(&mut scan, &log, EditDto::Restore { photo }, DEFAULT_MAX_GAP).unwrap();
-        assert_eq!(
-            grouping(&scan).series.len(),
-            0,
-            "the other photo stays pinned"
-        );
 
-        edit_in(
-            &mut scan,
-            &log,
-            EditDto::Restore { photo: into },
-            DEFAULT_MAX_GAP,
-        )
-        .unwrap();
+        // Restoring one photo of the ungrouped pair restores both.
+        edit_in(&mut scan, &log, EditDto::Restore { photo }, DEFAULT_MAX_GAP).unwrap();
 
         let series = grouping(&scan).series;
         assert_eq!(series.len(), 1);

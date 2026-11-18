@@ -6,6 +6,7 @@ use std::time::Duration;
 use thiserror::Error;
 
 use super::pins::{ManualSeriesId, Pin, PinChanges, Pins};
+use super::restore::restored_paths;
 use super::{Series, SeriesKind, group};
 use crate::timeline::Photo;
 
@@ -37,8 +38,8 @@ pub enum Edit {
         /// A photo of the series.
         series: PathBuf,
     },
-    /// Unpins the photo's manual series, or the photo pinned as a single
-    /// photo, so it is grouped automatically again.
+    /// Unpins the stretch of edited photos around the photo (see
+    /// [`plan_edit`]), so they are grouped automatically again.
     Restore {
         /// A photo of a manual series, or a photo pinned on its own.
         photo: PathBuf,
@@ -68,6 +69,10 @@ pub enum EditError {
 /// Works out how `edit` changes the pins, on the series of `photos` (the
 /// timeline with its rejected photos, sorted newest first) for `max_gap`
 /// with the current `pins`. New manual series get ids from `next_free` on.
+///
+/// „Restore” unpins the run of pinned photos around the photo in its
+/// camera's chain, with every photo of a manual series among them, so a
+/// photo taken out of a series comes back together with the rest of it.
 ///
 /// A part of a series left with one photo (counting rejected ones, which
 /// still belong to it) is pinned as a single photo; a part with more becomes
@@ -195,20 +200,11 @@ impl Current<'_> {
         Ok(series.members.iter().map(|&m| (m, Pin::Single)).collect())
     }
 
-    /// The paths to unpin.
+    /// The paths to unpin (see [`restored_paths`]).
     fn restore(&self, photo: &Path, pins: &Pins) -> Result<Vec<PathBuf>, EditError> {
         let position = self.position_of(photo)?;
-        let not_pinned = || EditError::NotPinned(photo.to_path_buf());
-        match self.series_of(position).map(|s| s.kind) {
-            // Also photos of the series that are gone for now, so they do not
-            // bring it back when they return.
-            Some(SeriesKind::Manual(id)) => Ok(pins.paths_in(id).map(Path::to_path_buf).collect()),
-            Some(SeriesKind::Automatic) => Err(not_pinned()),
-            None => match pins.get(photo) {
-                Some(Pin::Single) => Ok(vec![photo.to_path_buf()]),
-                Some(Pin::Series(_)) | None => Err(not_pinned()),
-            },
-        }
+        restored_paths(self.photos, pins, position)
+            .ok_or_else(|| EditError::NotPinned(photo.to_path_buf()))
     }
 }
 
@@ -443,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn restoring_a_manual_series_regroups_its_photos_at_the_current_gap() {
+    fn restoring_a_cut_series_regroups_both_parts_at_the_current_gap() {
         // Cut at 10 s, then the gap is raised to 60 s and the cut restored.
         let photos = photos(&[0, 2, 4, 6, 40]);
         let mut pins = Pins::default();
@@ -451,9 +447,19 @@ mod tests {
 
         let series = edited(&photos, &mut pins, &Edit::Restore { photo: path(6) }, 60);
 
-        // 6 and 4 now join 40; the other part stays as it was cut.
-        assert_eq!(series, [(vec![40, 6, 4], false), (vec![2, 0], true)]);
-        assert_eq!(pin_of(&pins, 6), None);
+        assert_eq!(series, [(vec![40, 6, 4, 2, 0], false)]);
+        assert!(pins.is_empty());
+    }
+
+    #[test]
+    fn restoring_a_photo_taken_out_puts_it_back_into_its_series() {
+        let photos = photos(&[0, 2, 4]);
+        let mut pins = Pins::default();
+        edited(&photos, &mut pins, &Edit::Remove { photo: path(2) }, 10);
+
+        let series = edited(&photos, &mut pins, &Edit::Restore { photo: path(2) }, 10);
+
+        assert_eq!(series, [(vec![4, 2, 0], false)]);
     }
 
     #[test]
