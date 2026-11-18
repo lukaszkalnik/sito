@@ -13,6 +13,7 @@ use super::{SCAN_REFRESHED, ScanSummaryDto, completion};
 use crate::accept;
 use crate::missing::{self, Vanished};
 use crate::reject::TIMELINE_CHANGED;
+use crate::series;
 use crate::thumbnails::Thumbnails;
 
 /// Event with the scan id when a background refresh of it starts.
@@ -90,6 +91,7 @@ pub(super) fn refresh_in_background(
 /// summary; `None` if another folder was opened meanwhile.
 fn swap_in(app: &AppHandle, scan_id: u64, scanned: CachedScan) -> Option<ScanSummaryDto> {
     accept::follow_moves(app, &scanned.moves);
+    series::edit::follow_moves(app, &scanned.moves);
     let summary = ScanSummaryDto::new(scan_id, &scanned.timeline);
     if !app
         .state::<AppState>()
@@ -97,6 +99,7 @@ fn swap_in(app: &AppHandle, scan_id: u64, scanned: CachedScan) -> Option<ScanSum
     {
         return None;
     }
+    series::edit::load_pins(app, scan_id);
     if let Err(err) = app.emit(TIMELINE_CHANGED, ()) {
         log::warn!("cannot announce the refreshed timeline: {err}");
     }

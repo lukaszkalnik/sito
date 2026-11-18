@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use sito_core::moved::MovedPhoto;
-use sito_core::series::Grouping;
+use sito_core::series::{Grouping, PinChanges, Pins};
 use sito_core::timeline::{Photo, Timeline, compare_photos};
 
 /// The result of one finished scan.
@@ -35,6 +35,9 @@ pub struct Scan {
     revision: u64,
     /// The series of the current revision for one gap, found last.
     series: Option<(Duration, Arc<Grouping>)>,
+    /// The folder's photos pinned by series edits, as stored in the action
+    /// log.
+    pins: Pins,
 }
 
 impl Scan {
@@ -49,11 +52,29 @@ impl Scan {
             removed_ids: HashMap::new(),
             revision: 0,
             series: None,
+            pins: Pins::default(),
         }
     }
 
+    /// The photos pinned by series edits.
+    pub fn pins(&self) -> &Pins {
+        &self.pins
+    }
+
+    /// Replaces the pins, e.g. with those read from the action log.
+    pub fn set_pins(&mut self, pins: Pins) {
+        self.pins = pins;
+        self.changed();
+    }
+
+    /// Applies the pin changes of a series edit.
+    pub fn apply_pins(&mut self, changes: &PinChanges) {
+        self.pins.apply(changes);
+        self.changed();
+    }
+
     /// Changes with every change to the timeline (a refresh, updated photos,
-    /// a removed or restored photo).
+    /// a removed or restored photo, an edit of the series).
     pub fn revision(&self) -> u64 {
         self.revision
     }

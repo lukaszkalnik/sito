@@ -11,6 +11,7 @@ use tauri::{AppHandle, Manager, State};
 
 use crate::accept;
 use crate::error::{CommandError, off_main_thread};
+use crate::series;
 use crate::thumbnails::Thumbnails;
 use photo_cache::PhotoCacheState;
 use state::AppState;
@@ -222,6 +223,7 @@ pub async fn start_scan(
         summary.scan_id = state
             .set_timeline(opening, cached)
             .ok_or(CommandError::Superseded)?;
+        series::edit::load_pins(&app, summary.scan_id);
         summary.refreshing = true;
         refresh_in_background(app, path, summary.scan_id, generation);
         return Ok(summary);
@@ -242,12 +244,14 @@ pub async fn start_scan(
     match result {
         Ok(Ok(scan)) => {
             accept::follow_moves(&app, &scan.moves);
+            series::edit::follow_moves(&app, &scan.moves);
             let timeline = scan.timeline;
             let mut summary = ScanSummaryDto::new(0, &timeline);
             let root = timeline.root.clone();
             summary.scan_id = state
                 .set_timeline(opening, timeline)
                 .ok_or(CommandError::Superseded)?;
+            series::edit::load_pins(&app, summary.scan_id);
             completion::complete_in_background(app.clone(), root, summary.scan_id, generation);
             clean_thumbnails_in_background(app);
             Ok(summary)

@@ -240,6 +240,7 @@ fn restore_rejection(
     let renamed = restored != action.from;
     if renamed {
         follow_mark(log, &action.from, &restored);
+        follow_pin(scan, log, &action.from, &restored);
     }
     let id = scan.restore(&action.from, &restored, rejected_path, |path| {
         read_photo(path).ok()
@@ -259,6 +260,22 @@ fn follow_mark(log: &ActionLog, from: &Path, to: &Path) {
     };
     if let Err(err) = log.move_accepted(&[moved]) {
         log::warn!("cannot move the accepted mark of a restored photo: {err}");
+    }
+}
+
+/// Moves the series edit pin of a photo restored under a new name along,
+/// in the log and in `scan`.
+fn follow_pin(scan: &mut Scan, log: &ActionLog, from: &Path, to: &Path) {
+    let moved = MovedPhoto {
+        from: from.to_path_buf(),
+        to: to.to_path_buf(),
+    };
+    let pins = log
+        .move_pins(&[moved])
+        .and_then(|()| log.pins_under(&scan.timeline.root));
+    match pins {
+        Ok(pins) => scan.set_pins(pins),
+        Err(err) => log::warn!("cannot move the series edit of a restored photo: {err}"),
     }
 }
 

@@ -31,6 +31,9 @@ pub enum CommandError {
     /// A later opening of a folder began before this one finished; its
     /// result is the one shown.
     Superseded,
+    /// A series edit no longer fits the series (they changed meanwhile,
+    /// e.g. in another window).
+    SeriesChanged,
     /// Unexpected failure inside the app.
     Internal,
 }

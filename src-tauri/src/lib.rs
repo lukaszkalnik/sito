@@ -56,6 +56,7 @@ pub fn run() -> tauri::Result<()> {
             scan::refresh::refresh_folder,
             missing::check_photo_file,
             series::get_series,
+            series::edit::edit_series,
             viewer::open_viewer,
             viewer::current_viewer_request,
             viewer::page::get_viewer_photo,

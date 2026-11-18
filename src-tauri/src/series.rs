@@ -1,10 +1,12 @@
-//! Series commands: group the current timeline into series.
+//! Series commands: group the current timeline into series, and edit them.
+
+pub mod edit;
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Serialize;
-use sito_core::series::{DEFAULT_MAX_GAP, Grouping, Pins, SeriesLabel, SeriesRange};
+use sito_core::series::{DEFAULT_MAX_GAP, Grouping, SeriesKind, SeriesLabel, SeriesRange};
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -18,6 +20,9 @@ pub struct GroupingDto {
     order: Vec<usize>,
     /// The series as ranges of display positions, sorted by start.
     series: Vec<SeriesDto>,
+    /// Display positions of the photos pinned as single photos by an edit,
+    /// ascending.
+    pinned: Vec<usize>,
 }
 
 /// One series as sent to the UI: a range of display positions.
@@ -30,6 +35,9 @@ pub struct SeriesDto {
     len: usize,
     /// What the header says about the camera.
     label: SeriesLabelDto,
+    /// Whether the series was edited by hand (and so keeps its photos with
+    /// any gap).
+    edited: bool,
 }
 
 /// Mirrors [`SeriesLabel`].
@@ -69,11 +77,19 @@ impl From<&Grouping> for GroupingDto {
                 start,
                 len,
                 label: SeriesLabelDto::from(&s.label),
+                edited: matches!(s.kind, SeriesKind::Manual(_)),
             })
             .collect();
+        let mut pinned: Vec<usize> = grouping
+            .pinned_singles
+            .iter()
+            .filter_map(|&position| grouping.arrangement.display_of(position))
+            .collect();
+        pinned.sort_unstable();
         Self {
             order: grouping.arrangement.order().to_vec(),
             series,
+            pinned,
         }
     }
 }
@@ -101,16 +117,16 @@ pub async fn get_series(
 /// photos are copied under the lock and grouped after it, so thumbnails
 /// (which look photos up in the scan) are not held up.
 pub(crate) fn cached_series(state: &AppState, max_gap: Duration) -> Option<Arc<Grouping>> {
-    let (scan_id, revision, all, removed) = {
+    let (scan_id, revision, all, removed, pins) = {
         let scan = state.scan();
         let scan = scan.as_ref()?;
         if let Some(grouping) = scan.cached_series(max_gap) {
             return Some(grouping);
         }
         let (all, removed) = scan.photos_with_removed();
-        (scan.id, scan.revision(), all, removed)
+        (scan.id, scan.revision(), all, removed, scan.pins().clone())
     };
-    let grouping = Arc::new(Grouping::new(&all, &removed, max_gap, &Pins::default()));
+    let grouping = Arc::new(Grouping::new(&all, &removed, max_gap, &pins));
     if let Some(scan) = state.scan().as_mut().filter(|scan| scan.id == scan_id) {
         scan.store_series(revision, max_gap, Arc::clone(&grouping));
     }
@@ -122,7 +138,7 @@ mod tests {
     use std::path::PathBuf;
 
     use serde_json::json;
-    use sito_core::series::{Series, SeriesKind};
+    use sito_core::series::{ManualSeriesId, Series};
     use sito_core::timeline::build_timeline;
 
     use super::*;
@@ -141,7 +157,7 @@ mod tests {
             Series {
                 members: vec![0, 2],
                 label: SeriesLabel::Camera("Pixel 8".to_owned()),
-                kind: SeriesKind::Automatic,
+                kind: SeriesKind::Manual(ManualSeriesId(1)),
             },
             Series {
                 members: vec![1],
@@ -152,7 +168,7 @@ mod tests {
         let grouping = Grouping {
             arrangement: sito_core::series::Arrangement::new(4, &series),
             series: series.to_vec(),
-            pinned_singles: Vec::new(),
+            pinned_singles: vec![3],
         };
 
         assert_eq!(
@@ -160,9 +176,20 @@ mod tests {
             json!({
                 "order": [0, 2, 1, 3],
                 "series": [
-                    { "start": 0, "len": 2, "label": { "kind": "camera", "name": "Pixel 8" } },
-                    { "start": 2, "len": 1, "label": { "kind": "unknownCamera" } },
+                    {
+                        "start": 0,
+                        "len": 2,
+                        "label": { "kind": "camera", "name": "Pixel 8" },
+                        "edited": true,
+                    },
+                    {
+                        "start": 2,
+                        "len": 1,
+                        "label": { "kind": "unknownCamera" },
+                        "edited": false,
+                    },
                 ],
+                "pinned": [3],
             })
         );
     }
