@@ -82,4 +82,5 @@ The plan below uses approach 2.
 ## Later slices
 
 - [Slice 59](59-edit-series-in-viewer.md) adds the same edits to the viewer. Keep the edit command (`edit_series`) and the pure function listing the possible edits for a photo independent of the grid, so the viewer only adds its controls.
+- [Slice 60](60-select-and-drag-photos.md) adds drag & drop onto series and grouping a selection of photos into a series; it builds on `edit_series` (`Edit::Join` already takes any series) and adds an `Edit::Group`.
 - [Slice 19](19-split-by-content.md) (split by content) should leave pinned photos alone: it splits automatic series only, so it can run on the unpinned photos like the time grouping does.

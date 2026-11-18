@@ -61,6 +61,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 28c | [Flaky real-app tests on Linux](slices/28c-linux-e2e-flakes.md) | ✅ |
 | 14 | [Edit series](slices/14-edit-series.md) | 🧪 |
 | 59 | [Edit series in the viewer](slices/59-edit-series-in-viewer.md) | ⬜ |
+| 60 | [Select photos and drag them into series](slices/60-select-and-drag-photos.md) | 📝 |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
 | 17 | [Sharpness suggestion](slices/17-sharpness.md) | ⬜ |
