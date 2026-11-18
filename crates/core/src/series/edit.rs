@@ -5,8 +5,9 @@ use std::time::Duration;
 
 use thiserror::Error;
 
+use super::needless::without_needless_pins;
 use super::pins::{ManualSeriesId, Pin, PinChanges, Pins};
-use super::restore::{restored_paths, without_needless_pins};
+use super::restore::restored_paths;
 use super::{Series, SeriesKind, group};
 use crate::timeline::Photo;
 

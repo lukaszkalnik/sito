@@ -77,6 +77,7 @@ The plan below uses approach 2.
 - „Przywróć automatyczne grupowanie” on a photo taken out of a series changed nothing visible: the rest of the series stayed pinned and kept the photo apart. Restoring now unpins the whole stretch of edited photos around the photo (`series/restore.rs`), so an extraction or a cut is taken back from any photo or header it touched.
 - The menu offered edits with the same outcome: on a series of two, „Podziel…”, „Wyjmij…” and „Rozdziel serię” all leave two single photos, and splitting before the last photo equals taking it out. Only the distinct ones are offered now.
 - Joining a single photo to a series and taking it out again left both marked as edited (pinned single photo, edited series), though the grouping was the automatic one again. An edit now clears the pins of its stretch when the result equals automatic grouping (`without_needless_pins` in `series/restore.rs`).
+- Joining a single photo to a series and then ungrouping it left the photo pinned. An edit now unpins each part of its stretch that automatic grouping would form anyway, not only the whole stretch at once (`series/needless.rs`); tests cover sequences of edits and their inverses.
 - Near the window's right edge, „Przywróć automatyczne grupowanie” wrapped onto two lines; menu entries no longer wrap.
 - Photos taken out of a series could not be told apart from other single photos: their tiles now carry a pencil badge.
 

@@ -3,6 +3,7 @@
 mod arrangement;
 mod edit;
 mod label;
+mod needless;
 mod pin_store;
 mod pins;
 mod restore;

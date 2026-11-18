@@ -2,68 +2,12 @@
 //! photos around a photo, so taking a photo out of a series (or cutting one)
 //! can be taken back from any of the photos the edit touched.
 
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
-use super::pins::{ManualSeriesId, Pin, PinChanges, Pins};
-use super::{camera_of, group};
+use super::camera_of;
+use super::pins::{ManualSeriesId, Pin, Pins};
 use crate::timeline::Photo;
-
-/// `changes` (an edit of `pins` on `photos` for `max_gap`), or, when the
-/// edit leaves its stretch of edited photos (see [`restored_paths`]) grouped
-/// exactly as automatic grouping would group it, changes that unpin that
-/// stretch instead: an edit that undoes another (joining a photo to a series
-/// and taking it out again) leaves nothing marked as edited.
-pub(super) fn without_needless_pins(
-    photos: &[Photo],
-    max_gap: Duration,
-    pins: &Pins,
-    changes: &PinChanges,
-) -> PinChanges {
-    let mut after = pins.clone();
-    after.apply(changes);
-    let touched: HashSet<&Path> = changes.set.iter().map(|(path, _)| path.as_path()).collect();
-    let positions = photos
-        .iter()
-        .enumerate()
-        .filter(|(_, photo)| touched.contains(photo.path.as_path()))
-        .map(|(position, _)| position);
-    let mut automatic = after.clone();
-    automatic.apply(&PinChanges {
-        set: Vec::new(),
-        clear: stretch_of(photos, &after, positions),
-    });
-    if shape(photos, max_gap, &automatic) == shape(photos, max_gap, &after) {
-        difference(pins, &automatic)
-    } else {
-        changes.clone()
-    }
-}
-
-/// The members of the series of `photos` with `pins`, whatever their kind.
-fn shape(photos: &[Photo], max_gap: Duration, pins: &Pins) -> Vec<Vec<usize>> {
-    group(photos, max_gap, pins)
-        .into_iter()
-        .map(|s| s.members)
-        .collect()
-}
-
-/// The changes that turn `before` into `after`.
-fn difference(before: &Pins, after: &Pins) -> PinChanges {
-    PinChanges {
-        set: after
-            .iter()
-            .filter(|&(path, pin)| before.get(path) != Some(pin))
-            .map(|(path, pin)| (path.to_path_buf(), pin))
-            .collect(),
-        clear: before
-            .iter()
-            .filter(|(path, _)| after.get(path).is_none())
-            .map(|(path, _)| path.to_path_buf())
-            .collect(),
-    }
-}
 
 /// The paths to unpin when the pinned photo at `position` of `photos`
 /// (sorted newest first) is restored: the run of pinned photos around it in
@@ -82,7 +26,7 @@ pub(super) fn restored_paths(
 
 /// The stretch of edited photos (see [`restored_paths`]) around the pinned
 /// photos among `positions`, as sorted paths.
-fn stretch_of(
+pub(super) fn stretch_of(
     photos: &[Photo],
     pins: &Pins,
     positions: impl IntoIterator<Item = usize>,
