@@ -1,10 +1,10 @@
 ---
-status: 🧪 ready for testing
+status: ✅ done
 ---
 
 # Slice 14 – Edit series
 
-Plan drafted and approved by the user on 2026-11-18. Implemented on 2026-11-18, ready for testing; what it established is in [Grouping](../domain/grouping.md#series-edited-by-hand) and [Timeline](../domain/timeline.md#editing-series).
+Plan drafted and approved by the user on 2026-11-18. Implemented on 2026-11-18, tested by the user on 2026-11-19; what it established is in [Grouping](../domain/grouping.md#series-edited-by-hand) and [Timeline](../domain/timeline.md#editing-series).
 
 ## Idea
 

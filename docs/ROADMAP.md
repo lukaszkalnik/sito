@@ -59,7 +59,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 28a | [Window places on small Mac screens](slices/28a-macos-small-screen-restore.md) | ✅ |
 | 28d | [Un-zooming after a restart on macOS](slices/28d-macos-unzoom-after-restart.md) | 🚫 |
 | 28c | [Flaky real-app tests on Linux](slices/28c-linux-e2e-flakes.md) | ✅ |
-| 14 | [Edit series](slices/14-edit-series.md) | 🧪 |
+| 14 | [Edit series](slices/14-edit-series.md) | ✅ |
 | 59 | [Edit series in the viewer](slices/59-edit-series-in-viewer.md) | ⬜ |
 | 60 | [Select photos and drag them into series](slices/60-select-and-drag-photos.md) | 📝 |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
