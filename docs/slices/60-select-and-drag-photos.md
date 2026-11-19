@@ -44,4 +44,4 @@ Recommended: 2 with the modifiers of 1 as shortcuts (Ctrl/Cmd+click enters selec
 - In „Serie” mode single photos are hidden: selecting singles to group needs „Wszystkie zdjęcia”; should grouping switch the view, or should the bar say so?
 - Should selection also offer other batch actions later (reject, accept several photos at once)? Keep the selection state generic (a set of ids in the timeline feature) so they can be added.
 - What happens to a selection when the timeline changes (a refresh, an edit in another window): keep the ids still shown, drop the rest.
-- [Slice 59](59-edit-series-in-viewer.md) (edits in the viewer) is independent; selection stays a grid feature.
+- [Slice 59](59-edit-series-in-viewer.md) (edits in the viewer) is independent; selection stays a grid feature. It plans a shared `useEditSeries` hook (edit + toasts) to reuse here, and takes the keys P and W.
