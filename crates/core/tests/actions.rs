@@ -3,9 +3,24 @@
 
 use std::path::{Path, PathBuf};
 
-use sito_core::actions::{ActionLog, Placement, RejectAction, Rejections};
+use sito_core::actions::{ActionLog, LogError, Placement, RejectAction, Rejections, Undoable};
 use sito_core::reject::{Companion, FileMove, PhotoFiles};
+use sito_core::series::{ManualSeriesId, Pin};
 use tempfile::TempDir;
+
+/// The newest rejection undo offers, as long as no series edit is newer.
+fn last_reject(
+    log: &ActionLog,
+    under: &Path,
+    rejections: Rejections,
+) -> Result<Option<RejectAction>, LogError> {
+    Ok(log
+        .last_undoable(under, rejections)?
+        .map(|undoable| match undoable {
+            Undoable::Reject(action) => action,
+            Undoable::Edit(edit) => panic!("not a rejection: {edit:?}"),
+        }))
+}
 
 fn root() -> PathBuf {
     PathBuf::from(if cfg!(windows) {
@@ -47,7 +62,7 @@ fn offers_the_newest_rejection_first() {
     let newest = record(&log, "Camera/IMG_2.jpg");
 
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All).unwrap(),
+        last_reject(&log, &root(), Rejections::All).unwrap(),
         Some(RejectAction {
             id: newest,
             from: photo("Camera/IMG_2.jpg"),
@@ -67,7 +82,7 @@ fn skips_undone_rejections() {
 
     log.mark_undone(second).unwrap();
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
@@ -77,7 +92,7 @@ fn skips_undone_rejections() {
     assert!(log.undone_at(first).unwrap().is_none());
 
     log.mark_undone(first).unwrap();
-    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
+    assert_eq!(last_reject(&log, &root(), Rejections::All).unwrap(), None);
 }
 
 #[test]
@@ -90,22 +105,21 @@ fn offers_only_rejections_inside_the_given_folder() {
         .unwrap();
 
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
         inside
     );
     assert_eq!(
-        log.last_undoable(&root().join("Złote gody"), Rejections::All)
+        last_reject(&log, &root().join("Złote gody"), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
         inside
     );
     assert_eq!(
-        log.last_undoable(&root().join("Inne"), Rejections::All)
-            .unwrap(),
+        last_reject(&log, &root().join("Inne"), Rejections::All).unwrap(),
         None
     );
 }
@@ -122,14 +136,14 @@ fn keeps_the_log_across_reopening() {
     let log = ActionLog::open(&file).unwrap();
 
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
         id
     );
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .from,
@@ -144,7 +158,7 @@ fn forgets_an_action_that_did_not_happen() {
 
     log.forget(id).unwrap();
 
-    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
+    assert_eq!(last_reject(&log, &root(), Rejections::All).unwrap(), None);
 }
 
 #[test]
@@ -167,7 +181,7 @@ fn upgrades_a_log_written_before_migrations() {
     let log = ActionLog::open(&db).unwrap();
 
     assert!(
-        log.last_undoable(Path::new("a"), Rejections::All)
+        last_reject(&log, Path::new("a"), Rejections::All)
             .unwrap()
             .is_some()
     );
@@ -175,7 +189,47 @@ fn upgrades_a_log_written_before_migrations() {
     let version: u32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
-    assert_eq!(version, 5);
+    assert_eq!(version, 6);
+}
+
+#[test]
+fn a_version_5_log_keeps_its_pins_and_rejections() {
+    let dir = TempDir::new().unwrap();
+    let db = dir.path().join("sito.db");
+    // A log of v0.x with series edits (migration 5), before edits were undoable.
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE actions (
+             id INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL,
+             from_path TEXT NOT NULL, to_path TEXT NOT NULL, undone_at TEXT,
+             sidecar_from TEXT, sidecar_to TEXT
+         );
+         CREATE TABLE action_moves (action_id INTEGER NOT NULL, from_path TEXT NOT NULL, to_path TEXT NOT NULL);
+         CREATE TABLE accepted (path TEXT PRIMARY KEY);
+         CREATE TABLE series_pins (path TEXT PRIMARY KEY, series INTEGER NULL);
+         INSERT INTO actions (at, kind, from_path, to_path)
+             VALUES ('2024-06-01T12:00:00.000+02:00', 'reject', 'a/x.jpg', 'a/Odrzucone/x.jpg');
+         INSERT INTO series_pins VALUES ('a/y.jpg', 3), ('a/z.jpg', NULL);
+         PRAGMA user_version = 5;",
+    )
+    .unwrap();
+    drop(conn);
+
+    let log = ActionLog::open(&db).unwrap();
+
+    let pins = log.pins_under(Path::new("a")).unwrap();
+    assert_eq!(
+        pins.get(Path::new("a/y.jpg")),
+        Some(Pin::Series(ManualSeriesId(3)))
+    );
+    assert_eq!(pins.get(Path::new("a/z.jpg")), Some(Pin::Single));
+    assert_eq!(
+        last_reject(&log, Path::new("a"), Rejections::All)
+            .unwrap()
+            .map(|action| action.from),
+        Some(PathBuf::from("a/x.jpg"))
+    );
+    assert_eq!(log.next_series_id().unwrap(), ManualSeriesId(4));
 }
 
 #[cfg(unix)]
@@ -207,8 +261,7 @@ fn keeps_the_date_file_moved_with_a_photo() {
     )
     .unwrap();
 
-    let action = log
-        .last_undoable(&root(), Rejections::All)
+    let action = last_reject(&log, &root(), Rejections::All)
         .unwrap()
         .unwrap();
 
@@ -234,7 +287,7 @@ fn keeps_every_file_moved_with_a_photo_in_order() {
 
     assert_eq!(
         extra(
-            log.last_undoable(&root(), Rejections::All)
+            last_reject(&log, &root(), Rejections::All)
                 .unwrap()
                 .unwrap()
         ),
@@ -242,7 +295,7 @@ fn keeps_every_file_moved_with_a_photo_in_order() {
     );
 
     log.forget(id).unwrap();
-    assert_eq!(log.last_undoable(&root(), Rejections::All).unwrap(), None);
+    assert_eq!(last_reject(&log, &root(), Rejections::All).unwrap(), None);
 }
 
 #[test]
@@ -260,8 +313,7 @@ fn undoes_entries_logged_with_the_older_date_file_columns() {
     drop(conn);
 
     let log = ActionLog::open(&db).unwrap();
-    let action = log
-        .last_undoable(Path::new("a"), Rejections::All)
+    let action = last_reject(&log, Path::new("a"), Rejections::All)
         .unwrap()
         .unwrap();
 
@@ -289,8 +341,7 @@ fn keeps_every_file_moved_to_the_trash_with_the_time() {
 
     let id = log.record_trash(&files).unwrap();
 
-    let action = log
-        .last_undoable(&root(), Rejections::All)
+    let action = last_reject(&log, &root(), Rejections::All)
         .unwrap()
         .unwrap();
     assert_eq!(action.id, id);
@@ -315,7 +366,7 @@ fn offers_folder_and_trash_moves_newest_first() {
         .unwrap();
 
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
@@ -323,7 +374,7 @@ fn offers_folder_and_trash_moves_newest_first() {
     );
     log.mark_undone(trash).unwrap();
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
@@ -344,15 +395,14 @@ fn offers_trash_and_folder_moves_newest_first() {
     let folder = record(&log, "IMG_2.jpg");
 
     assert_eq!(
-        log.last_undoable(&root(), Rejections::All)
+        last_reject(&log, &root(), Rejections::All)
             .unwrap()
             .unwrap()
             .id,
         folder
     );
     log.mark_undone(folder).unwrap();
-    let action = log
-        .last_undoable(&root(), Rejections::All)
+    let action = last_reject(&log, &root(), Rejections::All)
         .unwrap()
         .unwrap();
     assert_eq!(action.id, trash);
@@ -371,7 +421,7 @@ fn folder_only_skips_trash_moves_without_marking_them_undone() {
         })
         .unwrap();
 
-    let last = |rejections| log.last_undoable(&root(), rejections).unwrap().unwrap().id;
+    let last = |rejections| last_reject(&log, &root(), rejections).unwrap().unwrap().id;
     assert_eq!(last(Rejections::FolderOnly), folder);
     assert_eq!(last(Rejections::All), trash);
     assert_eq!(log.undone_at(trash).unwrap(), None);
@@ -379,7 +429,7 @@ fn folder_only_skips_trash_moves_without_marking_them_undone() {
 
     log.mark_undone(folder).unwrap();
     assert_eq!(
-        log.last_undoable(&root(), Rejections::FolderOnly).unwrap(),
+        last_reject(&log, &root(), Rejections::FolderOnly).unwrap(),
         None
     );
     assert_eq!(last(Rejections::All), trash);

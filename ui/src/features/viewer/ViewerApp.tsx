@@ -20,6 +20,7 @@ import {
 import { Toast } from '../reject/Toast';
 import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
+import { HIGHLIGHT_MS } from '../timeline/reveal';
 import { LoadingSpinner } from './FullPhoto';
 import { PhotoViewer } from './PhotoViewer';
 import { useViewerPhoto } from './useViewerPhoto';
@@ -53,6 +54,8 @@ interface ReadyViewerProps {
   undo: UndoControls;
   /** The accepted photos of the scan. */
   acceptedIds: ReadonlySet<number>;
+  /** Photos of the strip to point out, e.g. those an undone edit changed. */
+  pulsedIds: ReadonlySet<number>;
 }
 
 /** The translation key of the message for a failed rejection. */
@@ -112,7 +115,7 @@ function useAnnounceShown(scanId: number, id: number) {
 
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
-  const { request, photo, onShowId, undo, acceptedIds } = props;
+  const { request, photo, onShowId, undo, acceptedIds, pulsedIds } = props;
   useAnnounceShown(request.scanId, photo.entry.id);
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
@@ -127,6 +130,7 @@ function ReadyViewer(props: ReadyViewerProps) {
       onReject={() => void reject()}
       rejectTo={destination}
       acceptedIds={acceptedIds}
+      pulsedIds={pulsedIds}
       onToggleAccept={() => void toggleAccept(photo.entry.id)}
       undoState={undo.undoState}
       onUndo={() => void undo.undo()}
@@ -167,7 +171,13 @@ function MoveOn({ next, onShowId }: { next: number | null; onShowId: (id: number
 }
 
 /** Loads the photo of `request` and shows it. */
-function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerProps, 'photo'>) {
+function ViewerPage({
+  request,
+  onShowId,
+  undo,
+  acceptedIds,
+  pulsedIds,
+}: Omit<ReadyViewerProps, 'photo'>) {
   const { t } = useTranslation();
   const state = useViewerPhoto(request);
   switch (state.kind) {
@@ -189,9 +199,27 @@ function ViewerPage({ request, onShowId, undo, acceptedIds }: Omit<ReadyViewerPr
           onShowId={onShowId}
           undo={undo}
           acceptedIds={acceptedIds}
+          pulsedIds={pulsedIds}
         />
       );
   }
+}
+
+const NONE_PULSED: ReadonlySet<number> = new Set();
+
+/**
+ * The photos to point out in the strip, set with `pulse` and cleared after
+ * {@link HIGHLIGHT_MS} (as the grid highlights them).
+ */
+function usePulsedIds() {
+  const [pulsed, setPulsed] = useState<ReadonlySet<number>>(NONE_PULSED);
+  useEffect(() => {
+    if (pulsed.size === 0) return;
+    const timer = setTimeout(() => setPulsed(NONE_PULSED), HIGHLIGHT_MS.restored);
+    return () => clearTimeout(timer);
+  }, [pulsed]);
+  const pulse = useCallback((ids: readonly number[]) => setPulsed(new Set(ids)), []);
+  return [pulsed, pulse] as const;
 }
 
 /** Shows the photo of `request`, or a message once every photo was rejected. */
@@ -202,14 +230,17 @@ function LoadedViewer({
   request: ViewerRequest;
   onShowId: (id: number) => void;
 }) {
-  // A restored photo is shown right away.
+  const [pulsedIds, pulse] = usePulsedIds();
+  // A restored photo is shown right away; after an undone edit the photo
+  // shown stays and its strip points out the photos that changed.
   const showUndone = useCallback(
     (undone: Undone) => {
-      if (undone.id !== null) onShowId(undone.id);
+      if (undone.kind === 'edit') pulse(undone.changed);
+      else if (undone.id !== null) onShowId(undone.id);
     },
-    [onShowId],
+    [onShowId, pulse],
   );
-  const undo = useUndo(showUndone);
+  const undo = useUndo(request.gap, showUndone);
   const acceptedIds = useAcceptedIds(request.scanId);
   // F5 checks the folder here too, instead of reloading the window.
   useShortcuts({ refresh: refreshInBackground });
@@ -219,7 +250,13 @@ function LoadedViewer({
       {request.id === NO_PHOTO ? (
         <EmptyViewer undoState={undo.undoState} undo={undo.undo} />
       ) : (
-        <ViewerPage request={request} onShowId={onShowId} undo={undo} acceptedIds={acceptedIds} />
+        <ViewerPage
+          request={request}
+          onShowId={onShowId}
+          undo={undo}
+          acceptedIds={acceptedIds}
+          pulsedIds={pulsedIds}
+        />
       )}
       <Toast message={undo.toast} onUndo={() => void undo.undo()} />
     </>

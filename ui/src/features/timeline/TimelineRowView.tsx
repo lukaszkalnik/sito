@@ -6,7 +6,7 @@ import type { SeriesLabel, TimelineEntry } from './api';
 import { formatDay, timeOf } from './format';
 import type { RowGroup, TimelineRow } from './layout';
 import { menuRequest, type MenuRequest } from './menuRequest';
-import type { Reveal } from './reveal';
+import { highlightOf, type Reveal } from './reveal';
 import { TimelineTile } from './TimelineTile';
 
 /** What every tile of the grid needs besides its own photo. */
@@ -20,7 +20,7 @@ export interface TileContext {
   acceptedIds: ReadonlySet<number>;
   /** The photos taken out of their series by hand, marked with a pencil. */
   pinnedIds?: ReadonlySet<number>;
-  /** The photo to highlight, if any. */
+  /** The photos to highlight, if any. */
   highlighted: Reveal | null;
   /** The photo the viewer shows, if any. */
   followed: number | null;
@@ -104,7 +104,7 @@ function TileList({
           scanId={context.scanId}
           showFolder={context.showFolder}
           onOpen={context.onOpen}
-          highlight={entry.id === context.highlighted?.id ? context.highlighted.reason : null}
+          highlight={highlightOf(context.highlighted, entry.id)}
           followed={entry.id === context.followed}
           accepted={context.acceptedIds.has(entry.id)}
           pinned={context.pinnedIds?.has(entry.id) ?? false}

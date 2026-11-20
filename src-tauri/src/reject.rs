@@ -1,5 +1,5 @@
 //! Reject commands: move photos into the "Odrzucone" folder or the system
-//! trash, and undo the newest rejection.
+//! trash, and bring a rejected photo back (for „Cofnij”, see `undo`).
 
 mod drive;
 #[cfg(test)]
@@ -17,7 +17,7 @@ use sito_core::moved::MovedPhoto;
 use sito_core::reject::RejectError;
 use sito_core::timeline::read_photo;
 use sito_core::trash::TrashRestore;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::error::{CommandError, off_main_thread};
 use crate::scan::state::{AppState, Scan};
@@ -63,9 +63,14 @@ impl ActionsState {
         self.log.as_ref().ok_or(CommandError::Internal)
     }
 
+    /// The action log, if it could be opened.
+    pub(crate) fn opened_log(&self) -> Option<&ActionLog> {
+        self.log.as_ref()
+    }
+
     /// The rejections undo may offer: trash moves only where the trash can
     /// be restored from. Skipped ones stay in the log for a later version.
-    fn undoable_rejections(&self) -> Rejections {
+    pub(crate) fn undoable_rejections(&self) -> Rejections {
         match self.bin.restore() {
             TrashRestore::Supported => Rejections::All,
             TrashRestore::Unsupported => Rejections::FolderOnly,
@@ -94,7 +99,7 @@ pub struct RejectedDto {
 /// The rejected photo "Cofnij" brought back.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct UndoneDto {
+pub struct RestoredDto {
     /// Timeline id of the photo, or `None` if it could not be read back or
     /// is not on the timeline.
     pub(crate) id: Option<usize>,
@@ -103,19 +108,6 @@ pub struct UndoneDto {
     /// The file name it came back under, when its own name was taken by
     /// another file; `None` when it got its own name back.
     pub(crate) restored_name: Option<String>,
-}
-
-/// Whether "Cofnij" has something to undo in the current folder.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-pub enum UndoStateDto {
-    /// A rejection can be undone.
-    Available,
-    /// No rejection is left to undo.
-    #[serde(rename = "none")]
-    Nothing,
-    /// Only rejections into a trash this system cannot restore from are left.
-    TrashOnly,
 }
 
 impl From<RejectError> for CommandError {
@@ -151,7 +143,7 @@ pub async fn reject_photo(
 }
 
 /// [`reject_photo`] on the given scan and action state.
-fn reject_in(
+pub(crate) fn reject_in(
     scan: &mut Scan,
     actions: &mut ActionsState,
     id: usize,
@@ -174,46 +166,13 @@ fn reject_in(
     })
 }
 
-/// Undoes the newest rejection in the current folder: moves the photo back
-/// onto the timeline; `None` if there is nothing to undo. Runs off the main thread: the trash can take a moment.
-#[tauri::command]
-pub async fn undo_reject(app: AppHandle) -> Result<Option<UndoneDto>, CommandError> {
-    off_main_thread(move || {
-        let actions = app.state::<Actions>().inner().lock();
-        let state = app.state::<AppState>();
-        let mut scan = state.scan();
-        let Some(scan) = scan.as_mut() else {
-            return Ok(None);
-        };
-        let undone = undo_in(scan, &actions)?;
-        if undone.is_some() {
-            announce(&app, TIMELINE_CHANGED);
-        }
-        Ok(undone)
-    })
-    .await?
-}
-
-/// [`undo_reject`] on the given scan and action state.
-fn undo_in(scan: &mut Scan, actions: &ActionsState) -> Result<Option<UndoneDto>, CommandError> {
-    let Some(log) = actions.log.as_ref() else {
-        return Ok(None);
-    };
-    let action = log
-        .last_undoable(&scan.timeline.root, actions.undoable_rejections())
-        .map_err(|err| log_failed(&err))?;
-    action
-        .map(|action| restore_rejection(scan, actions, log, &action))
-        .transpose()
-}
-
 /// Moves the photo of the rejection `action` back and puts it on the timeline.
-fn restore_rejection(
+pub(crate) fn restore_rejection(
     scan: &mut Scan,
     actions: &ActionsState,
     log: &ActionLog,
     action: &RejectAction,
-) -> Result<UndoneDto, CommandError> {
+) -> Result<RestoredDto, CommandError> {
     let (undone, rejected_path) = match &action.place {
         Placement::Folder { to, extra } => (
             folder::undo(&action.from, to, extra, &actions.created_dirs),
@@ -245,7 +204,7 @@ fn restore_rejection(
     let id = scan.restore(&action.from, &restored, rejected_path, |path| {
         read_photo(path).ok()
     });
-    Ok(UndoneDto {
+    Ok(RestoredDto {
         id,
         name: file_name(&action.from),
         restored_name: renamed.then(|| file_name(&restored)),
@@ -279,36 +238,6 @@ fn follow_pin(scan: &mut Scan, log: &ActionLog, from: &Path, to: &Path) {
     }
 }
 
-/// Whether there is a rejection to undo in the current folder.
-// Tauri injects `State` by value into commands.
-#[allow(clippy::needless_pass_by_value)]
-#[tauri::command]
-pub fn get_undo_state(state: State<'_, AppState>, actions: State<'_, Actions>) -> UndoStateDto {
-    let actions = actions.lock();
-    let scan = state.scan();
-    scan.as_ref().map_or(UndoStateDto::Nothing, |scan| {
-        undo_state(&actions, &scan.timeline.root)
-    })
-}
-
-/// [`get_undo_state`] for the folder `root`.
-fn undo_state(actions: &ActionsState, root: &Path) -> UndoStateDto {
-    let Some(log) = actions.log.as_ref() else {
-        return UndoStateDto::Nothing;
-    };
-    let offered = |rejections| {
-        log.last_undoable(root, rejections)
-            .is_ok_and(|action| action.is_some())
-    };
-    if offered(actions.undoable_rejections()) {
-        UndoStateDto::Available
-    } else if offered(Rejections::All) {
-        UndoStateDto::TrashOnly
-    } else {
-        UndoStateDto::Nothing
-    }
-}
-
 /// Sends `event` to all windows.
 pub(crate) fn announce(app: &AppHandle, event: &str) {
     if let Err(err) = app.emit(event, ()) {
@@ -333,7 +262,7 @@ pub(crate) fn file_name(path: &Path) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::fs;
     use std::path::PathBuf;
 
@@ -347,13 +276,27 @@ mod tests {
     use super::*;
     use crate::accept;
     use crate::reject::fake_bin::FakeBin;
+    use crate::undo::{UndoStateDto, UndoneDto, undo_state};
 
     /// The two fixture photos 5 s apart, which form the only series.
-    const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";
-    const OLDER: &str = "pixel_2024-06-01_12-00-00.jpg";
+    pub(crate) const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";
+    pub(crate) const OLDER: &str = "pixel_2024-06-01_12-00-00.jpg";
+
+    /// Undoes the newest action, which must be a rejection (or nothing).
+    fn undo_in(
+        scan: &mut Scan,
+        actions: &ActionsState,
+    ) -> Result<Option<RestoredDto>, CommandError> {
+        crate::undo::undo_in(scan, actions, DEFAULT_MAX_GAP).map(|undone| {
+            undone.map(|undone| match undone {
+                UndoneDto::Rejection(restored) => restored,
+                UndoneDto::Edit(edit) => panic!("not a rejection: {edit:?}"),
+            })
+        })
+    }
 
     /// A temp folder with copies of all EXIF fixtures.
-    fn gallery() -> TempDir {
+    pub(crate) fn gallery() -> TempDir {
         let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures/exif");
         let dir = TempDir::new().unwrap();
         for entry in fs::read_dir(fixtures).unwrap() {
@@ -364,12 +307,12 @@ mod tests {
     }
 
     /// A fresh scan of `dir`, like picking the folder in the app.
-    fn scan(dir: &Path) -> Scan {
+    pub(crate) fn scan(dir: &Path) -> Scan {
         Scan::new(1, build_timeline(dir, |_| {}).unwrap())
     }
 
     /// Action state of a freshly started app using the log at `db`.
-    fn started(db: &Path) -> ActionsState {
+    pub(crate) fn started(db: &Path) -> ActionsState {
         ActionsState {
             log: Some(ActionLog::open(db).unwrap()),
             created_dirs: HashSet::new(),
@@ -377,7 +320,7 @@ mod tests {
         }
     }
 
-    fn id_of(scan: &Scan, name: &str) -> usize {
+    pub(crate) fn id_of(scan: &Scan, name: &str) -> usize {
         scan.photos()
             .find(|(_, photo)| photo.path.ends_with(name))
             .map(|(id, _)| id)
@@ -535,7 +478,7 @@ mod tests {
             json!({ "name": "IMG_1.jpg" })
         );
         assert_eq!(
-            serde_json::to_value(UndoneDto {
+            serde_json::to_value(RestoredDto {
                 id: Some(3),
                 name: "IMG_1.jpg".into(),
                 restored_name: Some("IMG_1 (2).jpg".into()),
@@ -543,17 +486,6 @@ mod tests {
             .unwrap(),
             json!({ "id": 3, "name": "IMG_1.jpg", "restoredName": "IMG_1 (2).jpg" })
         );
-        let states = [
-            (UndoStateDto::Available, "available"),
-            (UndoStateDto::Nothing, "none"),
-            (UndoStateDto::TrashOnly, "trashOnly"),
-        ];
-        for (state, kind) in states {
-            assert_eq!(
-                serde_json::to_value(state).unwrap(),
-                json!({ "kind": kind })
-            );
-        }
     }
 
     #[test]
@@ -812,7 +744,7 @@ mod tests {
 
         assert_eq!(
             undone,
-            UndoneDto {
+            RestoredDto {
                 id: Some(id),
                 name: NEWER.into(),
                 restored_name: None,

@@ -14,7 +14,7 @@ describe('UndoButton', () => {
     const onUndo = vi.fn();
     render(<UndoButton state="available" onUndo={onUndo} />);
 
-    expect(undoButton()).toHaveAttribute('title', 'Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)');
+    expect(undoButton()).toHaveAttribute('title', 'Cofnij ostatnią zmianę (Ctrl+Z)');
     expect(undoButton()).toBeEnabled();
     expect(undoButton()).not.toHaveAttribute('aria-disabled');
     await userEvent.click(undoButton());

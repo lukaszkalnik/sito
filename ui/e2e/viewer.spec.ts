@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { invokedCommands, mockTauri } from './tauri-mock';
+import { invokedCommands, mockTauri, type TauriMock } from './tauri-mock';
 
 // 1×1 grey PNG, served for photos and thumbnails.
 const PIXEL = Buffer.from(
@@ -14,6 +14,7 @@ async function openViewer(
   id: number,
   mode: 'series' | 'all',
   photoImage: { contentType: string; body: Buffer } = { contentType: 'image/png', body: PIXEL },
+  more: Partial<TauriMock> = {},
 ) {
   await page.route('http://photo.localhost/**', (route) =>
     route.fulfill({ status: 200, ...photoImage }),
@@ -28,6 +29,7 @@ async function openViewer(
     timeline: { count: 30, newest: '2024-06-01T12:00:00', stepSeconds: 1200 },
     series: { every: 10, size: 3 },
     viewerRequest: { id, scanId: 5, mode, gap: 10 },
+    ...more,
   });
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/?window=viewer');
@@ -225,4 +227,30 @@ test('says when the photo is gone from the folder and refreshes it', async ({ pa
 
   const refreshes = (await invokedCommands(page)).filter((c) => c.cmd === 'refresh_folder');
   expect(refreshes).toHaveLength(1);
+});
+
+test('undoes an edit made in the main window and keeps its photo', async ({ page }) => {
+  // The main window took IMG_00027 (id 3) out of the series of ids 0–2.
+  const seriesBefore = [
+    { start: 0, len: 4 },
+    { start: 10, len: 3 },
+    { start: 20, len: 3 },
+  ];
+  await openViewer(page, 1, 'series', undefined, {
+    madeEdits: [{ edit: 'remove', photo: 3, changed: [3], seriesBefore }],
+  });
+  const strip = page.getByRole('navigation', { name: 'Zdjęcia w serii' });
+  await expect(strip.getByRole('button')).toHaveCount(3);
+
+  await page.keyboard.press('Control+z');
+
+  await expect(page.getByTestId('toast')).toHaveText('Cofnięto wyjęcie IMG_00027.jpg z serii');
+  await expect(strip.getByRole('button')).toHaveCount(4);
+  await expect(photo(page, 'IMG_00029.jpg')).toBeVisible();
+  await expect(strip.getByRole('button', { name: 'IMG_00027.jpg' })).toHaveClass(
+    /viewer-strip-item--pulsed/,
+  );
+  await expect(strip.getByRole('button', { name: 'IMG_00028.jpg' })).not.toHaveClass(
+    /viewer-strip-item--pulsed/,
+  );
 });

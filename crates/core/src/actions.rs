@@ -1,6 +1,7 @@
-//! Log of the file moves Sito performs (rejected photos, into the rejected
-//! folder or the trash), in `SQLite`, so every one of them can be undone (also
-//! after a restart).
+//! Log of what „Cofnij” undoes, in `SQLite`: the file moves Sito performs
+//! (rejected photos, into the rejected folder or the trash) and the series
+//! edits (see [`crate::series`]), so every one of them can be undone, newest
+//! first, also after a restart.
 
 use std::path::{Path, PathBuf};
 
@@ -9,6 +10,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use thiserror::Error;
 
 use crate::reject::{FileMove, PhotoFiles};
+use crate::series::{EditAction, edit_kind_of};
 
 /// Error while reading or writing the action log.
 #[derive(Debug, Error)]
@@ -34,6 +36,15 @@ pub struct RejectAction {
     pub from: PathBuf,
     /// Where the photo went.
     pub place: Placement,
+}
+
+/// An action „Cofnij” can undo.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Undoable {
+    /// A rejected photo.
+    Reject(RejectAction),
+    /// An edit of the series.
+    Edit(EditAction),
 }
 
 /// Where a rejected photo went.
@@ -187,8 +198,9 @@ impl ActionLog {
         Ok(())
     }
 
-    /// The newest of `rejections` not yet undone whose photo came from
-    /// inside `under` (a folder and its subfolders), if any.
+    /// The newest action not yet undone whose photo is inside `under` (a
+    /// folder and its subfolders), if any: a rejection (of those
+    /// `rejections` allows) or a series edit.
     ///
     /// # Errors
     ///
@@ -197,10 +209,20 @@ impl ActionLog {
         &self,
         under: &Path,
         rejections: Rejections,
-    ) -> Result<Option<RejectAction>, LogError> {
-        self.last_row_under(under, rejections)?
-            .map(|row| self.reject_action(row))
-            .transpose()
+    ) -> Result<Option<Undoable>, LogError> {
+        let Some(row) = self.last_row_under(under, rejections)? else {
+            return Ok(None);
+        };
+        match edit_kind_of(&row.kind) {
+            Some(kind) => Ok(Some(Undoable::Edit(EditAction {
+                id: row.id,
+                kind,
+                photo: row.from,
+            }))),
+            None => self
+                .reject_action(row)
+                .map(|action| Some(Undoable::Reject(action))),
+        }
     }
 
     /// The rejection logged in `row`, with the other files moved along.
@@ -226,8 +248,9 @@ impl ActionLog {
         })
     }
 
-    /// The newest rejection entry not yet undone whose photo came from inside
-    /// `under`.
+    /// The newest entry not yet undone whose photo is inside `under` and
+    /// that undo may offer: a rejection allowed by `rejections`, or a series
+    /// edit. Entries of other kinds (accepts of older versions) are skipped.
     fn last_row_under(
         &self,
         under: &Path,
@@ -235,15 +258,10 @@ impl ActionLog {
     ) -> Result<Option<Row>, LogError> {
         let mut statement = self.conn.prepare(
             "SELECT id, kind, at, from_path, to_path, sidecar_from, sidecar_to FROM actions
-             WHERE kind IN (?1, ?2) AND undone_at IS NULL
+             WHERE undone_at IS NULL
              ORDER BY id DESC",
         )?;
-        // `IN (?1, ?2)` with the folder kind twice leaves trash moves out.
-        let kinds = match rejections {
-            Rejections::All => params![KIND_REJECT, KIND_TRASH],
-            Rejections::FolderOnly => params![KIND_REJECT, KIND_REJECT],
-        };
-        let rows = statement.query_map(kinds, |row| {
+        let rows = statement.query_map([], |row| {
             let sidecar_from: Option<String> = row.get(5)?;
             let sidecar_to: Option<String> = row.get(6)?;
             Ok(Row {
@@ -261,7 +279,7 @@ impl ActionLog {
         for row in rows {
             let row = row?;
             // Compares whole path components, so `Zdjęcia2` is not inside `Zdjęcia`.
-            if row.from.starts_with(under) {
+            if row.from.starts_with(under) && offered(&row.kind, rejections) {
                 return Ok(Some(row));
             }
         }
@@ -313,7 +331,17 @@ impl ActionLog {
     }
 }
 
-fn now() -> String {
+/// Whether undo may offer an entry of `kind`, with the `rejections` it
+/// allows.
+fn offered(kind: &str, rejections: Rejections) -> bool {
+    match kind {
+        KIND_REJECT => true,
+        KIND_TRASH => rejections == Rejections::All,
+        other => edit_kind_of(other).is_some(),
+    }
+}
+
+pub(crate) fn now() -> String {
     Local::now().format("%Y-%m-%dT%H:%M:%S%.3f%:z").to_string()
 }
 
@@ -352,6 +380,16 @@ const MIGRATIONS: &[&str] = &[
     // 5: photos pinned by series edits, by path: to a manual series, or as a
     // single photo when `series` is NULL.
     "CREATE TABLE IF NOT EXISTS series_pins (path TEXT PRIMARY KEY, series INTEGER NULL);",
+    // 6: for each photo a series edit touched, the pin it had before, so
+    // undo can put it back: none (`pinned` = 0), single (`series` NULL) or
+    // its manual series.
+    "CREATE TABLE IF NOT EXISTS action_pins (
+         action_id INTEGER NOT NULL REFERENCES actions(id),
+         path      TEXT NOT NULL,
+         pinned    INTEGER NOT NULL,
+         series    INTEGER NULL,
+         PRIMARY KEY (action_id, path)
+     );",
 ];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one

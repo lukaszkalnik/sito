@@ -47,6 +47,49 @@ pub enum Edit {
     },
 }
 
+/// Which of the edits an [`Edit`] is, without its photos: what the action
+/// log records and an undo reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EditKind {
+    /// [`Edit::Cut`].
+    Cut,
+    /// [`Edit::Remove`].
+    Remove,
+    /// [`Edit::Join`].
+    Join,
+    /// [`Edit::Ungroup`].
+    Ungroup,
+    /// [`Edit::Restore`].
+    Restore,
+}
+
+impl Edit {
+    /// Which edit this is.
+    #[must_use]
+    pub fn kind(&self) -> EditKind {
+        match self {
+            Self::Cut { .. } => EditKind::Cut,
+            Self::Remove { .. } => EditKind::Remove,
+            Self::Join { .. } => EditKind::Join,
+            Self::Ungroup { .. } => EditKind::Ungroup,
+            Self::Restore { .. } => EditKind::Restore,
+        }
+    }
+
+    /// The photo the edit is about: the one it is made on (for a join, the
+    /// photo that moves).
+    #[must_use]
+    pub fn photo(&self) -> &Path {
+        match self {
+            Self::Cut { at: photo }
+            | Self::Remove { photo }
+            | Self::Join { photo, .. }
+            | Self::Ungroup { series: photo }
+            | Self::Restore { photo } => photo,
+        }
+    }
+}
+
 /// Why an edit cannot be made on the current series.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum EditError {
@@ -612,5 +655,26 @@ mod tests {
         // Left: 6, 2, 0; 6 is a series of one, 2 and 0 a series.
         let lens: Vec<usize> = grouping.series.iter().map(|s| s.members.len()).collect();
         assert_eq!(lens, [1, 2]);
+    }
+
+    #[test]
+    fn an_edit_names_its_kind_and_photo() {
+        let cases = [
+            (Edit::Cut { at: path(1) }, EditKind::Cut),
+            (Edit::Remove { photo: path(1) }, EditKind::Remove),
+            (
+                Edit::Join {
+                    photo: path(1),
+                    into: path(2),
+                },
+                EditKind::Join,
+            ),
+            (Edit::Ungroup { series: path(1) }, EditKind::Ungroup),
+            (Edit::Restore { photo: path(1) }, EditKind::Restore),
+        ];
+        for (edit, kind) in cases {
+            assert_eq!(edit.kind(), kind);
+            assert_eq!(edit.photo(), path(1));
+        }
     }
 }

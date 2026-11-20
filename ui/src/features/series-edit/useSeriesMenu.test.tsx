@@ -58,7 +58,7 @@ describe('useSeriesMenu', () => {
     expect(result.current.menu).toBeNull();
   });
 
-  it('makes the chosen edit for the gap shown and confirms it', async () => {
+  it('makes the chosen edit for the gap shown and offers to undo it', async () => {
     const showToast = vi.fn();
     const { result } = renderMenu(showToast);
     act(() => result.current.open({ target: { kind: 'photo', id: 1 }, x: 0, y: 0 }));
@@ -68,7 +68,7 @@ describe('useSeriesMenu', () => {
 
     expect(editSeries).toHaveBeenCalledWith({ kind: 'remove', photo: 1 }, 12);
     expect(result.current.menu).toBeNull();
-    expect(showToast).toHaveBeenCalledWith({ text: 'Wyjęto IMG_1.jpg z serii', kind: 'info' });
+    expect(showToast).toHaveBeenCalledWith({ text: 'Wyjęto IMG_1.jpg z serii', kind: 'undoable' });
   });
 
   it('explains an edit refused because the series changed', async () => {

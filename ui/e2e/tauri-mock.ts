@@ -46,9 +46,11 @@ export interface TauriMock {
   /**
    * What each `edit_series` call leads to, in turn: the series and the
    * pinned single photos (display positions) `get_series` returns from then
-   * on. An edit beyond the list fails with `seriesChanged`. Default: none.
+   * on, and the ids `undo` reports as changed when it takes the edit back
+   * (default: the edit's photo). An edit beyond the list fails with
+   * `seriesChanged`. Undoing an edit brings back the series before it.
    */
-  seriesEdits?: { series: SeriesRanges; pinned?: number[] }[];
+  seriesEdits?: { series: SeriesRanges; pinned?: number[]; changed?: number[] }[];
   /**
    * Display order returned by `get_series` (indices of the timeline entries).
    * Default: the timeline order.
@@ -66,6 +68,12 @@ export interface TauriMock {
   accepted?: number[];
   /** Ids of photos already rejected (and undoable), oldest first. Default: none. */
   rejected?: number[];
+  /**
+   * Series edits made before (e.g. in the other window), undoable after the
+   * `rejected` ones, oldest first: undoing one reports `changed` and brings
+   * back `seriesBefore`. Default: none.
+   */
+  madeEdits?: { edit: string; photo: number; changed: number[]; seriesBefore: SeriesRanges }[];
   /** Ids among `rejected` that went into the trash. Default: none. */
   trashed?: number[];
   /** Whether undo can restore from the trash (not on macOS). Default: `supported`. */
@@ -130,25 +138,60 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
       `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T` +
       `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
-    // Ids of rejected photos, newest last; "Cofnij" undoes them newest first.
+    // Ids of rejected photos, newest last.
     const rejected: number[] = [...(m.rejected ?? [])];
     // Ids of photos rejected into the trash.
     const trashed = new Set<number>(m.trashed ?? []);
-    /** The newest rejection undo may offer, like the backend's `undoable_rejections`. */
-    const undoableIndex = () =>
-      m.trashRestore === 'unsupported'
-        ? rejected.findLastIndex((id) => !trashed.has(id))
-        : rejected.length - 1;
-    /** The backend's `UndoStateDto`. */
-    const undoState = () => {
-      if (undoableIndex() >= 0) return { kind: 'available' };
-      return { kind: rejected.length > 0 ? 'trashOnly' : 'none' };
-    };
-    // Ids of accepted photos.
-    const accepted = new Set<number>(m.accepted ?? []);
     // Display positions of the photos pinned on their own by the last edit.
     let pinned: number[] = [];
     let editsMade = 0;
+    type Undoable =
+      | { kind: 'reject'; id: number }
+      | {
+          kind: 'edit';
+          edit: string;
+          photo: number;
+          changed: number[];
+          before: { series: TauriMock['series']; pinned: number[] };
+        };
+    // What "Cofnij" undoes, newest last: rejections and edits in one history.
+    const history: Undoable[] = [
+      ...rejected.map((id): Undoable => ({ kind: 'reject', id })),
+      ...(m.madeEdits ?? []).map(({ seriesBefore, ...made }): Undoable => ({
+        kind: 'edit',
+        ...made,
+        before: { series: seriesBefore, pinned: [] },
+      })),
+    ];
+    /** The newest action undo may offer, like the backend's `last_undoable`. */
+    const undoableIndex = () =>
+      history.findLastIndex(
+        (action) =>
+          action.kind === 'edit' || m.trashRestore !== 'unsupported' || !trashed.has(action.id),
+      );
+    /** The backend's `UndoStateDto`. */
+    const undoState = () => {
+      if (undoableIndex() >= 0) return { kind: 'available' };
+      return { kind: history.length > 0 ? 'trashOnly' : 'none' };
+    };
+    /** Undoes `action`, like the backend's `undo`. */
+    const undoAction = (action: Undoable) => {
+      if (action.kind === 'reject') {
+        rejected.splice(rejected.indexOf(action.id), 1);
+        trashed.delete(action.id);
+        return { kind: 'rejection', id: action.id, name: nameOf(action.id), restoredName: null };
+      }
+      m.series = action.before.series;
+      pinned = action.before.pinned;
+      return {
+        kind: 'edit',
+        edit: action.edit,
+        name: nameOf(action.photo),
+        changed: action.changed,
+      };
+    };
+    // Ids of accepted photos.
+    const accepted = new Set<number>(m.accepted ?? []);
     // Event name → callback ids registered with `listen`.
     const listeners = new Map<string, number[]>();
     const emit = (event: string, payload: unknown = null) =>
@@ -325,10 +368,18 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             const outcome = m.seriesEdits?.[editsMade];
             if (!outcome) throw { code: 'seriesChanged' };
             editsMade++;
+            const edit = args.edit as { kind: string; photo: number };
+            history.push({
+              kind: 'edit',
+              edit: edit.kind,
+              photo: edit.photo,
+              changed: outcome.changed ?? [edit.photo],
+              before: { series: m.series, pinned },
+            });
             m.series = outcome.series;
             pinned = outcome.pinned ?? [];
             emit('timeline-changed');
-            return { name: nameOf((args.edit as { photo: number }).photo) };
+            return { name: nameOf(edit.photo) };
           }
           case 'get_viewer_photo':
             return viewerPhoto(args.request as { id: number; mode: string; gap: number });
@@ -345,17 +396,18 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
           case 'reject_photo': {
             const id = args.id as number;
             rejected.push(id);
+            history.push({ kind: 'reject', id });
             if (args.destination === 'trash') trashed.add(id);
             emit('timeline-changed');
             return { name: nameOf(id) };
           }
-          case 'undo_reject': {
+          case 'undo': {
             const index = undoableIndex();
             if (index < 0) return null;
-            const [id] = rejected.splice(index, 1);
-            trashed.delete(id);
+            const [action] = history.splice(index, 1);
+            const undone = undoAction(action);
             emit('timeline-changed');
-            return { id, name: nameOf(id), restoredName: null };
+            return undone;
           }
           case 'accept_photo':
           case 'unaccept_photo': {

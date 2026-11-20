@@ -8,7 +8,11 @@ import { showView } from './timeline-helpers';
  * Six photos 2 s apart (IMG_00006 is id 0, newest): ids 0–3 one series,
  * ids 4 and 5 single photos.
  */
-async function openGrid(page: Page, seriesEdits: TauriMock['seriesEdits']) {
+async function openGrid(
+  page: Page,
+  seriesEdits: TauriMock['seriesEdits'],
+  more: Partial<TauriMock> = {},
+) {
   await servePixels(page);
   await mockTauri(page, {
     pickedFolder: 'C:\\Zdjęcia',
@@ -17,6 +21,7 @@ async function openGrid(page: Page, seriesEdits: TauriMock['seriesEdits']) {
     timeline: { count: 6, newest: '2024-06-01T12:00:00', stepSeconds: 2 },
     series: [{ start: 0, len: 4 }],
     seriesEdits,
+    ...more,
   });
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
@@ -49,7 +54,7 @@ test('cuts a series into two edited ones at the chosen photo', async ({ page }) 
   await tile(page, 'IMG_00004.jpg').click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Podziel serię przed tym zdjęciem' }).click();
 
-  await expect(page.getByTestId('toast')).toHaveText('Podzielono serię');
+  await expect(page.getByTestId('toast')).toContainText('Podzielono serię');
   await expect(headers(page)).toHaveCount(2);
   await expect(pencils(page)).toHaveCount(2);
   await expect(menu(page)).toHaveCount(0);
@@ -66,7 +71,7 @@ test('takes a photo out of its series from the keyboard', async ({ page }) => {
   await expect(menu(page).getByRole('menuitem', { name: 'Wyjmij z serii' })).toBeFocused();
   await page.keyboard.press('Enter');
 
-  await expect(page.getByTestId('toast')).toHaveText('Wyjęto IMG_00005.jpg z serii');
+  await expect(page.getByTestId('toast')).toContainText('Wyjęto IMG_00005.jpg z serii');
   expect(await edits(page)).toEqual([{ edit: { kind: 'remove', photo: 1 }, maxGapSeconds: 10 }]);
   await expect(tile(page, 'IMG_00005.jpg').getByRole('button')).toBeFocused();
 });
@@ -77,7 +82,7 @@ test('lets a single photo join the series before it', async ({ page }) => {
   await tile(page, 'IMG_00002.jpg').click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Dołącz do poprzedniej serii' }).click();
 
-  await expect(page.getByTestId('toast')).toHaveText('Dołączono IMG_00002.jpg do serii');
+  await expect(page.getByTestId('toast')).toContainText('Dołączono IMG_00002.jpg do serii');
   await expect(headers(page)).toHaveText([/^5 zdjęć · 11:59:52–12:00:00/]);
   expect(await edits(page)).toEqual([
     { edit: { kind: 'join', photo: 4, into: 3 }, maxGapSeconds: 10 },
@@ -92,7 +97,7 @@ test('ungroups a series from its header and restores a photo of it', async ({ pa
 
   await headers(page).click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Rozdziel serię' }).click();
-  await expect(page.getByTestId('toast')).toHaveText('Rozdzielono serię');
+  await expect(page.getByTestId('toast')).toContainText('Rozdzielono serię');
   await expect(headers(page)).toHaveCount(0);
   const pinnedMarks = page.getByRole('img', {
     name: 'Wyjęte z serii ręcznie – nie łączy się w serię z odstępem',
@@ -102,7 +107,7 @@ test('ungroups a series from its header and restores a photo of it', async ({ pa
   await tile(page, 'IMG_00003.jpg').click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Przywróć automatyczne grupowanie' }).click();
 
-  await expect(page.getByTestId('toast')).toHaveText('Przywrócono automatyczne grupowanie');
+  await expect(page.getByTestId('toast')).toContainText('Przywrócono automatyczne grupowanie');
   await expect(pinnedMarks).toHaveCount(3);
   expect(await edits(page)).toEqual([
     { edit: { kind: 'ungroup', photo: 0 }, maxGapSeconds: 10 },
@@ -138,7 +143,92 @@ test('closes the menu with Escape without editing, and reports a refused edit', 
   await tile(page, 'IMG_00006.jpg').click({ button: 'right' });
   await menu(page).getByRole('menuitem', { name: 'Rozdziel serię' }).click();
 
-  await expect(page.getByTestId('toast')).toHaveText(
+  await expect(page.getByTestId('toast')).toContainText(
     'Nie można zmienić serii – zmieniła się w międzyczasie.',
+  );
+});
+
+const highlighted = /timeline-tile--highlighted/;
+
+test('undoes taking a photo out from the toast and highlights the photo', async ({ page }) => {
+  await openGrid(page, [{ series: [{ start: 0, len: 3, edited: true }], pinned: [3] }]);
+  await tile(page, 'IMG_00005.jpg').click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Wyjmij z serii' }).click();
+  await expect(headers(page)).toHaveText([/^3 zdjęcia/]);
+
+  await page.getByTestId('toast').getByRole('button', { name: 'Cofnij' }).click();
+
+  await expect(page.getByTestId('toast')).toHaveText('Cofnięto wyjęcie IMG_00005.jpg z serii');
+  await expect(headers(page)).toHaveText(['4 zdjęcia · 11:59:54–12:00:00']);
+  await expect(pencils(page)).toHaveCount(0);
+  await expect(tile(page, 'IMG_00005.jpg')).toHaveClass(highlighted);
+  await expect(tile(page, 'IMG_00006.jpg')).not.toHaveClass(highlighted);
+  const undos = (await invokedCommands(page)).filter((c) => c.cmd === 'undo');
+  expect(undos.map((c) => c.args)).toEqual([{ maxGapSeconds: 10 }]);
+});
+
+test('undoes edits and a rejection with Ctrl+Z, newest first', async ({ page }) => {
+  await openGrid(
+    page,
+    [
+      {
+        series: [
+          { start: 0, len: 2, edited: true },
+          { start: 2, len: 2, edited: true },
+        ],
+      },
+      { series: [{ start: 0, len: 2, edited: true }], pinned: [2, 3] },
+    ],
+    { rejected: [5] },
+  );
+  await tile(page, 'IMG_00004.jpg').click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Podziel serię przed tym zdjęciem' }).click();
+  await expect(headers(page)).toHaveCount(2);
+  await headers(page).nth(1).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Rozdziel serię' }).click();
+  await expect(headers(page)).toHaveCount(1);
+
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('toast')).toHaveText('Cofnięto rozdzielenie serii');
+  await expect(headers(page)).toHaveCount(2);
+
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('toast')).toHaveText('Cofnięto podział serii');
+  await expect(headers(page)).toHaveCount(1);
+  await expect(pencils(page)).toHaveCount(0);
+
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('toast')).toHaveText('Przywrócono IMG_00001.jpg');
+  await expect(page.getByRole('button', { name: 'Cofnij', exact: true })).toBeDisabled();
+});
+
+test('undoing a restore of the grouping highlights only the photos that changed', async ({
+  page,
+}) => {
+  await openGrid(page, [{ series: [{ start: 0, len: 4 }], changed: [3] }], {
+    series: [{ start: 0, len: 3, edited: true }],
+  });
+  await headers(page).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Przywróć automatyczne grupowanie' }).click();
+  await expect(pencils(page)).toHaveCount(0);
+
+  await page.keyboard.press('Control+z');
+
+  await expect(page.getByTestId('toast')).toHaveText(
+    'Cofnięto przywrócenie automatycznego grupowania',
+  );
+  await expect(pencils(page)).toHaveCount(1);
+  await expect(tile(page, 'IMG_00003.jpg')).toHaveClass(highlighted);
+  for (const name of ['IMG_00006.jpg', 'IMG_00005.jpg', 'IMG_00004.jpg']) {
+    await expect(tile(page, name)).not.toHaveClass(highlighted);
+  }
+});
+
+test('the tooltip of „Cofnij” speaks of the last change', async ({ page }) => {
+  await openGrid(page, []);
+
+  await expect(page.getByRole('button', { name: 'Cofnij', exact: true })).toHaveAttribute(
+    'title',
+    'Cofnij ostatnią zmianę (Ctrl+Z)',
   );
 });

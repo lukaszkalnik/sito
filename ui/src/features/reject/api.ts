@@ -10,15 +10,34 @@ export interface Rejected {
 
 /**
  * The rejected photo "Cofnij" moved back from the "Odrzucone" folder or the
- * trash. Mirrors `UndoneDto`.
+ * trash. Mirrors `RestoredDto`.
  */
-export interface Undone {
+export interface Restored {
+  readonly kind: 'rejection';
   /** Timeline id of the photo, or `null` if it could not be read back or is not on the timeline. */
-  id: number | null;
-  name: string;
+  readonly id: number | null;
+  readonly name: string;
   /** The name it came back under because its own was taken, `null` if it got its own back. */
-  restoredName: string | null;
+  readonly restoredName: string | null;
 }
+
+const UNDONE_EDITS = ['cut', 'remove', 'join', 'ungroup', 'restore'] as const;
+
+/** Which series edit was undone. Mirrors `EditKindDto`. */
+export type UndoneEditKind = (typeof UNDONE_EDITS)[number];
+
+/** A series edit "Cofnij" took back. Mirrors `EditUndoneDto`. */
+export interface UndoneEdit {
+  readonly kind: 'edit';
+  readonly edit: UndoneEditKind;
+  /** File name of the photo the edit was about. */
+  readonly name: string;
+  /** Ids of the photos that look different now, newest first. */
+  readonly changed: readonly number[];
+}
+
+/** What "Cofnij" took back. Mirrors `UndoneDto`. */
+export type Undone = Restored | UndoneEdit;
 
 const REJECT_ERROR_CODES = [
   'occupied',
@@ -28,6 +47,7 @@ const REJECT_ERROR_CODES = [
   'noTrash',
   'rejectedDirIsLink',
   'trashUndoUnsupported',
+  'editUndoFailed',
   'io',
   'internal',
 ] as const;
@@ -42,15 +62,38 @@ export async function rejectPhoto(id: number, destination: RejectDestination): P
   return invoke<Rejected>('reject_photo', { id, destination });
 }
 
-/** Undoes the newest rejection in the open folder: moves the photo back; `null` if there is none. */
-export async function undoReject(): Promise<Undone | null> {
-  return invoke<Undone | null>('undo_reject');
+/**
+ * Undoes the newest rejection or series edit in the open folder; `null` if
+ * there is none. `maxGapSeconds` is the gap the window shows its series
+ * with, which decides the photos an undone edit reports as changed.
+ */
+export async function undo(maxGapSeconds: number): Promise<Undone | null> {
+  return parseUndone(await invoke<unknown>('undo', { maxGapSeconds }));
+}
+
+/** Reads the answer of `undo`; throws on one that is not an `UndoneDto`. */
+export function parseUndone(value: unknown): Undone | null {
+  if (value === null) return null;
+  const undone = value as Record<string, unknown>;
+  if (typeof undone.name !== 'string') throw new Error('undo returned no name');
+  const name = undone.name;
+  if (undone.kind === 'rejection') {
+    const id = typeof undone.id === 'number' ? undone.id : null;
+    const restoredName = typeof undone.restoredName === 'string' ? undone.restoredName : null;
+    return { kind: 'rejection', id, name, restoredName };
+  }
+  const edit = UNDONE_EDITS.find((known) => known === undone.edit);
+  const changed = undone.changed;
+  if (undone.kind !== 'edit' || !edit || !Array.isArray(changed)) {
+    throw new Error('undo returned an unknown outcome');
+  }
+  return { kind: 'edit', edit, name, changed: changed.filter((id) => typeof id === 'number') };
 }
 
 const UNDO_STATES = ['available', 'none', 'trashOnly'] as const;
 
 /**
- * Whether "Cofnij" can undo a rejection in the open folder: `available`,
+ * Whether "Cofnij" can undo something in the open folder: `available`,
  * `none` left, or `trashOnly` (only rejections into a trash this system
  * cannot restore from are left). Mirrors the `kind` of `UndoStateDto`.
  */

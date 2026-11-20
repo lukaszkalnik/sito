@@ -61,7 +61,7 @@ function useAnchoredRows(
 
 /**
  * Scrolls to `reveal` as soon as the rows show it and returns it as the
- * photo to highlight for its {@link HIGHLIGHT_MS}. The rows may still be the
+ * photos to highlight for its {@link HIGHLIGHT_MS}. The rows may still be the
  * old ones when `reveal` is set (a restored photo arrives with the next
  * reload), so it waits a moment before giving up.
  */
@@ -75,6 +75,7 @@ function useRevealScroll(
   const [highlighted, setHighlighted] = useState<Reveal | null>(null);
   const id = reveal?.id ?? null;
   const reason = reveal?.reason ?? null;
+  const also = reveal?.also;
 
   useLayoutEffect(() => {
     const element = scrollRef.current;
@@ -85,9 +86,9 @@ function useRevealScroll(
       return () => clearTimeout(timer);
     }
     scrollTo(element, target, lastScrollTop);
-    setHighlighted({ id, reason });
+    setHighlighted({ id, reason, also });
     onRevealed?.();
-  }, [rows, id, reason, onRevealed, scrollRef, lastScrollTop]);
+  }, [rows, id, reason, also, onRevealed, scrollRef, lastScrollTop]);
 
   useEffect(() => {
     if (highlighted === null) return;

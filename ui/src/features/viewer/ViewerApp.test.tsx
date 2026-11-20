@@ -1,9 +1,9 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../i18n';
-import { onTimelineChanged, rejectPhoto, undoState } from '../reject/api';
+import { onTimelineChanged, rejectPhoto, undo, undoState } from '../reject/api';
 import { refreshFolder } from '../scan/api';
 import type { TimelineEntry } from '../timeline/api';
 import { getTimeline } from '../timeline/api';
@@ -26,8 +26,12 @@ vi.mock('../timeline/api', async (importActual) => ({
 vi.mock('../reject/api', async (importActual) => ({
   ...(await importActual<typeof import('../reject/api')>()),
   undoState: vi.fn(),
+  undo: vi.fn(),
   onTimelineChanged: vi.fn(),
   rejectPhoto: vi.fn(),
+}));
+vi.mock('../timeline/thumbnails', () => ({
+  thumbnailUrl: (scanId: number, id: number) => `thumb://localhost/${id}?scan=${scanId}`,
 }));
 vi.mock('../scan/api', () => ({ refreshFolder: vi.fn(() => Promise.resolve()) }));
 vi.mock('../accept/api', () => ({
@@ -121,6 +125,41 @@ describe('ViewerApp', () => {
     act(() => handlers.forEach((handler) => handler()));
 
     expect(await screen.findByText('IMG_4.jpg', { selector: '.viewer-name' })).toBeInTheDocument();
+  });
+
+  it('keeps its photo after an undone edit and pulses the changed photos of its strip', async () => {
+    vi.mocked(undoState).mockResolvedValue('available');
+    vi.mocked(undo).mockResolvedValue({
+      kind: 'edit',
+      edit: 'remove',
+      name: 'IMG_5.jpg',
+      changed: [5],
+    });
+    vi.mocked(getViewerPhoto).mockImplementation((request) => {
+      const answer = page(request.id, null);
+      if (answer.kind !== 'photo') return Promise.resolve(answer);
+      return Promise.resolve({
+        kind: 'photo',
+        photo: { ...answer.photo, series: [entry(3), entry(5)] },
+      });
+    });
+    render(<ViewerApp />);
+    await screen.findByText('IMG_3.jpg', { selector: '.viewer-name' });
+    const strip = screen.getByRole('navigation', { name: 'Zdjęcia w serii' });
+    await vi.waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Cofnij' })).not.toBeDisabled(),
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cofnij' }));
+
+    expect(undo).toHaveBeenCalledWith(10);
+    expect(await screen.findByText('Cofnięto wyjęcie IMG_5.jpg z serii')).toBeInTheDocument();
+    expect(screen.getByText('IMG_3.jpg', { selector: '.viewer-name' })).toBeInTheDocument();
+    const items = within(strip).getAllByRole('button');
+    expect(items.map((item) => item.classList.contains('viewer-strip-item--pulsed'))).toEqual([
+      false,
+      true,
+    ]);
   });
 
   it('refreshes the folder with F5', async () => {

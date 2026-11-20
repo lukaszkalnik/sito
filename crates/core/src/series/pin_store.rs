@@ -1,11 +1,10 @@
 //! Pins of edited series in the action log's database, by path, so edits
-//! survive restarts and rescans. Edits are not logged as actions: the user
-//! takes one back with „Przywróć automatyczne grupowanie”, and undo is only for
-//! rejections.
+//! survive restarts and rescans. The edits themselves are logged as actions
+//! (see `edit_log`), so „Cofnij” can undo them.
 
 use std::path::{Path, PathBuf};
 
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use super::pins::{ManualSeriesId, Pin, PinChanges, Pins};
 use crate::actions::{ActionLog, LogError, path_text};
@@ -34,15 +33,21 @@ impl ActionLog {
         Ok(inside.into_iter().collect())
     }
 
-    /// An id no manual series has yet, in any folder.
+    /// An id no manual series has yet, in any folder, nor had before an
+    /// edit that undo may still take back, so undoing an edit never puts
+    /// back an id a later edit gave to another series.
     ///
     /// # Errors
     ///
     /// Returns an error if the database cannot be read.
     pub fn next_series_id(&self) -> Result<ManualSeriesId, LogError> {
-        let highest: Option<i64> =
-            self.conn
-                .query_row("SELECT MAX(series) FROM series_pins", [], |row| row.get(0))?;
+        let highest: Option<i64> = self.conn.query_row(
+            "SELECT MAX(series) FROM (
+                 SELECT series FROM series_pins UNION ALL SELECT series FROM action_pins
+             )",
+            [],
+            |row| row.get(0),
+        )?;
         Ok(ManualSeriesId(highest.map_or(1, |id| id.saturating_add(1))))
     }
 
@@ -55,25 +60,15 @@ impl ActionLog {
     /// cannot be written; then no pin changes.
     pub fn apply_pin_changes(&self, changes: &PinChanges) -> Result<(), LogError> {
         let transaction = self.conn.unchecked_transaction()?;
-        for path in &changes.clear {
-            transaction.execute(
-                "DELETE FROM series_pins WHERE path = ?1",
-                params![path_text(path)?],
-            )?;
-        }
-        for (path, pin) in &changes.set {
-            transaction.execute(
-                "INSERT OR REPLACE INTO series_pins (path, series) VALUES (?1, ?2)",
-                params![path_text(path)?, series_of(*pin)],
-            )?;
-        }
+        write_pin_changes(&transaction, changes)?;
         transaction.commit()?;
         Ok(())
     }
 
     /// Moves the pins of photos moved outside Sito to their new paths, all
-    /// in one transaction. Photos without a pin are left as they are; a pin
-    /// already at a new path stays.
+    /// in one transaction, together with the pins those photos had before
+    /// the edits undo may still take back. Photos without a pin are left as
+    /// they are; a pin already at a new path stays.
     ///
     /// # Errors
     ///
@@ -95,19 +90,55 @@ impl ActionLog {
                     params![path_text(&moved.to)?, series],
                 )?;
             }
+            transaction.execute(
+                "UPDATE OR IGNORE action_pins SET path = ?2
+                 WHERE path = ?1
+                   AND action_id IN (SELECT id FROM actions WHERE undone_at IS NULL)",
+                params![path_text(&moved.from)?, path_text(&moved.to)?],
+            )?;
         }
         transaction.commit()?;
         Ok(())
     }
 }
 
+/// Applies `changes` to the stored pins on `conn` (a transaction): first
+/// the pins to clear, then those to set.
+pub(super) fn write_pin_changes(conn: &Connection, changes: &PinChanges) -> Result<(), LogError> {
+    for path in &changes.clear {
+        conn.execute(
+            "DELETE FROM series_pins WHERE path = ?1",
+            params![path_text(path)?],
+        )?;
+    }
+    for (path, pin) in &changes.set {
+        conn.execute(
+            "INSERT OR REPLACE INTO series_pins (path, series) VALUES (?1, ?2)",
+            params![path_text(path)?, series_of(*pin)],
+        )?;
+    }
+    Ok(())
+}
+
+/// The stored pin of the photo at `path` on `conn`, if it has one.
+pub(super) fn stored_pin(conn: &Connection, path: &Path) -> Result<Option<Pin>, LogError> {
+    let series: Option<Option<i64>> = conn
+        .query_row(
+            "SELECT series FROM series_pins WHERE path = ?1",
+            params![path_text(path)?],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(series.map(pin_of))
+}
+
 /// The pin stored as `series` (NULL for a single photo).
-fn pin_of(series: Option<i64>) -> Pin {
+pub(super) fn pin_of(series: Option<i64>) -> Pin {
     series.map_or(Pin::Single, |id| Pin::Series(ManualSeriesId(id)))
 }
 
 /// How `pin` is stored.
-fn series_of(pin: Pin) -> Option<i64> {
+pub(super) fn series_of(pin: Pin) -> Option<i64> {
     match pin {
         Pin::Series(ManualSeriesId(id)) => Some(id),
         Pin::Single => None,

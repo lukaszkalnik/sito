@@ -20,7 +20,7 @@ import { FolderInfo } from './FolderInfo';
 import { GapInput } from './GapInput';
 import type { TimelineMode } from './layout';
 import type { MenuRequest } from './menuRequest';
-import type { Reveal } from './reveal';
+import { revealOfUndone, type Reveal } from './reveal';
 import { TimelineGrid } from './TimelineGrid';
 import { useFolderPosition, useGap, useMode } from './useFolderView';
 import { useFollowViewer } from './useFollowViewer';
@@ -44,24 +44,24 @@ interface TimelineViewProps {
 }
 
 /**
- * The photo the viewer of scan `scanId` shows, and a photo to scroll into view
- * and highlight: the one last restored by "Cofnij", else the one the viewer
- * showed when it closed.
+ * The photo the viewer of scan `scanId` shows, and photos to scroll into view
+ * and highlight: what "Cofnij" brought back or changed last, else the photo
+ * the viewer showed when it closed.
  */
 function useReveal(scanId: number) {
-  const [restored, setRestored] = useState<number | null>(null);
+  const [undone, setUndone] = useState<Reveal | null>(null);
   const { followed, lastShown, revealed: lastShownRevealed } = useFollowViewer(scanId);
-  const showRestored = useCallback((undone: Undone) => setRestored(undone.id), []);
+  const showUndone = useCallback((what: Undone) => setUndone(revealOfUndone(what)), []);
   const revealed = useCallback(() => {
-    setRestored(null);
+    setUndone(null);
     lastShownRevealed();
   }, [lastShownRevealed]);
-  return { reveal: revealOf(restored, lastShown), followed, showRestored, revealed };
+  return { reveal: revealOf(undone, lastShown), followed, showUndone, revealed };
 }
 
-/** The photo to reveal: a restored one first, else the one the closed viewer showed. */
-function revealOf(restored: number | null, lastShown: number | null): Reveal | null {
-  if (restored !== null) return { id: restored, reason: 'restored' };
+/** What to reveal: what "Cofnij" brought back first, else the photo the closed viewer showed. */
+function revealOf(undone: Reveal | null, lastShown: number | null): Reveal | null {
+  if (undone !== null) return undone;
   if (lastShown !== null) return { id: lastShown, reason: 'viewerClosed' };
   return null;
 }
@@ -199,8 +199,8 @@ export function TimelineView(props: TimelineViewProps) {
   const timeline = useTimelineEntries(summary.scanId, gap);
   const [mode, setMode] = useMode(path);
   const savedPosition = useFolderPosition(path);
-  const { reveal, followed, showRestored, revealed } = useReveal(summary.scanId);
-  const { undoState, undo, toast, showToast } = useUndo(showRestored);
+  const { reveal, followed, showUndone, revealed } = useReveal(summary.scanId);
+  const { undoState, undo, toast, showToast } = useUndo(gap, showUndone);
   const seriesMenu = useSeriesMenu(timeline.status === 'ready' ? timeline : null, gap, showToast);
   const acceptedIds = useAcceptedIds(summary.scanId);
   const revision = useTimelineRevision();

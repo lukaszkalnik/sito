@@ -131,6 +131,17 @@ describe('useGridScroll following the viewer', () => {
     act(() => vi.advanceTimersByTime(3000));
     expect(result.current.highlighted).toBeNull();
   });
+
+  it('scrolls to the newest photo an undone edit changed and highlights all of them', () => {
+    const element = scrollElement();
+    const reveal: Reveal = { id: 25, reason: 'restored', also: [25, 26, 31] };
+    const { result } = renderGridScroll(element, { follow: null, reveal });
+
+    expect(element.scrollTop).toBe(centred(25));
+    expect(result.current.highlighted).toEqual(reveal);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.highlighted).toBeNull();
+  });
 });
 
 describe('useGridScroll keeping the position of the folder', () => {

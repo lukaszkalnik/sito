@@ -34,6 +34,8 @@ pub enum CommandError {
     /// A series edit no longer fits the series (they changed meanwhile,
     /// e.g. in another window).
     SeriesChanged,
+    /// Undoing a series edit failed: the action log could not be used.
+    EditUndoFailed,
     /// Unexpected failure inside the app.
     Internal,
 }

@@ -17,6 +17,8 @@ interface PhotoViewerProps extends ViewerBarProps {
   onShow: (id: number) => void;
   /** Checks the open folder for changes, e.g. after the photo's file vanished. */
   onRefresh: () => void;
+  /** Photos of the strip to point out, e.g. those an undone edit changed. */
+  pulsedIds?: ReadonlySet<number>;
 }
 
 /** Arrow keys step, Escape closes, Delete rejects, A accepts (keys in `shortcuts/keymap.ts`). */
@@ -118,6 +120,7 @@ export function PhotoViewer(props: PhotoViewerProps) {
             currentId={entry.id}
             scanId={scanId}
             acceptedIds={props.acceptedIds}
+            pulsedIds={props.pulsedIds}
             onShow={onShow}
           />
         )}

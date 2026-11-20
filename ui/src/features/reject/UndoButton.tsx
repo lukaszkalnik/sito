@@ -5,7 +5,7 @@ import type { UndoState } from './api';
 import { UndoIcon } from './UndoIcon';
 
 /**
- * „Cofnij” (an icon button): undoes the newest rejection, disabled while there is none. With
+ * „Cofnij” (an icon button): undoes the newest rejection or series edit, disabled while there is none. With
  * only unrestorable trash moves left it looks disabled but stays clickable,
  * so a click can explain why.
  */

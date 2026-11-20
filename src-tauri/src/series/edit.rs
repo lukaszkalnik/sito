@@ -1,12 +1,14 @@
-//! Editing series by hand: the `edit_series` command, and keeping the open
-//! folder's pins in step with the action log.
+//! Editing series by hand: the `edit_series` command, undoing an edit, and
+//! keeping the open folder's pins in step with the action log.
 
+use std::collections::HashMap;
+use std::path::Path;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use sito_core::actions::ActionLog;
 use sito_core::moved::MovedPhoto;
-use sito_core::series::{Edit, EditError, plan_edit};
+use sito_core::series::{Edit, EditAction, EditError, EditKind, plan_edit, visibly_changed};
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -70,8 +72,8 @@ pub struct EditedDto {
 }
 
 /// Applies `edit` to the series of the current scan as shown for
-/// `max_gap_seconds`, stores it in the action log and tells the windows
-/// that the timeline changed.
+/// `max_gap_seconds`, stores it in the action log (so „Cofnij” can undo it)
+/// and tells the windows that the timeline changed.
 ///
 /// # Errors
 ///
@@ -98,7 +100,7 @@ pub async fn edit_series(
 }
 
 /// [`edit_series`] on the given scan and log.
-fn edit_in(
+pub(crate) fn edit_in(
     scan: &mut Scan,
     log: &ActionLog,
     edit: EditDto,
@@ -130,10 +132,86 @@ fn edit_in(
     let next = log.next_series_id().map_err(|err| log_failed(&err))?;
     let changes =
         plan_edit(&all, max_gap, scan.pins(), &edit, next).map_err(|err| refused(&err))?;
-    log.apply_pin_changes(&changes)
+    log.record_edit(edit.kind(), edit.photo(), &changes)
         .map_err(|err| log_failed(&err))?;
     scan.apply_pins(&changes);
     Ok(EditedDto { name })
+}
+
+/// Which edit was undone. Mirrors [`EditKind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EditKindDto {
+    /// „Podziel serię przed tym zdjęciem”.
+    Cut,
+    /// „Wyjmij z serii”.
+    Remove,
+    /// „Dołącz do poprzedniej/następnej serii”.
+    Join,
+    /// „Rozdziel serię”.
+    Ungroup,
+    /// „Przywróć automatyczne grupowanie”.
+    Restore,
+}
+
+impl From<EditKind> for EditKindDto {
+    fn from(kind: EditKind) -> Self {
+        match kind {
+            EditKind::Cut => Self::Cut,
+            EditKind::Remove => Self::Remove,
+            EditKind::Join => Self::Join,
+            EditKind::Ungroup => Self::Ungroup,
+            EditKind::Restore => Self::Restore,
+        }
+    }
+}
+
+/// A series edit „Cofnij” took back.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditUndoneDto {
+    /// Which edit it was.
+    pub(crate) edit: EditKindDto,
+    /// File name of the photo the edit was about.
+    pub(crate) name: String,
+    /// Ids of the photos that look different now (see
+    /// [`visibly_changed`]), newest first.
+    pub(crate) changed: Vec<usize>,
+}
+
+/// Undoes the series edit `action` in the log and in `scan`, and works out
+/// which photos look different now, with the series for `max_gap`.
+///
+/// # Errors
+///
+/// [`CommandError::EditUndoFailed`] if the action log cannot be used; then
+/// nothing changes.
+pub(crate) fn undo_edit(
+    scan: &mut Scan,
+    log: &ActionLog,
+    action: &EditAction,
+    max_gap: Duration,
+) -> Result<EditUndoneDto, CommandError> {
+    let before = scan.pins().clone();
+    let changes = log.undo_edit(action.id).map_err(|err| {
+        log::warn!("cannot undo a series edit: {err}");
+        CommandError::EditUndoFailed
+    })?;
+    scan.apply_pins(&changes);
+    let (all, removed) = scan.photos_with_removed();
+    let ids: HashMap<&Path, usize> = scan
+        .photos()
+        .map(|(id, photo)| (photo.path.as_path(), id))
+        .collect();
+    let changed_ids = visibly_changed(&all, &removed, max_gap, &before, scan.pins())
+        .into_iter()
+        .filter_map(|position| ids.get(all.get(position)?.path.as_path()).copied())
+        .collect();
+    Ok(EditUndoneDto {
+        edit: action.kind.into(),
+        name: file_name(&action.photo),
+        changed: changed_ids,
+    })
 }
 
 fn refused(err: &EditError) -> CommandError {

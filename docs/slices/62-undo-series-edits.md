@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 62 – Undo series edits
 
-Drafted on 2026-11-20 in the second review of [slice 59](59-edit-series-in-viewer.md), to be done before it. Planned on 2026-11-20; waiting for the user's approval.
+Drafted on 2026-11-20 in the second review of [slice 59](59-edit-series-in-viewer.md), to be done before it. Planned and approved on 2026-11-20, implemented the same day; waiting for the user's test. What it established is in [Grouping](../domain/grouping.md#series-edited-by-hand), [Rejecting](../domain/rejecting.md) and [Timeline](../domain/timeline.md#editing-series).
 
 ## Idea
 
@@ -94,6 +94,14 @@ Take a photo out of a series by mistake, press Ctrl+Z: the photo is back in its 
 
 1. `feat: log series edits with the pins they replace` (core: migration 6, `record_edit`, `undo_edit`, `last_undoable`, `move_pins`, `next_series_id`, tests).
 2. `feat: undo series edits with Cofnij` (Tauri `undo.rs`, changed photos, UI, translations, mocked e2e, domain docs, slice and roadmap to 🧪).
+
+## Implementation notes (2026-11-20)
+
+- Done as one commit instead of the two planned: changing `last_undoable` to return `Undoable` breaks the Tauri crate, so the core part alone would not build with green checks.
+- The undo command's gap is optional (`None` = default gap), like `get_series`.
+- A failed undo of an edit has its own error code (`editUndoFailed`), so the UI can tell it from a failed rejection undo.
+- Tested: Rust unit tests on the log (`series/edit_log.rs`), the changed photos (`series/changed.rs`), and real files (`src-tauri/src/undo/tests.rs`: every edit, sequences, mixed with rejections, gap change, restart, renamed photo); Vitest; Playwright (`series-edit.spec.ts`, `viewer.spec.ts`).
+- **Not tested in the real app:** this session ran in a Linux cloud container without the user's machine, so the computer-use pass (edit and undo in both windows, restart, the action log, taking back test edits) is left to the user's test.
 
 ## Related slices
 

@@ -38,7 +38,7 @@ function openMenuOfFocused() {
 /**
  * The edit menu of the grid showing `arranged` for gap `gap` (seconds):
  * `open` shows the edits for a menu request (nothing when there are none),
- * `choose` makes one and reports it in a toast. Focus goes back to where it
+ * `choose` makes one and reports it in a toast with „Cofnij”. Focus goes back to where it
  * was when the menu closes from the keyboard. Shift+F10 opens the menu of
  * the focused photo.
  */
@@ -73,7 +73,7 @@ export function useSeriesMenu(
       close(true);
       try {
         const { name } = await editSeries(option.edit, gap);
-        showToast({ text: t(DONE_KEYS[option.action], { name }), kind: 'info' });
+        showToast({ text: t(DONE_KEYS[option.action], { name }), kind: 'undoable' });
       } catch (error) {
         console.error('Cannot edit the series', error);
         showToast({ text: t(ERROR_KEYS[editErrorCode(error)]), kind: 'error' });

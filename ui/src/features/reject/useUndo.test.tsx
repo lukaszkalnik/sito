@@ -1,16 +1,18 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { undoReject, undoState } from './api';
+import { undo, undoState } from './api';
 import '../../i18n';
 import { useUndo } from './useUndo';
 
 vi.mock('./api', async (importActual) => ({
   ...(await importActual<typeof import('./api')>()),
   undoState: vi.fn(),
-  undoReject: vi.fn(),
+  undo: vi.fn(),
   onTimelineChanged: vi.fn(() => Promise.resolve(() => {})),
 }));
+
+const GAP = 12;
 
 describe('useUndo', () => {
   beforeEach(() => {
@@ -19,9 +21,14 @@ describe('useUndo', () => {
   });
 
   it('restores with Ctrl+Z and reports the photo', async () => {
-    vi.mocked(undoReject).mockResolvedValue({ id: 4, name: 'IMG_4.jpg', restoredName: null });
+    vi.mocked(undo).mockResolvedValue({
+      kind: 'rejection',
+      id: 4,
+      name: 'IMG_4.jpg',
+      restoredName: null,
+    } as const);
     const onUndone = vi.fn();
-    const { result } = renderHook(() => useUndo(onUndone));
+    const { result } = renderHook(() => useUndo(GAP, onUndone));
     await waitFor(() => expect(result.current.undoState).toBe('available'));
 
     act(() => {
@@ -29,18 +36,24 @@ describe('useUndo', () => {
     });
 
     await waitFor(() =>
-      expect(onUndone).toHaveBeenCalledWith({ id: 4, name: 'IMG_4.jpg', restoredName: null }),
+      expect(onUndone).toHaveBeenCalledWith({
+        kind: 'rejection',
+        id: 4,
+        name: 'IMG_4.jpg',
+        restoredName: null,
+      } as const),
     );
     expect(result.current.toast).toEqual({ text: 'Przywrócono IMG_4.jpg', kind: 'info' });
   });
 
   it('names the new name of a photo whose own name was taken', async () => {
-    vi.mocked(undoReject).mockResolvedValue({
+    vi.mocked(undo).mockResolvedValue({
+      kind: 'rejection',
       id: 4,
       name: 'IMG_4.jpg',
       restoredName: 'IMG_4 (2).jpg',
     });
-    const { result } = renderHook(() => useUndo());
+    const { result } = renderHook(() => useUndo(GAP));
 
     await act(() => result.current.undo());
 
@@ -58,21 +71,41 @@ describe('useUndo', () => {
       'trashUndoUnsupported',
       'Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie.',
     ],
+    ['editUndoFailed', 'Nie udało się cofnąć zmiany serii.'],
     ['internal', 'Nie udało się cofnąć odrzucenia.'],
     ['somethingNew', 'Nie udało się cofnąć odrzucenia.'],
   ])('explains a failed undo (%s)', async (code, text) => {
-    vi.mocked(undoReject).mockRejectedValue({ code });
-    const { result } = renderHook(() => useUndo());
+    vi.mocked(undo).mockRejectedValue({ code });
+    const { result } = renderHook(() => useUndo(GAP));
 
     await act(() => result.current.undo());
 
     expect(result.current.toast).toEqual({ text, kind: 'error' });
   });
 
-  it('does nothing when there is nothing to undo', async () => {
-    vi.mocked(undoReject).mockResolvedValue(null);
+  it.each([
+    ['cut', 'Cofnięto podział serii'],
+    ['remove', 'Cofnięto wyjęcie IMG_4.jpg z serii'],
+    ['join', 'Cofnięto dołączenie IMG_4.jpg do serii'],
+    ['ungroup', 'Cofnięto rozdzielenie serii'],
+    ['restore', 'Cofnięto przywrócenie automatycznego grupowania'],
+  ] as const)('reports an undone %s edit with the gap shown', async (edit, text) => {
+    const undone = { kind: 'edit', edit, name: 'IMG_4.jpg', changed: [4, 2] } as const;
+    vi.mocked(undo).mockResolvedValue(undone);
     const onUndone = vi.fn();
-    const { result } = renderHook(() => useUndo(onUndone));
+    const { result } = renderHook(() => useUndo(GAP, onUndone));
+
+    await act(() => result.current.undo());
+
+    expect(undo).toHaveBeenCalledWith(GAP);
+    expect(onUndone).toHaveBeenCalledWith(undone);
+    expect(result.current.toast).toEqual({ text, kind: 'info' });
+  });
+
+  it('does nothing when there is nothing to undo', async () => {
+    vi.mocked(undo).mockResolvedValue(null);
+    const onUndone = vi.fn();
+    const { result } = renderHook(() => useUndo(GAP, onUndone));
 
     await act(() => result.current.undo());
 
@@ -83,7 +116,7 @@ describe('useUndo', () => {
   it('only explains when just rejections into an unrestorable trash are left', async () => {
     vi.mocked(undoState).mockResolvedValue('trashOnly');
     const onUndone = vi.fn();
-    const { result } = renderHook(() => useUndo(onUndone));
+    const { result } = renderHook(() => useUndo(GAP, onUndone));
     await waitFor(() => expect(result.current.undoState).toBe('trashOnly'));
 
     act(() => {
@@ -96,13 +129,13 @@ describe('useUndo', () => {
         kind: 'error',
       }),
     );
-    expect(undoReject).not.toHaveBeenCalled();
+    expect(undo).not.toHaveBeenCalled();
     expect(onUndone).not.toHaveBeenCalled();
   });
 
   it('starts with nothing to undo when the state cannot be read', async () => {
     vi.mocked(undoState).mockRejectedValue(new Error('no backend'));
-    const { result } = renderHook(() => useUndo());
+    const { result } = renderHook(() => useUndo(GAP));
 
     await waitFor(() => expect(undoState).toHaveBeenCalled());
 

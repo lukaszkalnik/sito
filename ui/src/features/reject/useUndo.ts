@@ -6,10 +6,11 @@ import { useShortcuts } from '../../shortcuts/useShortcuts';
 import {
   onTimelineChanged,
   rejectErrorCode,
-  undoReject,
+  undo as undoNewest,
   undoState,
   type RejectErrorCode,
   type Undone,
+  type UndoneEditKind,
   type UndoState,
 } from './api';
 
@@ -25,7 +26,7 @@ export interface ToastMessage {
   kind: 'info' | 'undoable' | 'error';
 }
 
-/** What "Cofnij" can undo, refreshed whenever any window rejects or restores a photo. */
+/** What "Cofnij" can undo, refreshed whenever any window changes the timeline. */
 function useUndoState(): UndoState {
   const [state, setState] = useState<UndoState>('none');
   useEffect(() => {
@@ -63,14 +64,29 @@ const UNDO_ERROR_KEYS: Readonly<Record<RejectErrorCode, string>> = {
   missing: 'undo.missing',
   missingFromTrash: 'undo.missingFromTrash',
   trashUndoUnsupported: 'undo.trashUndoUnsupported',
+  editUndoFailed: 'undo.editFailed',
   noTrash: 'undo.failed',
   rejectedDirIsLink: 'undo.failed',
   io: 'undo.failed',
   internal: 'undo.failed',
 };
 
-/** The toast for a photo „Cofnij” brought back, naming its new name if its own was taken. */
-function undoneText({ name, restoredName }: Undone, t: TFunction): string {
+/** Translation keys of the toast after undoing each series edit. */
+const UNDONE_EDIT_KEYS: Readonly<Record<UndoneEditKind, string>> = {
+  cut: 'undo.edit.cut',
+  remove: 'undo.edit.remove',
+  join: 'undo.edit.join',
+  ungroup: 'undo.edit.ungroup',
+  restore: 'undo.edit.restore',
+};
+
+/**
+ * The toast for what „Cofnij” took back: the photo that came back (naming
+ * its new name if its own was taken) or the edit undone.
+ */
+function undoneText(undone: Undone, t: TFunction): string {
+  if (undone.kind === 'edit') return t(UNDONE_EDIT_KEYS[undone.edit], { name: undone.name });
+  const { name, restoredName } = undone;
   return restoredName === null
     ? t('undo.done', { name })
     : t('undo.doneRenamed', { name, restoredName });
@@ -82,12 +98,13 @@ function undoErrorKey(error: unknown): string {
 }
 
 /**
- * "Cofnij" in one window: what there is to undo, Ctrl+Z, and the toast
- * reporting the outcome. `onUndone` is told which photo came back. While only
- * rejections into a trash that cannot be restored from are left, undoing
- * only explains that in the toast.
+ * "Cofnij" in one window showing its series for gap `gap` (seconds): what
+ * there is to undo (rejections and series edits, newest first), Ctrl+Z, and
+ * the toast reporting the outcome. `onUndone` is told what came back. While
+ * only rejections into a trash that cannot be restored from are left,
+ * undoing only explains that in the toast.
  */
-export function useUndo(onUndone?: (undone: Undone) => void) {
+export function useUndo(gap: number, onUndone?: (undone: Undone) => void) {
   const { t } = useTranslation();
   const state = useUndoState();
   const [toast, setToast] = useToast();
@@ -101,7 +118,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     }
     busy.current = true;
     try {
-      const undone = await undoReject();
+      const undone = await undoNewest(gap);
       if (undone) {
         setToast({ text: undoneText(undone, t), kind: 'info' });
         onUndone?.(undone);
@@ -111,7 +128,7 @@ export function useUndo(onUndone?: (undone: Undone) => void) {
     } finally {
       busy.current = false;
     }
-  }, [onUndone, t, setToast, state]);
+  }, [gap, onUndone, t, setToast, state]);
   // Ctrl+Z (Cmd+Z on macOS).
   useShortcuts({ undo: () => void undo() });
 

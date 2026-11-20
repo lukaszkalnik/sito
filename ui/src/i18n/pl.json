@@ -120,14 +120,22 @@
   },
   "undo": {
     "button": "Cofnij",
-    "hint": "Przywróć ostatnio odrzucone zdjęcie (Ctrl+Z)",
+    "hint": "Cofnij ostatnią zmianę (Ctrl+Z)",
     "done": "Przywrócono {{name}}",
     "doneRenamed": "Przywrócono {{name}} jako {{restoredName}} – nazwa była zajęta.",
     "occupied": "Nie można cofnąć: w tym miejscu jest już plik o tej nazwie.",
     "missing": "Nie można cofnąć: plik nie istnieje już w folderze Odrzucone.",
     "failed": "Nie udało się cofnąć odrzucenia.",
     "missingFromTrash": "Nie można cofnąć: plik nie jest już w Koszu.",
-    "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie."
+    "trashUndoUnsupported": "Na tym systemie nie można cofnąć przeniesienia do kosza – przywróć zdjęcie z Kosza ręcznie.",
+    "edit": {
+      "cut": "Cofnięto podział serii",
+      "remove": "Cofnięto wyjęcie {{name}} z serii",
+      "join": "Cofnięto dołączenie {{name}} do serii",
+      "ungroup": "Cofnięto rozdzielenie serii",
+      "restore": "Cofnięto przywrócenie automatycznego grupowania"
+    },
+    "editFailed": "Nie udało się cofnąć zmiany serii."
   },
   "destination": {
     "label": "Odrzucone zdjęcia do:",

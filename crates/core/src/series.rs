@@ -1,7 +1,9 @@
 //! Series: photos of one camera shot within seconds of each other.
 
 mod arrangement;
+mod changed;
 mod edit;
+mod edit_log;
 mod label;
 mod needless;
 mod pin_store;
@@ -12,7 +14,10 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 pub use arrangement::{Arrangement, SeriesRange};
-pub use edit::{Edit, EditError, plan_edit};
+pub use changed::visibly_changed;
+pub use edit::{Edit, EditError, EditKind, plan_edit};
+pub use edit_log::EditAction;
+pub(crate) use edit_log::edit_kind_of;
 pub use label::SeriesLabel;
 pub use pins::{ManualSeriesId, Pin, PinChanges, Pins};
 
