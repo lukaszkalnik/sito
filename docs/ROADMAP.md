@@ -63,6 +63,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 61 | [Gap as a number input](slices/61-gap-number-input.md) | 🧪 |
 | 62 | [Undo series edits](slices/62-undo-series-edits.md) | 🧪 |
 | 59 | [Edit series in the viewer](slices/59-edit-series-in-viewer.md) | 🧪 |
+| 22 | [English and German UI](slices/22-english-german-ui.md) | ⬜ |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
 | 17 | [Sharpness suggestion](slices/17-sharpness.md) | ⬜ |
@@ -74,7 +75,6 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 46 | [Mark accidental photos](slices/46-accidental-photos.md) | 📝 |
 | 20 | [Series without EXIF date](slices/20-series-without-exif-date.md) | ⬜ |
 | 21 | [Faces and eyes](slices/21-faces-and-eyes.md) | ⬜ |
-| 22 | [English and German UI](slices/22-english-german-ui.md) | ⬜ |
 | 23 | [macOS polish](slices/23-macos-polish.md) | ⬜ |
 | 24 | [Google Photos (to be decided)](ideas/google-photos.md) | ⬜ |
 | 31 | [Load the grid lazily](slices/31-lazy-grid.md) | 📝 |
