@@ -17,7 +17,9 @@ export type ShortcutAction =
   | 'refresh'
   | 'menu'
   | 'menuUp'
-  | 'menuDown';
+  | 'menuDown'
+  | 'cutSeries'
+  | 'removeFromSeries';
 
 /**
  * A key combination: `key` as in `KeyboardEvent.key` (letters lower case),
@@ -50,6 +52,9 @@ export const KEYMAP: Readonly<Record<ShortcutAction, Shortcut>> = {
   menu: { key: 'F10', modifier: 'shift' },
   menuUp: { key: 'ArrowUp', modifier: 'none' },
   menuDown: { key: 'ArrowDown', modifier: 'none' },
+  // „Podziel serię przed tym zdjęciem” and „Wyjmij z serii” (P, W).
+  cutSeries: { key: 'p', modifier: 'none' },
+  removeFromSeries: { key: 'w', modifier: 'none' },
 };
 
 /**
@@ -84,7 +89,8 @@ export function actionOf(
  * Rejecting and undoing move files, so holding Delete must not reject photo
  * after photo; holding A would toggle the mark on and off; closing twice
  * would fail; each refresh walks the whole folder; a held Shift+F10 would
- * open the menu again and again.
+ * open the menu again and again; a held P or W would cut or take out photo
+ * after photo.
  */
 const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set([
   'reject',
@@ -93,6 +99,8 @@ const ONCE_PER_PRESS: ReadonlySet<ShortcutAction> = new Set([
   'close',
   'refresh',
   'menu',
+  'cutSeries',
+  'removeFromSeries',
 ]);
 
 /** Whether a key held down repeats `action`. */

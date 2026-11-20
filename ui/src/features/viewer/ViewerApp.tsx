@@ -23,6 +23,8 @@ import { useUndo } from '../reject/useUndo';
 import { HIGHLIGHT_MS } from '../timeline/reveal';
 import { LoadingSpinner } from './FullPhoto';
 import { PhotoViewer } from './PhotoViewer';
+import { EDIT_SHORTCUTS, useViewerSeriesMenu } from './useViewerSeriesMenu';
+import { SeriesMenu } from '../series-edit/SeriesMenu';
 import { useViewerPhoto } from './useViewerPhoto';
 
 /** Photo id meaning "no photo left to show". */
@@ -56,6 +58,8 @@ interface ReadyViewerProps {
   acceptedIds: ReadonlySet<number>;
   /** Photos of the strip to point out, e.g. those an undone edit changed. */
   pulsedIds: ReadonlySet<number>;
+  /** Points out photos of the strip. */
+  onPulse: (ids: readonly number[]) => void;
 }
 
 /** The translation key of the message for a failed rejection. */
@@ -115,12 +119,19 @@ function useAnnounceShown(scanId: number, id: number) {
 
 /** The viewer once its photo has loaded. */
 function ReadyViewer(props: ReadyViewerProps) {
-  const { request, photo, onShowId, undo, acceptedIds, pulsedIds } = props;
+  const { request, photo, onShowId, undo, acceptedIds, pulsedIds, onPulse } = props;
   useAnnounceShown(request.scanId, photo.entry.id);
   const [destination] = useRejectDestination();
   const reject = useReject(props, destination);
   const toggleAccept = useToggleAccept(acceptedIds, undo.showToast);
   const close = useCloseOnce();
+  const seriesMenu = useViewerSeriesMenu({
+    photo,
+    gap: request.gap,
+    showToast: undo.showToast,
+    onShow: onShowId,
+    onPulse,
+  });
   return (
     <PhotoViewer
       photo={photo}
@@ -135,6 +146,17 @@ function ReadyViewer(props: ReadyViewerProps) {
       undoState={undo.undoState}
       onUndo={() => void undo.undo()}
       onRefresh={refreshInBackground}
+      onMenu={seriesMenu.open}
+      onEditSeries={seriesMenu.openBelow}
+      editButtonRef={seriesMenu.buttonRef}
+      overlay={
+        <SeriesMenu
+          menu={seriesMenu.menu}
+          onChoose={seriesMenu.choose}
+          onClose={seriesMenu.close}
+          shortcuts={EDIT_SHORTCUTS}
+        />
+      }
     />
   );
 }
@@ -177,6 +199,7 @@ function ViewerPage({
   undo,
   acceptedIds,
   pulsedIds,
+  onPulse,
 }: Omit<ReadyViewerProps, 'photo'>) {
   const { t } = useTranslation();
   const state = useViewerPhoto(request);
@@ -200,6 +223,7 @@ function ViewerPage({
           undo={undo}
           acceptedIds={acceptedIds}
           pulsedIds={pulsedIds}
+          onPulse={onPulse}
         />
       );
   }
@@ -256,6 +280,7 @@ function LoadedViewer({
           undo={undo}
           acceptedIds={acceptedIds}
           pulsedIds={pulsedIds}
+          onPulse={pulse}
         />
       )}
       <Toast message={undo.toast} onUndo={() => void undo.undo()} />

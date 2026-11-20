@@ -72,6 +72,8 @@ function page(id: number, afterReject: number | null): ViewerAnswer {
     next: null,
     series: [],
     afterReject,
+    seriesEdited: false,
+    pinned: false,
     details: { sizeBytes: 812 * 1024, resolution: null },
   };
   return { kind: 'photo', photo };

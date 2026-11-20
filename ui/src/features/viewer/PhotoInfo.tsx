@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { CutPath } from '../../paths/CutPath';
 import { FolderIcon } from '../scan/FolderIcon';
+import { PinnedIcon } from '../series-edit/EditedIcon';
 import type { PhotoFormat, TimeSource, TimelineEntry } from '../timeline/api';
 import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { formatDay, timeOf } from '../timeline/format';
@@ -89,16 +90,26 @@ function PhotoFolder({ relativeDir }: { relativeDir: string }) {
 }
 
 /**
- * The photo's info on two lines: name, format badge and folder; then date,
+ * The photo's info on two lines: name, pinned mark, format badge and folder; then date,
  * resolution, file size and date source note.
  */
-export function PhotoInfo({ entry, details }: { entry: TimelineEntry; details: PhotoDetails }) {
+export function PhotoInfo({
+  entry,
+  details,
+  pinned,
+}: {
+  entry: TimelineEntry;
+  details: PhotoDetails;
+  /** Whether the photo is pinned as a single photo, marked after its name. */
+  pinned: boolean;
+}) {
   return (
     <div className="viewer-info">
       <p className="viewer-title">
         <span className="viewer-name" title={entry.name}>
           {entry.name}
         </span>
+        {pinned && <PinnedIcon />}
         <FormatNote format={entry.format} />
         <PhotoFolder relativeDir={entry.relativeDir} />
       </p>

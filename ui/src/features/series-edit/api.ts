@@ -17,6 +17,8 @@ export type SeriesEdit =
 export interface Edited {
   /** File name of the photo the edit was about. */
   readonly name: string;
+  /** Ids of the photos that look different now, newest first. */
+  readonly changed: readonly number[];
 }
 
 const EDIT_ERROR_CODES = ['seriesChanged', 'internal'] as const;
@@ -30,9 +32,14 @@ export type EditErrorCode = (typeof EDIT_ERROR_CODES)[number];
  */
 export async function editSeries(edit: SeriesEdit, maxGapSeconds: number): Promise<Edited> {
   const edited = await invoke<unknown>('edit_series', { edit, maxGapSeconds });
-  const name = (edited as { name?: unknown } | null)?.name;
+  const { name, changed } = (edited ?? {}) as { name?: unknown; changed?: unknown };
   if (typeof name !== 'string') throw new Error('edit_series returned no name');
-  return { name };
+  return { name, changed: idsOf(changed) };
+}
+
+/** `value` as a list of photo ids; anything else is no ids. */
+function idsOf(value: unknown): number[] {
+  return Array.isArray(value) ? value.filter((id): id is number => typeof id === 'number') : [];
 }
 
 /** The error code of a failed edit; unknown codes are `internal`. */

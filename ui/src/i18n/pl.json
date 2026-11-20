@@ -95,7 +95,9 @@
     "zoomFit": "Dopasuj",
     "resolution": "{{width}} × {{height}}",
     "sizeMb": "{{size}} MB",
-    "sizeKb": "{{size}} kB"
+    "sizeKb": "{{size}} kB",
+    "editSeries": "Edytuj serię",
+    "editSeriesHint": "Edytuj serię (Shift+F10)"
   },
   "reject": {
     "button": "Odrzuć",

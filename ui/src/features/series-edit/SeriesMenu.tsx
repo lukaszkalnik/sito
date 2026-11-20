@@ -2,8 +2,9 @@ import { type RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
+import { KEYMAP, type ShortcutAction } from '../../shortcuts/keymap';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
-import type { EditOption } from './editOptions';
+import type { EditAction, EditOption } from './editOptions';
 import './SeriesMenu.css';
 
 /** An open edit menu: where it is and what it offers. */
@@ -18,6 +19,15 @@ interface SeriesMenuProps {
   onChoose: (option: EditOption) => void;
   /** Closes the menu; `returnFocus` when focus should go back where it was. */
   onClose: (returnFocus: boolean) => void;
+  /** Keys that make some of the edits directly, shown next to them. */
+  shortcuts?: Readonly<Partial<Record<EditAction, ShortcutAction>>>;
+}
+
+const NO_SHORTCUTS: Readonly<Partial<Record<EditAction, ShortcutAction>>> = {};
+
+/** The key of `action` as shown in a menu, e.g. `P`. */
+function keyLabel(action: ShortcutAction): string {
+  return KEYMAP[action].key.toUpperCase();
 }
 
 /** Space kept between the menu and the window's edges, in pixels. */
@@ -61,8 +71,43 @@ function moveFocus(menu: HTMLUListElement | null, step: number) {
   items[next]?.focus();
 }
 
-/** The context menu with the series edits: arrow keys move, Escape closes. */
-export function SeriesMenu({ menu, onChoose, onClose }: SeriesMenuProps) {
+/** One edit of the menu, with its key if it has one. */
+function MenuItem({
+  option,
+  shortcut,
+  onChoose,
+}: {
+  option: EditOption;
+  shortcut: ShortcutAction | undefined;
+  onChoose: (option: EditOption) => void;
+}) {
+  const { t } = useTranslation();
+  const key = shortcut && keyLabel(shortcut);
+  return (
+    <li role="none">
+      <button
+        type="button"
+        role="menuitem"
+        className="series-menu-item"
+        aria-keyshortcuts={key}
+        onClick={onFirstClick(() => onChoose(option))}
+      >
+        {t(`seriesEdit.${option.action}`)}
+        {key && (
+          <span className="series-menu-key" aria-hidden="true">
+            {key}
+          </span>
+        )}
+      </button>
+    </li>
+  );
+}
+
+/**
+ * The context menu with the series edits: arrow keys move, Escape closes.
+ * While it is open, only its keys act (a modal shortcut layer).
+ */
+export function SeriesMenu({ menu, onChoose, onClose, shortcuts = NO_SHORTCUTS }: SeriesMenuProps) {
   const { t } = useTranslation();
   const ref = useRef<HTMLUListElement>(null);
   useKeptInWindow(ref, menu);
@@ -71,11 +116,14 @@ export function SeriesMenu({ menu, onChoose, onClose }: SeriesMenuProps) {
     if (menu) ref.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
   }, [menu]);
   const open = menu !== null;
-  useShortcuts({
-    close: open ? () => onClose(true) : null,
-    menuUp: open ? () => moveFocus(ref.current, -1) : null,
-    menuDown: open ? () => moveFocus(ref.current, 1) : null,
-  });
+  useShortcuts(
+    {
+      close: open ? () => onClose(true) : null,
+      menuUp: open ? () => moveFocus(ref.current, -1) : null,
+      menuDown: open ? () => moveFocus(ref.current, 1) : null,
+    },
+    'modal',
+  );
   if (!menu) return null;
   return (
     <ul
@@ -93,16 +141,12 @@ export function SeriesMenu({ menu, onChoose, onClose }: SeriesMenuProps) {
       }}
     >
       {menu.options.map((option) => (
-        <li key={option.action} role="none">
-          <button
-            type="button"
-            role="menuitem"
-            className="series-menu-item"
-            onClick={onFirstClick(() => onChoose(option))}
-          >
-            {t(`seriesEdit.${option.action}`)}
-          </button>
-        </li>
+        <MenuItem
+          key={option.action}
+          option={option}
+          shortcut={shortcuts[option.action]}
+          onChoose={onChoose}
+        />
       ))}
     </ul>
   );

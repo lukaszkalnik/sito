@@ -21,7 +21,7 @@
 
 ## Series edited by hand
 
-The user fixes series in the grid ([Timeline](timeline.md#editing-series)); Sito only suggests the automatic ones.
+The user fixes series in the grid ([Timeline](timeline.md#editing-series)) and, for the photos of one series, in the viewer ([Timeline](timeline.md#editing-series-in-the-viewer)); Sito only suggests the automatic ones.
 
 - **Edits:** „Podziel serię przed tym zdjęciem” (the photos before it stay one series, it and the photos after it form another), „Wyjmij z serii” (the photo becomes a single photo, the rest stays one series), „Dołącz do poprzedniej/następnej serii” (the photo joins the series of the photo shown before/after it; a series it came from keeps the rest), „Rozdziel serię” (every photo becomes a single photo). A part left with one photo becomes a single photo; rejected photos count, as they still belong to their series.
 - **Pins:** an edit pins every photo it touches, to a manual series or as a single photo. An edited series stays exactly as the user left it, whatever the gap; pinned single photos stay single.
@@ -36,4 +36,4 @@ The user fixes series in the grid ([Timeline](timeline.md#editing-series)); Sito
 
 ## Not built yet
 
-Splitting time series by content: [slice 19](../slices/19-split-by-content.md). Editing series in the viewer: [slice 59](../slices/59-edit-series-in-viewer.md).
+Splitting time series by content: [slice 19](../slices/19-split-by-content.md).

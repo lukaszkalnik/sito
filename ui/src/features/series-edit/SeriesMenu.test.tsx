@@ -46,6 +46,21 @@ describe('SeriesMenu', () => {
     expect(item('Podziel serię przed tym zdjęciem')).toHaveFocus();
   });
 
+  it('shows the keys of the edits that have one', () => {
+    render(
+      <SeriesMenu
+        menu={menu}
+        onChoose={vi.fn()}
+        onClose={vi.fn()}
+        shortcuts={{ cut: 'cutSeries', remove: 'removeFromSeries' }}
+      />,
+    );
+
+    expect(item('Podziel serię przed tym zdjęciem')).toHaveAttribute('aria-keyshortcuts', 'P');
+    expect(item('Wyjmij z serii')).toHaveTextContent('Wyjmij z seriiW');
+    expect(item('Rozdziel serię')).not.toHaveAttribute('aria-keyshortcuts');
+  });
+
   it('moves through the edits with the arrow keys, wrapping around', () => {
     renderMenu();
 

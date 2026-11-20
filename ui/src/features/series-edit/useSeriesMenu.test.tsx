@@ -38,7 +38,7 @@ function renderMenu(showToast = vi.fn()) {
 describe('useSeriesMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(editSeries).mockResolvedValue({ name: 'IMG_1.jpg' });
+    vi.mocked(editSeries).mockResolvedValue({ name: 'IMG_1.jpg', changed: [1] });
   });
 
   it('opens with the edits of the photo, where it was asked for', () => {

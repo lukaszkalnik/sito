@@ -19,7 +19,7 @@ const TAKEOUT: TauriMock['viewerEntry'] = {
 /** A plain camera photo, as the mock shows it. */
 const PLAIN: TauriMock['viewerEntry'] = {};
 
-const BREAKPOINT = 780;
+const BREAKPOINT = 824;
 
 /** The viewer's minimum width (`src-tauri/src/viewer.rs`), the breakpoint, a small and a large screen. */
 const WIDTHS = [480, BREAKPOINT, BREAKPOINT + 1, 900, 1440];

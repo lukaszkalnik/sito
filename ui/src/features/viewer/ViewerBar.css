@@ -44,10 +44,12 @@
 /*
  * Below this width the info would get less than ~300 px next to the labelled
  * buttons (measured with „Cofnij akceptację”, the widest label: 310 px at
- * 781 px), so „Zaakceptuj” and „Odrzuć” show only their icon. The label stays
- * the button's accessible name (hidden like `.visually-hidden`).
+ * 781 px before the „Edytuj serię” button, which takes another 1.75rem plus
+ * the bar's 1rem gap, 44 px), so „Zaakceptuj” and „Odrzuć” show only their
+ * icon. The label stays the button's accessible name (hidden like
+ * `.visually-hidden`).
  */
-@media (max-width: 780px) {
+@media (max-width: 824px) {
   .viewer-bar .bar-button-label {
     position: absolute;
     width: 1px;

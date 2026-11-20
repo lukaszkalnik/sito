@@ -63,4 +63,34 @@ describe('useShortcuts', () => {
 
     expect(next).toHaveBeenCalledTimes(3);
   });
+
+  it('leaves only the keys of an open modal layer acting', () => {
+    const closeWindow = vi.fn();
+    const next = vi.fn();
+    const closeMenu = vi.fn();
+    renderHook(() => useShortcuts({ close: closeWindow, next }));
+    const menu = renderHook(
+      ({ open }) => useShortcuts({ close: open ? closeMenu : null }, 'modal'),
+      {
+        initialProps: { open: true },
+      },
+    );
+
+    press('Escape');
+    const stepped = press('ArrowRight');
+
+    expect(closeMenu).toHaveBeenCalledOnce();
+    expect(closeWindow).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(stepped.defaultPrevented).toBe(false);
+
+    // A closed menu, or one unmounted, leaves the page's keys acting again.
+    menu.rerender({ open: false });
+    press('Escape');
+    expect(closeWindow).toHaveBeenCalledOnce();
+    menu.rerender({ open: true });
+    menu.unmount();
+    press('ArrowRight');
+    expect(next).toHaveBeenCalledOnce();
+  });
 });

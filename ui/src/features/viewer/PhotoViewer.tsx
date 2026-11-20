@@ -1,11 +1,12 @@
-import { useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { photoUrl, setWindowTitle, type ViewerPhoto } from './api';
 import { useShortcuts } from '../../shortcuts/useShortcuts';
+import { menuRequest, type MenuRequest } from '../timeline/menuRequest';
 import { FullPhoto } from './FullPhoto';
 import { SeriesStrip } from './SeriesStrip';
-import { usePhotoZoom } from './usePhotoZoom';
+import { usePhotoZoom, type PhotoZoom } from './usePhotoZoom';
 import { ViewerBar, type ViewerBarProps } from './ViewerBar';
 import './PhotoViewer.css';
 
@@ -19,6 +20,10 @@ interface PhotoViewerProps extends ViewerBarProps {
   onRefresh: () => void;
   /** Photos of the strip to point out, e.g. those an undone edit changed. */
   pulsedIds?: ReadonlySet<number>;
+  /** Asks for the edit menu of a photo (the shown one or one of the strip). */
+  onMenu: (request: MenuRequest) => void;
+  /** Shown over the viewer, inside its dark colours, e.g. the edit menu. */
+  overlay?: ReactNode;
 }
 
 /** Arrow keys step, Escape closes, Delete rejects, A accepts (keys in `shortcuts/keymap.ts`). */
@@ -77,6 +82,39 @@ function StepButton({
   );
 }
 
+/** The photo itself; a right-click asks for its edit menu. */
+function Stage({
+  photo,
+  scanId,
+  zoom,
+  viewRef,
+  onRefresh,
+  onMenu,
+}: Pick<PhotoViewerProps, 'photo' | 'scanId' | 'onRefresh' | 'onMenu'> & {
+  zoom: PhotoZoom['view'];
+  viewRef: PhotoZoom['viewRef'];
+}) {
+  const { entry } = photo;
+  return (
+    <div
+      className="viewer-stage"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onMenu(menuRequest({ kind: 'photo', id: entry.id }, event));
+      }}
+    >
+      <FullPhoto
+        src={photoUrl(scanId, entry.id)}
+        id={entry.id}
+        onRefresh={onRefresh}
+        alt={entry.name}
+        zoom={zoom}
+        viewRef={viewRef}
+      />
+    </div>
+  );
+}
+
 /** Full-size photo with previous/next navigation and the thumbnails of its series. */
 export function PhotoViewer(props: PhotoViewerProps) {
   const { photo, scanId, onShow } = props;
@@ -88,11 +126,11 @@ export function PhotoViewer(props: PhotoViewerProps) {
   }, [entry.name]);
   useViewerKeys(previous, next, props);
   usePreload(scanId, next, previous);
-  const { viewRef, view: zoom } = usePhotoZoom(photo);
+  const zoom = usePhotoZoom(photo);
 
   return (
     <main className="viewer">
-      <ViewerBar entry={entry} details={photo.details} {...props} />
+      <ViewerBar entry={entry} details={photo.details} pinned={photo.pinned} {...props} />
       {/* The step buttons are centred on this whole area, strip included, so
           they stay in place whether or not the photo has a series strip. */}
       <div className="viewer-body">
@@ -103,16 +141,14 @@ export function PhotoViewer(props: PhotoViewerProps) {
           side="previous"
           onShow={onShow}
         />
-        <div className="viewer-stage">
-          <FullPhoto
-            src={photoUrl(scanId, entry.id)}
-            id={entry.id}
-            onRefresh={props.onRefresh}
-            alt={entry.name}
-            zoom={zoom}
-            viewRef={viewRef}
-          />
-        </div>
+        <Stage
+          photo={photo}
+          scanId={scanId}
+          onRefresh={props.onRefresh}
+          onMenu={props.onMenu}
+          viewRef={zoom.viewRef}
+          zoom={zoom.view}
+        />
         <StepButton target={next} label={t('viewer.next')} symbol="›" side="next" onShow={onShow} />
         {photo.series.length > 0 && (
           <SeriesStrip
@@ -121,10 +157,13 @@ export function PhotoViewer(props: PhotoViewerProps) {
             scanId={scanId}
             acceptedIds={props.acceptedIds}
             pulsedIds={props.pulsedIds}
+            edited={photo.seriesEdited}
             onShow={onShow}
+            onMenu={props.onMenu}
           />
         )}
       </div>
+      {props.overlay}
     </main>
   );
 }

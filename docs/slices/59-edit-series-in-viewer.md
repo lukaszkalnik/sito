@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 59 – Edit series in the viewer
 
-Split off from [slice 14](14-edit-series.md) in its review (2026-11-18). Plan drafted on 2026-11-19, narrowed in the user's first review the same day (no joins in the viewer) and revised in the second review on 2026-11-20 (stay in the series after „Wyjmij z serii”, nothing to edit on a series of one, edits undoable first in [slice 62](62-undo-series-edits.md)); „Przywróć automatyczne grupowanie” added on the user's request on 2026-11-20 („kind of undo in another way”); waiting for the user's approval.
+Split off from [slice 14](14-edit-series.md) in its review (2026-11-18). Plan drafted on 2026-11-19, narrowed in the user's first review the same day (no joins in the viewer) and revised in the second review on 2026-11-20 (stay in the series after „Wyjmij z serii”, nothing to edit on a series of one, edits undoable first in [slice 62](62-undo-series-edits.md)); „Przywróć automatyczne grupowanie” added on the user's request on 2026-11-20 („kind of undo in another way”); approved on 2026-11-20 (no question before a restore), implemented the same day; waiting for the user's test. What it established is in [Timeline](../domain/timeline.md#editing-series-in-the-viewer).
 
 ## Idea
 
@@ -101,9 +101,18 @@ All answered in the second review (2026-11-20):
 
 Added after the second review (2026-11-20, the user): „Przywróć automatyczne grupowanie” in the viewer too, as the other way back from an edit.
 
-Open for the review:
+5. Restoring reaches photos outside the strip (taken out earlier, the other part of a cut, a neighbour joining at the gap): no question before it; the pulse in the strip shows what came back, and „Cofnij” takes it back.
 
-5. Restoring reaches photos outside the strip (taken out earlier, the other part of a cut, a neighbour joining at the gap). The plan accepts that and makes it visible by pulsing what came back in the strip. Fine, or should the viewer ask first when the restore reaches photos outside the strip?
+## Implementation notes (2026-11-20)
+
+- **Keys while the menu is open:** instead of passing `null` for each of the viewer's handlers, `useShortcuts` got layers (`page`, `modal`): while a `modal` layer (the `SeriesMenu`) has a handler available, the `page` shortcuts of the window do nothing. So the viewer's keys (also Ctrl+Z, F5, zoom and pan, which live in other hooks) and the grid's are kept out by one rule, and Escape closes only the menu.
+- **The menu is rendered inside the viewer's `main`** (an `overlay` of `PhotoViewer`), so it takes the dark token values set on `.viewer`; the mocked e2e test with a light system theme found the menu light when it was rendered next to it.
+- **Restore pulses:** `edit_series` returns the visibly changed photos (`changed`), worked out by the helper shared with the undo of an edit; the viewer pulses those in its strip after a restore. Core: `navigation::series_index` gives the index of the series at a display position (`series_of` uses it), for the page's `series_edited`.
+- **A whole-series edit names the series by its first photo**, as in the grid (`restore`, `ungroup` from any strip photo).
+- **Bar threshold** at 824 px (the new button takes 1.75rem plus the 1rem gap); the mocked toolbar test checks the info keeps ≥ 300 px at 825 px.
+- **Keys act from the first paint:** a mocked e2e test that pressed P right after the strip appeared failed about once in eight runs: `useShortcuts` attached its listener in an effect, which runs after paint. It now uses layout effects, so keys work as soon as their controls are on screen (32 of 32 repeated runs pass; the e2e test is the regression test, since jsdom cannot show the gap). Own `fix:` commit.
+- Tested: Rust (`viewer/page.rs`: marks of an automatic series, a single photo, an edited series at another gap, a pinned photo after another is rejected; `series/edit.rs`: the changed photos of every edit kind and of restores from either part of a cut; `navigation.rs`), Vitest (`viewerEditOptions.test.ts`, `ViewerSeriesEdit.test.tsx`, `SeriesMenu.test.tsx`, `useShortcuts.test.ts`), Playwright (`viewer-series-edit.spec.ts`: P/W in both view modes, edits from a thumbnail, restore with pulse and its undo, Escape with the menu open, the menu dark on a light system theme; `viewer-toolbar.spec.ts` at the new threshold).
+- **Not tested in the real app:** this session ran in a Linux cloud container without the user's machine, so the computer-use pass of step 6 is left to the user's test.
 
 ## Related slices
 

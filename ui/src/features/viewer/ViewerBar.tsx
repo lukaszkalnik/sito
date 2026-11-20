@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { onFirstClick } from '../../clicks/firstClick';
@@ -7,6 +8,7 @@ import type { UndoState } from '../reject/api';
 import type { RejectDestination } from '../reject/destination';
 import { DestinationIcon } from '../reject/DestinationIcon';
 import { UndoButton } from '../reject/UndoButton';
+import { EditIcon } from '../series-edit/EditedIcon';
 import type { TimelineEntry } from '../timeline/api';
 import type { PhotoDetails } from './api';
 import { CloseIcon } from './CloseIcon';
@@ -27,6 +29,32 @@ export interface ViewerBarProps {
   /** What "Cofnij" can undo. */
   undoState: UndoState;
   onUndo: () => void;
+  /** Opens the edit menu below the given button; `null` when the photo has no edit to offer. */
+  onEditSeries: ((anchor: HTMLElement) => void) | null;
+  /** The „Edytuj serię” button, where Shift+F10 opens the menu. */
+  editButtonRef?: Ref<HTMLButtonElement>;
+}
+
+/** „Edytuj serię”: an icon-only button opening the edit menu, disabled with nothing to edit. */
+function EditSeriesButton({
+  onEditSeries,
+  editButtonRef,
+}: Pick<ViewerBarProps, 'onEditSeries' | 'editButtonRef'>) {
+  const { t } = useTranslation();
+  return (
+    <button
+      ref={editButtonRef}
+      type="button"
+      className="control-icon-button"
+      aria-label={t('viewer.editSeries')}
+      aria-haspopup="menu"
+      title={t('viewer.editSeriesHint')}
+      disabled={onEditSeries === null}
+      onClick={(event) => onEditSeries?.(event.currentTarget)}
+    >
+      <EditIcon />
+    </button>
+  );
 }
 
 /** Translation keys of the „Odrzuć” tooltip, per destination. */
@@ -51,7 +79,7 @@ function RejectButton({ rejectTo, onReject }: Pick<ViewerBarProps, 'rejectTo' | 
   );
 }
 
-/** The photo's info, with the accept, reject, undo and close buttons. */
+/** The photo's info, with the edit, accept, reject, undo and close buttons. */
 export function ViewerBar({
   entry,
   details,
@@ -62,11 +90,15 @@ export function ViewerBar({
   undoState,
   onUndo,
   onClose,
-}: { entry: TimelineEntry; details: PhotoDetails } & ViewerBarProps) {
+  onEditSeries,
+  editButtonRef,
+  pinned,
+}: { entry: TimelineEntry; details: PhotoDetails; pinned: boolean } & ViewerBarProps) {
   const { t } = useTranslation();
   return (
     <header className="viewer-bar">
-      <PhotoInfo entry={entry} details={details} />
+      <PhotoInfo entry={entry} details={details} pinned={pinned} />
+      <EditSeriesButton onEditSeries={onEditSeries} editButtonRef={editButtonRef} />
       <AcceptButton accepted={acceptedIds.has(entry.id)} onToggle={onToggleAccept} />
       <RejectButton rejectTo={rejectTo} onReject={onReject} />
       <UndoButton className="control-icon-button" state={undoState} onUndo={onUndo} />

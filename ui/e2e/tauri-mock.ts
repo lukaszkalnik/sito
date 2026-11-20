@@ -307,6 +307,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         next: idAt(next),
         series: own ? entries.slice(own.start, own.start + own.len) : [],
         afterReject: idAt(after),
+        seriesEdited: (own as { edited?: boolean } | undefined)?.edited ?? false,
+        pinned: pinned.includes(position),
         details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
       };
       return { kind: 'photo', photo };
@@ -379,7 +381,7 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             m.series = outcome.series;
             pinned = outcome.pinned ?? [];
             emit('timeline-changed');
-            return { name: nameOf(edit.photo) };
+            return { name: nameOf(edit.photo), changed: outcome.changed ?? [edit.photo] };
           }
           case 'get_viewer_photo':
             return viewerPhoto(args.request as { id: number; mode: string; gap: number });

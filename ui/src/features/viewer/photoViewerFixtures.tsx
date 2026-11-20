@@ -31,6 +31,8 @@ export function pageOf(id: number, changes: Partial<ViewerPhoto> = {}): ViewerPh
     next: id < 5 ? id + 1 : null,
     series: inSeries ? [1, 2, 3].map((member) => entry(member)) : [],
     afterReject: null,
+    seriesEdited: false,
+    pinned: false,
     details: { sizeBytes: 7_835_038, resolution: { width: 5472, height: 3648 } },
     ...changes,
   };
@@ -53,6 +55,8 @@ export function viewerProps(
     undoState,
     onUndo: vi.fn(),
     onRefresh: vi.fn(),
+    onMenu: vi.fn(),
+    onEditSeries: null,
   };
 }
 

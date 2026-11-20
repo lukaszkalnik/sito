@@ -29,6 +29,10 @@ export interface ViewerPhoto {
   readonly series: readonly TimelineEntry[];
   /** Id of the photo to show once this one is rejected, `null` if none is left. */
   readonly afterReject: number | null;
+  /** Whether its series was edited by hand (`false` for a single photo). */
+  readonly seriesEdited: boolean;
+  /** Whether the photo is pinned as a single photo by an edit. */
+  readonly pinned: boolean;
   /** File size and resolution of the photo. */
   readonly details: PhotoDetails;
 }

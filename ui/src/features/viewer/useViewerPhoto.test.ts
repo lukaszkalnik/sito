@@ -33,6 +33,8 @@ function page(id: number): ViewerPhoto {
     next: id + 1,
     series: [],
     afterReject: null,
+    seriesEdited: false,
+    pinned: false,
     details: { sizeBytes: 1024, resolution: null },
   };
 }

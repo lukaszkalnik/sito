@@ -13,6 +13,10 @@
   --bg: #16171d;
   --control-border: #5c5f6e;
   --accent: #60a5fa;
+  /* Used by the edit menu and the edit marks (`series-edit/SeriesMenu.css`). */
+  --text-h: #f3f4f6;
+  --series-bg: #22355a;
+  --series-text: #bfdbfe;
 }
 
 .viewer-step {
@@ -173,6 +177,13 @@ div.viewer-error p {
   /* Room for the current item's glow, which the scroll box would clip. */
   padding: 14px 1rem;
   overflow-x: auto;
+}
+
+.viewer-strip-edited {
+  display: flex;
+  flex: none;
+  align-items: center;
+  color: var(--series-text);
 }
 
 .viewer-strip-item {
