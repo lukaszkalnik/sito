@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 import { actionOf, repeatsWhenHeld, type ShortcutAction } from './keymap';
 
@@ -20,7 +20,7 @@ let activeModalLayers = 0;
 
 /** Counts the modal layer in while it is `active`. */
 function useModalLayer(active: boolean) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return;
     activeModalLayers++;
     return () => {
@@ -35,13 +35,16 @@ function useModalLayer(active: boolean) {
  */
 export function useShortcuts(handlers: ShortcutHandlers, layer: ShortcutLayer = 'page'): void {
   // The latest handlers, so the listener is attached once and never stale.
+  // Layout effects run before the browser paints, so keys act as soon as
+  // what they work on is on screen (an effect would leave a gap after paint
+  // where a key pressed at once is lost).
   const current = useRef(handlers);
-  useEffect(() => {
+  useLayoutEffect(() => {
     current.current = handlers;
   });
   useModalLayer(layer === 'modal' && Object.values(handlers).some(Boolean));
   const modal = layer === 'modal';
-  useEffect(() => {
+  useLayoutEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!modal && activeModalLayers > 0) return;
       const available = (Object.keys(current.current) as ShortcutAction[]).filter(
