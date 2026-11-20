@@ -17,5 +17,9 @@ Type a gap, step it with − and + or the arrow keys, type something out of rang
 ## Plan (done)
 
 - `GapSlider` becomes `GapInput` (`ui/src/features/timeline/GapInput.tsx`): `[−] [10] s [+]`, a `type="number"` input (1–60, step 1) named by the „Odstęp w serii” caption; the browser's own spinner is hidden, since − and + step it.
-- Typing: a whole number within the range applies at once (`typedGap` in `gapSetting.ts`); an empty, partial or out-of-range value waits, and leaving the field clamps it to the range or restores the gap when the field is empty (`finishedGap`). A step with − or + replaces text still being typed.
+- Typing: a whole number within the range applies once typing pauses (`typedGap` in `gapSetting.ts`); an empty, partial or out-of-range value waits, and leaving the field clamps it to the range or restores the gap when the field is empty (`finishedGap`). A step with − or + replaces text still being typed.
 - Tests: `gapSetting.test.ts` (both functions), `GapInput.test.tsx` (typing, clamping, empty field, buttons after typing), `TimelineView.test.tsx` and `ui/e2e/gap.spec.ts` (regrouping, arrow keys, clamping, remembering per folder).
+
+## Fixes from testing
+
+- Debounce typing (asked for by the user on 2026-11-20): typing „25” regrouped at 2 first. A typed value now applies after a 300 ms pause (`TYPING_PAUSE_MS` in `GapInput.tsx`); − and + and leaving the field apply at once and drop a typed value still waiting. Any change of the gap ends the typing, so text dropped by − or + never comes back.

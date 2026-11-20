@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Field } from '../../controls/Field';
@@ -54,9 +54,13 @@ function GapControls({
   );
 }
 
+/** How long typing must pause before a typed gap regroups the series, in ms. */
+const TYPING_PAUSE_MS = 300;
+
 /**
- * The seconds as a number input. A valid value regroups while typing; an
- * empty or out-of-range one waits, and leaving the field clamps it.
+ * The seconds as a number input. A valid value regroups once typing pauses;
+ * an empty or out-of-range one waits, and leaving the field applies the
+ * value at once, clamped to the range.
  */
 function SecondsInput({
   id,
@@ -68,16 +72,7 @@ function SecondsInput({
   onChange: (gap: number) => void;
 }) {
   const { t } = useTranslation();
-  // The text being typed and the gap it stands for. It is shown only while
-  // that is still the gap, so a step with − or + replaces it.
-  const [draft, setDraft] = useState<{ text: string; gap: number } | null>(null);
-  const text = draft?.gap === gap ? draft.text : null;
-  const finish = () => {
-    setDraft(null);
-    if (text === null) return;
-    const finished = finishedGap(text, gap);
-    if (finished !== gap) onChange(finished);
-  };
+  const { text, type, finish } = useTypedGap(gap, onChange);
   return (
     <input
       id={id}
@@ -89,12 +84,49 @@ function SecondsInput({
       step={1}
       value={text ?? String(gap)}
       aria-valuetext={t('gap.value', { seconds: gap })}
-      onChange={(event) => {
-        const typed = typedGap(event.target.value);
-        setDraft({ text: event.target.value, gap: typed ?? gap });
-        if (typed !== null && typed !== gap) onChange(typed);
-      }}
+      onChange={(event) => type(event.target.value)}
       onBlur={finish}
     />
   );
+}
+
+/**
+ * The text typed into the gap input, applied after a pause in typing.
+ * `text` is `null` while the field shows the gap itself.
+ */
+function useTypedGap(gap: number, onChange: (gap: number) => void) {
+  const [draft, setDraft] = useState<string | null>(null);
+  // Any change of the gap (a typed value applied, a step with − or +) ends
+  // the typing, so stale text never comes back.
+  const [shownGap, setShownGap] = useState(gap);
+  if (shownGap !== gap) {
+    setShownGap(gap);
+    setDraft(null);
+  }
+  const text = draft;
+  const timer = useRef<number | undefined>(undefined);
+  const latest = useRef({ gap, onChange });
+  useEffect(() => {
+    latest.current = { gap, onChange };
+  });
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const type = (typed: string) => {
+    window.clearTimeout(timer.current);
+    setDraft(typed);
+    const seconds = typedGap(typed);
+    if (seconds === null || seconds === gap) return;
+    timer.current = window.setTimeout(() => {
+      // A step with − or + since then wins over the typed value.
+      if (latest.current.gap === gap) latest.current.onChange(seconds);
+    }, TYPING_PAUSE_MS);
+  };
+  const finish = () => {
+    window.clearTimeout(timer.current);
+    setDraft(null);
+    if (text === null) return;
+    const finished = finishedGap(text, gap);
+    if (finished !== gap) onChange(finished);
+  };
+  return { text, type, finish };
 }
