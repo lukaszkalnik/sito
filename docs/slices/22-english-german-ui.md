@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 22 – English and German UI
 
-Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written the same day, waiting for the user's review.
+Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written and approved by the user the same day (all suggestions taken); next: implement step 1 of the plan.
 
 ## Idea
 
@@ -89,8 +89,8 @@ One commit per step, each with its tests and checks green.
 - Unit and mocked e2e tests as above, also in this cloud container.
 - In the real app (the user's machine): each language from the system setting and from the menu, switching with the viewer open, the bar at 900 px and the viewer at 824 px in German, plurals (0, 1, 2, 5, 22, 25 photos) and dates in each language, rejecting and undoing across a switch (a folder with `Odrzucone`, a folder without any, a folder with both `Odrzucone` and `Rejected`), the installer on an English or German Windows if available, the macOS app menu.
 
-## Open questions
+## Decisions of the review (2026-11-20)
 
-- Is the „Ustawienia → Język” menu the right place until slice 15's screen, or should the language wait for that screen (only the system language until then)?
-- Is reusing an existing rejected folder (instead of renaming it) fine?
-- English locale default: `en-GB` (day/month, as the idea said) when the system's language is not English but English is chosen; `en-US` users get their own format either way.
+- The language is chosen in the „Ustawienia → Język” menu until slice 15's settings screen exists.
+- An existing rejected folder is reused, whatever its language; nothing is renamed on a switch.
+- English chosen on a non-English system formats dates and numbers as `en-GB`.
