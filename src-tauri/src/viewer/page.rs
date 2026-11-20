@@ -6,7 +6,7 @@ use std::time::Duration;
 use serde::Serialize;
 use sito_core::dimensions::{Dimensions, read_dimensions};
 use sito_core::navigation::{self, View};
-use sito_core::series::Grouping;
+use sito_core::series::{Grouping, SeriesKind};
 use sito_core::timeline::Photo;
 use tauri::{AppHandle, Manager};
 
@@ -50,6 +50,11 @@ struct Page {
     series: Vec<TimelineEntryDto>,
     /// Id of the photo to show once this one is rejected, if any is left.
     after_reject: Option<usize>,
+    /// Whether the photo's series was edited by hand (`false` for a single
+    /// photo).
+    series_edited: bool,
+    /// Whether the photo is pinned as a single photo by an edit.
+    pinned: bool,
 }
 
 /// File size and resolution of the shown photo.
@@ -156,7 +161,9 @@ fn page(scan: &Scan, grouping: &Grouping, request: ViewerRequest) -> Option<(Pag
     let view = View::from(request.mode);
     let around = navigation::neighbours(count, ranges, view, shown);
     let id_at = |shown: Option<usize>| Some(scan.entry_at(arrangement.timeline_of(shown?)?)?.0);
-    let members = navigation::series_of(ranges, shown)
+    let series_index = navigation::series_index(ranges, shown);
+    let members = series_index
+        .and_then(|index| ranges.get(index))
         .map_or(0..0, |s| s.start..s.start + s.len)
         .filter_map(|member| entry(scan, root, arrangement.timeline_of(member)?))
         .collect();
@@ -166,6 +173,10 @@ fn page(scan: &Scan, grouping: &Grouping, request: ViewerRequest) -> Option<(Pag
         next: id_at(around.next),
         series: members,
         after_reject: id_at(navigation::after_reject(count, ranges, view, shown)),
+        series_edited: series_index
+            .and_then(|index| grouping.series.get(index))
+            .is_some_and(|s| matches!(s.kind, SeriesKind::Manual(_))),
+        pinned: grouping.pinned_singles.binary_search(&position).is_ok(),
     };
     Some((page, scan.entry_at(position)?.1.clone()))
 }
@@ -179,9 +190,15 @@ fn entry(scan: &Scan, root: &Path, position: usize) -> Option<TimelineEntryDto> 
 mod tests {
     use std::path::PathBuf;
 
+    use sito_core::actions::ActionLog;
+    use sito_core::series::DEFAULT_MAX_GAP;
     use sito_core::timeline::build_timeline;
 
     use super::*;
+    use crate::series::edit::{EditDto, edit_in};
+
+    /// A photo without a camera, long before the Pixel series.
+    const DATED: &str = "datetime-only_2024-05-30_10-00-00.jpg";
 
     /// App state with a scan of the EXIF fixtures, and its id.
     fn scanned() -> (AppState, u64) {
@@ -297,6 +314,85 @@ mod tests {
         assert_eq!(shown.page.next, Some(pixel_new));
         let shown = photo_for(&state, request(scan_id, pixel_new, ViewMode::All));
         assert_eq!(shown.page.next, Some(pixel_old));
+    }
+
+    /// Makes `edit` on the scan of `state` with the default gap.
+    fn edit(state: &AppState, log: &ActionLog, edit: EditDto) {
+        let mut scan = state.scan();
+        edit_in(scan.as_mut().unwrap(), log, edit, DEFAULT_MAX_GAP).unwrap();
+    }
+
+    fn id_named(state: &AppState, name: &str) -> usize {
+        state
+            .scan()
+            .as_ref()
+            .unwrap()
+            .photos()
+            .find(|(_, photo)| photo.path.ends_with(name))
+            .unwrap()
+            .0
+    }
+
+    /// Whether the page of `id` (in „Wszystkie”, at `gap`) says its series is
+    /// edited and the photo pinned.
+    fn marks(state: &AppState, scan_id: u64, id: usize, gap: u32) -> (bool, bool) {
+        let shown = photo_for(
+            state,
+            ViewerRequest {
+                gap,
+                ..request(scan_id, id, ViewMode::All)
+            },
+        );
+        (shown.page.series_edited, shown.page.pinned)
+    }
+
+    #[test]
+    fn an_automatic_series_and_a_single_photo_have_no_marks() {
+        let (state, scan_id) = scanned();
+        let member = series_ids(&state)[0];
+        let single = id_named(&state, "no-exif.jpg");
+
+        assert_eq!(marks(&state, scan_id, member, 10), (false, false));
+        assert_eq!(marks(&state, scan_id, single, 10), (false, false));
+    }
+
+    #[test]
+    fn an_edited_series_is_marked_also_at_another_gap() {
+        let (state, scan_id) = scanned();
+        let log = ActionLog::open_in_memory().unwrap();
+        let members = series_ids(&state);
+        let dated = id_named(&state, DATED);
+        edit(
+            &state,
+            &log,
+            EditDto::Join {
+                photo: dated,
+                into: members[0],
+            },
+        );
+
+        for id in [members[0], members[1], dated] {
+            assert_eq!(marks(&state, scan_id, id, 10), (true, false), "{id}");
+            // At a gap of 1 s the photos 5 s apart stay together.
+            assert_eq!(marks(&state, scan_id, id, 1), (true, false), "{id}");
+        }
+    }
+
+    #[test]
+    fn a_photo_taken_out_is_pinned_also_after_another_is_rejected() {
+        let (state, scan_id) = scanned();
+        let log = ActionLog::open_in_memory().unwrap();
+        let members = series_ids(&state);
+        edit(&state, &log, EditDto::Remove { photo: members[1] });
+        assert_eq!(marks(&state, scan_id, members[1], 10), (false, true));
+        assert_eq!(marks(&state, scan_id, members[0], 10), (false, true));
+
+        // Rejecting a photo shown before it shifts the positions.
+        state.scan().as_mut().unwrap().remove(members[0]);
+
+        assert_eq!(marks(&state, scan_id, members[1], 10), (false, true));
+        let single = id_named(&state, "no-exif.jpg");
+        assert_eq!(marks(&state, scan_id, single, 10), (false, false));
     }
 
     #[test]

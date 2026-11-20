@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use sito_core::actions::ActionLog;
 use sito_core::moved::MovedPhoto;
-use sito_core::series::{Edit, EditAction, EditError, EditKind, plan_edit, visibly_changed};
+use sito_core::series::{Edit, EditAction, EditError, EditKind, Pins, plan_edit, visibly_changed};
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -69,6 +69,9 @@ impl EditDto {
 pub struct EditedDto {
     /// File name of the photo the edit was about.
     name: String,
+    /// Ids of the photos that look different now (see [`visibly_changed`]),
+    /// newest first.
+    changed: Vec<usize>,
 }
 
 /// Applies `edit` to the series of the current scan as shown for
@@ -134,8 +137,12 @@ pub(crate) fn edit_in(
         plan_edit(&all, max_gap, scan.pins(), &edit, next).map_err(|err| refused(&err))?;
     log.record_edit(edit.kind(), edit.photo(), &changes)
         .map_err(|err| log_failed(&err))?;
+    let before = scan.pins().clone();
     scan.apply_pins(&changes);
-    Ok(EditedDto { name })
+    Ok(EditedDto {
+        name,
+        changed: changed_ids(scan, max_gap, &before),
+    })
 }
 
 /// Which edit was undone. Mirrors [`EditKind`].
@@ -198,20 +205,26 @@ pub(crate) fn undo_edit(
         CommandError::EditUndoFailed
     })?;
     scan.apply_pins(&changes);
+    Ok(EditUndoneDto {
+        edit: action.kind.into(),
+        name: file_name(&action.photo),
+        changed: changed_ids(scan, max_gap, &before),
+    })
+}
+
+/// Ids of the photos of `scan` that look different with its pins than with
+/// the pins `before`, with the series for `max_gap`, newest first (see
+/// [`visibly_changed`]).
+fn changed_ids(scan: &Scan, max_gap: Duration, before: &Pins) -> Vec<usize> {
     let (all, removed) = scan.photos_with_removed();
     let ids: HashMap<&Path, usize> = scan
         .photos()
         .map(|(id, photo)| (photo.path.as_path(), id))
         .collect();
-    let changed_ids = visibly_changed(&all, &removed, max_gap, &before, scan.pins())
+    visibly_changed(&all, &removed, max_gap, before, scan.pins())
         .into_iter()
         .filter_map(|position| ids.get(all.get(position)?.path.as_path()).copied())
-        .collect();
-    Ok(EditUndoneDto {
-        edit: action.kind.into(),
-        name: file_name(&action.photo),
-        changed: changed_ids,
-    })
+        .collect()
 }
 
 fn refused(err: &EditError) -> CommandError {
@@ -342,6 +355,51 @@ mod tests {
         assert_eq!(series.len(), 1);
         assert_eq!(series[0].kind, SeriesKind::Automatic);
         assert!(log.pins_under(&scan.timeline.root).unwrap().is_empty());
+    }
+
+    /// File names of the photos `edited` lists as changed.
+    fn changed(scan: &Scan, edited: &EditedDto) -> Vec<String> {
+        edited
+            .changed
+            .iter()
+            .map(|&id| file_name(&scan.photo(id).unwrap().path))
+            .collect()
+    }
+
+    #[test]
+    fn an_edit_lists_the_photos_that_look_different() {
+        use crate::reject::tests::gallery;
+        const COPY: &str = "pixel_copy.jpg";
+        // A series of three: NEWER, OLDER and COPY (OLDER's time, after it by name).
+        let dir = gallery();
+        std::fs::copy(dir.path().join(OLDER), dir.path().join(COPY)).unwrap();
+        let mut scan = Scan::new(1, build_timeline(dir.path(), |_| {}).unwrap());
+        let log = ActionLog::open_in_memory().unwrap();
+        let [newer, older] = [NEWER, OLDER].map(|name| id_of(&scan, name));
+        let edit = |scan: &mut Scan, edit| {
+            let edited = edit_in(scan, &log, edit, DEFAULT_MAX_GAP).unwrap();
+            changed(scan, &edited)
+        };
+
+        // Taking out lists only the photo taken out, restoring brings back only it.
+        assert_eq!(edit(&mut scan, EditDto::Remove { photo: older }), [OLDER]);
+        assert_eq!(edit(&mut scan, EditDto::Restore { photo: older }), [OLDER]);
+        // A cut before the second photo leaves the first one on its own.
+        assert_eq!(edit(&mut scan, EditDto::Cut { photo: older }), [NEWER]);
+        // Restoring from the single part gives back both parts in one series.
+        assert_eq!(edit(&mut scan, EditDto::Restore { photo: newer }), [NEWER]);
+        assert_eq!(grouping(&scan).series.len(), 1);
+        // Restoring from the other part does too.
+        edit(&mut scan, EditDto::Cut { photo: older });
+        assert_eq!(edit(&mut scan, EditDto::Restore { photo: older }), [NEWER]);
+        assert_eq!(
+            edit(&mut scan, EditDto::Ungroup { photo: older }),
+            [NEWER, OLDER, COPY]
+        );
+        assert_eq!(
+            edit(&mut scan, EditDto::Restore { photo: newer }),
+            [NEWER, OLDER, COPY]
+        );
     }
 
     #[test]

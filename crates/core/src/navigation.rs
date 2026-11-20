@@ -45,9 +45,18 @@ pub fn neighbours(count: usize, series: &[SeriesRange], view: View, position: us
 /// The series containing `position`, if any.
 #[must_use]
 pub fn series_of(series: &[SeriesRange], position: usize) -> Option<SeriesRange> {
-    let after = series.partition_point(|s| s.start <= position);
-    let candidate = *series.get(after.checked_sub(1)?)?;
-    (position < candidate.start + candidate.len).then_some(candidate)
+    series.get(series_index(series, position)?).copied()
+}
+
+/// The index in `series` (sorted by `start`) of the series containing
+/// `position`, if any.
+#[must_use]
+pub fn series_index(series: &[SeriesRange], position: usize) -> Option<usize> {
+    let index = series
+        .partition_point(|s| s.start <= position)
+        .checked_sub(1)?;
+    let candidate = series.get(index)?;
+    (position < candidate.start + candidate.len).then_some(index)
 }
 
 /// The photo to show after rejecting the one at `position`: the next photo
@@ -146,6 +155,8 @@ mod tests {
         assert_eq!(series_of(&SERIES, 6), Some(SERIES[1]));
         assert_eq!(series_of(&SERIES, 1), Some(SERIES[0]));
         assert_eq!(series_of(&SERIES, 7), Some(SERIES[1]));
+        assert_eq!(series_index(&SERIES, 6), Some(1));
+        assert_eq!(series_index(&SERIES, 1), Some(0));
     }
 
     #[test]
@@ -154,6 +165,8 @@ mod tests {
             assert_eq!(series_of(&SERIES, position), None, "position {position}");
         }
         assert_eq!(series_of(&[], 0), None);
+        assert_eq!(series_index(&SERIES, 3), None);
+        assert_eq!(series_index(&[], 0), None);
     }
 
     #[test]
