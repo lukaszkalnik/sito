@@ -98,3 +98,4 @@ One commit per step, each with its tests and checks green.
 ## Progress
 
 - Step 1 (the language setting): done. Migration 7 adds the `settings` table (`crates/core/src/settings.rs`); `src-tauri/src/language.rs` holds `Language`, `LanguageChoice`, the locale rules (`language/locale.rs`) and the `get_language` / `set_language` commands with the `language-changed` event. Not used by the UI yet (step 3).
+- Step 2 (formatters per locale): done. `ui/src/i18n/formats.ts` builds the formats of a locale once (`formatsFor`, `useFormats` for the current language); the timeline day, the viewer's facts, the zoom badge and the update notice use it.

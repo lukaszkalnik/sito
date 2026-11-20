@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
+import { useFormats } from '../../i18n/formats';
 import { EditedIcon } from '../series-edit/EditedIcon';
 import type { SeriesLabel, TimelineEntry } from './api';
 import { formatDay, timeOf } from './format';
@@ -135,9 +136,10 @@ function BlockGroup({ group, context }: { group: RowGroup; context: TileContext 
 
 /** The content of one timeline row. */
 export function TimelineRowView({ row, context }: { row: TimelineRow; context: TileContext }) {
+  const formats = useFormats();
   switch (row.kind) {
     case 'day':
-      return <h2 className="timeline-day">{formatDay(row.date)}</h2>;
+      return <h2 className="timeline-day">{formatDay(row.date, formats)}</h2>;
     case 'series':
       return (
         <SeriesHeader

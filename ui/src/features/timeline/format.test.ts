@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatsFor } from '../../i18n/formats';
 import { formatDay, timeOf } from './format';
 
 describe('formatDay', () => {
@@ -8,7 +9,14 @@ describe('formatDay', () => {
     ['2026-10-26', 'poniedziałek, 26 października 2026'],
     ['2024-12-31', 'wtorek, 31 grudnia 2024'],
   ])('formats %s in Polish', (date, expected) => {
-    expect(formatDay(date)).toBe(expected);
+    expect(formatDay(date, formatsFor('pl-PL'))).toBe(expected);
+  });
+
+  it.each([
+    ['en-GB', 'Saturday, 1 June 2024'],
+    ['de-DE', 'Samstag, 1. Juni 2024'],
+  ])('formats a day in %s', (locale, expected) => {
+    expect(formatDay('2024-06-01', formatsFor(locale))).toBe(expected);
   });
 });
 

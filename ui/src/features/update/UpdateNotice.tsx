@@ -2,13 +2,12 @@ import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
+import { useFormats } from '../../i18n/formats';
 import type { InstallKind, UpdateInfo } from './api';
 import { ReleaseNotesDialog } from './ReleaseNotesDialog';
 import { isShown, type FailedAction, type Failure, type UpdateState } from './updateReducer';
 import { useUpdate } from './useUpdate';
 import './UpdateNotice.css';
-
-const PERCENT = new Intl.NumberFormat('pl-PL', { style: 'percent', maximumFractionDigits: 0 });
 
 /** The message key of each failed action; `Record` makes a new action a type error here. */
 const FAILURE_MESSAGE: Readonly<Record<FailedAction, string>> = {
@@ -94,6 +93,7 @@ function Answer({ text, onClose }: { text: string; onClose: () => void }) {
 /** The content of the notice for `state`, or `null` when it shows nothing. */
 function NoticeBody({ state, actions }: { state: UpdateState; actions: Actions }) {
   const { t } = useTranslation();
+  const formats = useFormats();
   switch (state.kind) {
     case 'idle':
       return null;
@@ -117,7 +117,7 @@ function NoticeBody({ state, actions }: { state: UpdateState; actions: Actions }
         <p>
           {state.fraction === null
             ? t('update.downloading')
-            : t('update.downloadingPercent', { percent: PERCENT.format(state.fraction) })}
+            : t('update.downloadingPercent', { percent: formats.percent(state.fraction) })}
         </p>
       );
     case 'installing':

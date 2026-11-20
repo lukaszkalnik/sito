@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 
+import { useFormats, type Formats } from '../../i18n/formats';
 import { CutPath } from '../../paths/CutPath';
 import { FolderIcon } from '../scan/FolderIcon';
 import { PinnedIcon } from '../series-edit/EditedIcon';
@@ -10,7 +11,7 @@ import { FORMAT_BADGES } from '../timeline/formatBadges';
 import { formatDay, timeOf } from '../timeline/format';
 import { dayOf } from '../timeline/layout';
 import type { PhotoDetails } from './api';
-import { fileSize, formatPixels, type FileSize } from './photoDetails';
+import { fileSize, type FileSize } from './photoDetails';
 import './PhotoInfo.css';
 
 /** Translation keys of the note on where a photo's date comes from; `null` for none. */
@@ -30,16 +31,21 @@ const SIZE_KEYS: Readonly<Record<FileSize['unit'], string>> = {
 const SEPARATOR = ' · ';
 
 /** Date and time, resolution (when known; not for RAW) and file size of the photo. */
-function factTexts(entry: TimelineEntry, details: PhotoDetails, t: TFunction): string[] {
-  const size = fileSize(details.sizeBytes);
+function factTexts(
+  entry: TimelineEntry,
+  details: PhotoDetails,
+  t: TFunction,
+  formats: Formats,
+): string[] {
+  const size = fileSize(details.sizeBytes, formats);
   const { resolution } = details;
   return [
-    `${formatDay(dayOf(entry))}, ${timeOf(entry.takenAt)}`,
+    `${formatDay(dayOf(entry), formats)}, ${timeOf(entry.takenAt)}`,
     resolution === null
       ? null
       : t('viewer.resolution', {
-          width: formatPixels(resolution.width),
-          height: formatPixels(resolution.height),
+          width: formats.whole(resolution.width),
+          height: formats.whole(resolution.height),
         }),
     t(SIZE_KEYS[size.unit], { size: size.value }),
   ].filter((text) => text !== null);
@@ -48,7 +54,8 @@ function factTexts(entry: TimelineEntry, details: PhotoDetails, t: TFunction): s
 /** The second line: the facts and the date source note, joined with „·”; the whole line as tooltip. */
 function PhotoFacts({ entry, details }: { entry: TimelineEntry; details: PhotoDetails }) {
   const { t } = useTranslation();
-  const facts = factTexts(entry, details, t);
+  const formats = useFormats();
+  const facts = factTexts(entry, details, t, formats);
   const noteKey = DATE_SOURCE_NOTES[entry.timeSource];
   const note = noteKey === null ? null : t(noteKey);
   const line = [...facts, note].filter((text) => text !== null).join(SEPARATOR);
