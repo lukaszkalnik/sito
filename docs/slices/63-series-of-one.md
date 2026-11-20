@@ -17,6 +17,7 @@ Today a series with one photo left is still shown as a series: an automatic seri
   1. Show a series of one as a single photo (grid, viewer strip, „Serie” view, the summary's series count), keeping its membership underneath so it is a series again when a rejected photo comes back with „Cofnij”.
   2. Keep showing it as a series, but offer no edit on it (no „Rozdziel serię”) and mark it as sifted down.
   3. Leave it as it is.
+- **Inconsistency between edits and rejections** (noticed by the user in slice 62's testing, 2026-11-20): an edit that leaves a part with one photo (a cut before the second photo, „Wyjmij z serii” or a join out of a series of two) pins that photo as a single photo, with the pinned mark, not as a series of one (`part` in `crates/core/src/series/edit.rs`). A rejection that leaves one photo keeps it a series of one (`without_removed` in `crates/core/src/series.rs`), and so does a manual series whose other photos were trashed or went missing. So the same situation, one photo left of a series, looks different depending on how it came about. Whatever this slice decides should make both paths agree (e.g. approach 1 would match what edits already do; approach 2 would mean edits keep a series of one too).
 - **What changes with it**: the „Serie” view (would the last photo of a sifted series drop out of it?), stepping in the viewer, rejecting the second-last photo of a series, „Cofnij” bringing a photo back, manual series with one photo left, accepted marks.
 
 ## Related slices
