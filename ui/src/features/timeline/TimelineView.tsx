@@ -17,7 +17,7 @@ import { Toast } from '../reject/Toast';
 import { UndoButton } from '../reject/UndoButton';
 import { useUndo } from '../reject/useUndo';
 import { FolderInfo } from './FolderInfo';
-import { GapSlider } from './GapSlider';
+import { GapInput } from './GapInput';
 import type { TimelineMode } from './layout';
 import type { MenuRequest } from './menuRequest';
 import type { Reveal } from './reveal';
@@ -177,7 +177,7 @@ function TimelineBar(props: TimelineBarProps) {
       <h1>{t('app.title')}</h1>
       <FolderInfo {...{ path, summary, timeline, busy, onChooseAnother, onRefresh }} />
       <div className="timeline-bar-controls">
-        <GapSlider gap={props.gap} onChange={props.changeGap} />
+        <GapInput gap={props.gap} onChange={props.changeGap} />
         <ViewPicker mode={props.mode} onChange={props.setMode} />
         <DestinationSetting />
         <UndoButton

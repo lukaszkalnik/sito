@@ -157,7 +157,7 @@ describe('TimelineView', () => {
     expect(screen.getByText('Zdjęcia')).toBeInTheDocument();
   });
 
-  it('regroups with the gap from the slider and remembers it for the folder', async () => {
+  it('regroups with the gap typed in and remembers it for the folder', async () => {
     saveGap('C:\\Zdjęcia', 4);
     mockedTimeline.mockResolvedValue(entries(6));
     mockedSeries.mockImplementation((gap) =>
@@ -165,15 +165,13 @@ describe('TimelineView', () => {
     );
     renderView(6);
 
-    const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
-    expect(slider).toHaveValue('4');
-    expect(screen.getByText('4 s')).toBeInTheDocument();
+    const input = screen.getByRole('spinbutton', { name: 'Odstęp w serii' });
+    expect(input).toHaveValue(4);
     await expectStatus('1 seria (2 zdjęcia).');
     expect(mockedSeries).toHaveBeenLastCalledWith(4);
 
-    fireEvent.change(slider, { target: { value: '30' } });
+    fireEvent.change(input, { target: { value: '30' } });
 
-    expect(screen.getByText('30 s')).toBeInTheDocument();
     expect(await screen.findByText(/3 serie \(6 zdjęć\)\./)).toBeInTheDocument();
     expect(mockedSeries).toHaveBeenLastCalledWith(30);
     expect(loadGap('C:\\Zdjęcia')).toBe(30);
@@ -184,18 +182,18 @@ describe('TimelineView', () => {
     mockedTimeline.mockResolvedValue(entries(2));
     mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
-    const slider = screen.getByRole('slider', { name: 'Odstęp w serii' });
+    const input = screen.getByRole('spinbutton', { name: 'Odstęp w serii' });
     const decrease = screen.getByRole('button', { name: 'Zmniejsz odstęp' });
     const increase = screen.getByRole('button', { name: 'Zwiększ odstęp' });
 
     await userEvent.click(decrease);
-    expect(slider).toHaveValue('1');
+    expect(input).toHaveValue(1);
     expect(decrease).toBeDisabled();
     expect(loadGap('C:\\Zdjęcia')).toBe(1);
 
     await userEvent.click(increase);
     await userEvent.click(increase);
-    expect(slider).toHaveValue('3');
+    expect(input).toHaveValue(3);
     expect(decrease).toBeEnabled();
     expect(mockedSeries).toHaveBeenLastCalledWith(3);
   });
@@ -228,7 +226,7 @@ describe('TimelineView', () => {
     mockedSeries.mockResolvedValue(grouping(pairs(1), 2));
     renderView(2);
 
-    expect(screen.getByRole('slider', { name: 'Odstęp w serii' })).toHaveValue('10');
+    expect(screen.getByRole('spinbutton', { name: 'Odstęp w serii' })).toHaveValue(10);
     await vi.waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('1 seria'));
     expect(mockedSeries).toHaveBeenCalledWith(10);
   });

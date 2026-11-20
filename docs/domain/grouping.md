@@ -5,7 +5,7 @@
 - Photos are sorted by capture time, newest first.
 - A series holds the photos of **one camera** (EXIF make and model) taken in quick succession: two photos of the same camera that follow each other among that camera's photos belong to the same series when both have a capture time and were taken at most the **time gap** apart. Another camera's photos taken in between do not break the series. A series has at least two photos.
 - Photos without a known camera (no EXIF make and model, or EXIF not read yet during the background pass of a first Takeout scan) are grouped like one more camera. Once the background pass reads their EXIF, they move to their camera's series.
-- The default gap is 10 s; the user adjusts it per folder with a slider (1–60 s).
+- The default gap is 10 s; the user adjusts it per folder with a number input (1–60 s): − and + or the arrow keys step it by 1 s, a typed value applies as soon as it is a whole number in range, and leaving the field clamps an out-of-range value (or restores the gap if the field is empty).
 - Photos dated only by the file never join a series (see [Photos](photos.md#capture-time)); slice 20 explores series without an EXIF date.
 - Rejected photos still count when series are found, so a series keeps its shape after its weaker shots were rejected.
 

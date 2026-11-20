@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clampGap, DEFAULT_GAP, loadGap, MAX_GAP, MIN_GAP, saveGap } from './gapSetting';
+import {
+  clampGap,
+  DEFAULT_GAP,
+  finishedGap,
+  loadGap,
+  MAX_GAP,
+  MIN_GAP,
+  saveGap,
+  typedGap,
+} from './gapSetting';
 
 describe('gapSetting', () => {
   beforeEach(() => {
@@ -44,6 +53,33 @@ describe('gapSetting', () => {
     ['10', DEFAULT_GAP],
   ])('clamps %j to %i', (value, expected) => {
     expect(clampGap(value)).toBe(expected);
+  });
+
+  it.each([
+    ['5', 5],
+    ['1', MIN_GAP],
+    ['60', MAX_GAP],
+    [' 25 ', 25],
+    ['', null],
+    ['  ', null],
+    ['0', null],
+    ['61', null],
+    ['-3', null],
+    ['2.5', null],
+    ['abc', null],
+  ])('takes %j typed so far as %j', (text, expected) => {
+    expect(typedGap(text)).toBe(expected);
+  });
+
+  it.each([
+    ['5', 5],
+    ['0', MIN_GAP],
+    ['600', MAX_GAP],
+    ['2.6', 3],
+    ['', 12],
+    ['abc', 12],
+  ])('finishes typing %j as %i', (text, expected) => {
+    expect(finishedGap(text, 12)).toBe(expected);
   });
 
   it('keeps working when storage throws', () => {

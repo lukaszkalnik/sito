@@ -27,22 +27,21 @@ async function openTimeline(page: Page, folder = 'D:\\Desktop\\Złote gody') {
   await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
 }
 
-const slider = (page: Page) => page.getByRole('slider', { name: 'Odstęp w serii' });
+const gapInput = (page: Page) => page.getByRole('spinbutton', { name: 'Odstęp w serii' });
 
 test('regroups the series when the gap changes', async ({ page }) => {
   await openTimeline(page);
-  await expect(slider(page)).toHaveValue('10');
+  await expect(gapInput(page)).toHaveValue('10');
   await expect(page.getByRole('status')).toContainText('250 serii (1000 zdjęć).');
 
-  await slider(page).fill('5');
+  await gapInput(page).fill('5');
 
-  await expect(page.getByText('5 s', { exact: true })).toBeVisible();
   await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
   await expect(page.getByRole('heading', { level: 3 }).first()).toHaveText(
     '3 zdjęcia · 11:59:54–12:00:00',
   );
 
-  await slider(page).fill('2');
+  await gapInput(page).fill('2');
 
   await expect(page.getByText('Nie znaleziono serii zdjęć.')).toBeVisible();
 
@@ -50,23 +49,39 @@ test('regroups the series when the gap changes', async ({ page }) => {
   await page.getByRole('button', { name: 'Zwiększ odstęp' }).click();
   await page.getByRole('button', { name: 'Zwiększ odstęp' }).click();
 
-  await expect(slider(page)).toHaveValue('5');
+  await expect(gapInput(page)).toHaveValue('5');
   await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
 
-  await slider(page).fill('60');
+  await gapInput(page).fill('60');
 
+  await expect(page.getByRole('status')).toContainText('1 seria (1000 zdjęć).');
+});
+
+test('steps with the arrow keys and clamps a typed gap out of range', async ({ page }) => {
+  await openTimeline(page);
+  await gapInput(page).fill('6');
+  await gapInput(page).press('ArrowDown');
+
+  await expect(gapInput(page)).toHaveValue('5');
+  await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
+
+  await gapInput(page).fill('600');
+  await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
+  await gapInput(page).blur();
+
+  await expect(gapInput(page)).toHaveValue('60');
   await expect(page.getByRole('status')).toContainText('1 seria (1000 zdjęć).');
 });
 
 test('remembers the gap for the folder', async ({ page }) => {
   await openTimeline(page);
-  await slider(page).fill('5');
+  await gapInput(page).fill('5');
   await expect(page.getByRole('status')).toContainText('(750 zdjęć)');
 
   // The folder opened last is opened again by itself.
   await page.reload();
 
-  await expect(slider(page)).toHaveValue('5');
+  await expect(gapInput(page)).toHaveValue('5');
   await expect(page.getByRole('status')).toContainText('250 serii (750 zdjęć).');
 });
 
@@ -76,7 +91,7 @@ test('starts another folder at the default gap', async ({ page }) => {
   });
   await openTimeline(page, 'D:\\Zdjęcia');
 
-  await expect(slider(page)).toHaveValue('10');
+  await expect(gapInput(page)).toHaveValue('10');
   await expect(page.getByRole('status')).toContainText('250 serii (1000 zdjęć).');
 });
 
@@ -87,7 +102,7 @@ test('keeps the photos in view in place when the gap changes', async ({ page }) 
   const before = await topPhoto(page);
   expect(before.name).not.toBe('');
 
-  await slider(page).fill('5');
+  await gapInput(page).fill('5');
   await expect(page.getByRole('status')).toContainText('(750 zdjęć)');
 
   await expect.poll(() => photoY(page, before.name)).toBe(before.y);

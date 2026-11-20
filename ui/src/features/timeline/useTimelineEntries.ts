@@ -27,7 +27,7 @@ type Fetched = { scanKey: unknown; revision: number; entries: TimelineEntry[] };
  * both; a new `gap` (seconds) reloads only the series; rejecting or restoring
  * a photo reloads both. Entries and series are always set together, so they
  * match. While new data loads, the previous data of the same scan stays, so
- * neither dragging the gap slider nor rejecting flashes a loading state.
+ * neither changing the gap nor rejecting flashes a loading state.
  */
 export function useTimelineEntries(scanKey: unknown, gap: number): TimelineEntriesState {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
