@@ -1,28 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { useShortcuts } from '../../shortcuts/useShortcuts';
 import type { ToastMessage } from '../reject/useUndo';
 import type { MenuRequest } from '../timeline/menuRequest';
-import { editErrorCode, editSeries, type EditErrorCode } from './api';
-import { editOptionsFor, type Arranged, type EditAction, type EditOption } from './editOptions';
+import { editOptionsFor, type Arranged, type EditOption } from './editOptions';
 import type { OpenMenu } from './SeriesMenu';
-
-/** Translation keys of the toast after each edit. */
-const DONE_KEYS: Readonly<Record<EditAction, string>> = {
-  cut: 'seriesEdit.cutDone',
-  remove: 'seriesEdit.removeDone',
-  joinPrevious: 'seriesEdit.joinDone',
-  joinNext: 'seriesEdit.joinDone',
-  ungroup: 'seriesEdit.ungroupDone',
-  restore: 'seriesEdit.restoreDone',
-};
-
-/** Translation keys of the toast after a failed edit. */
-const ERROR_KEYS: Readonly<Record<EditErrorCode, string>> = {
-  seriesChanged: 'seriesEdit.seriesChanged',
-  internal: 'seriesEdit.failed',
-};
+import { useEditSeries } from './useEditSeries';
 
 /**
  * Opens a context menu on the focused element, as the Menu key does by
@@ -47,7 +30,7 @@ export function useSeriesMenu(
   gap: number,
   showToast: (message: ToastMessage) => void,
 ) {
-  const { t } = useTranslation();
+  const edit = useEditSeries(gap, showToast);
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   useShortcuts({ menu: arranged ? openMenuOfFocused : null });
@@ -71,15 +54,9 @@ export function useSeriesMenu(
   const choose = useCallback(
     async (option: EditOption) => {
       close(true);
-      try {
-        const { name } = await editSeries(option.edit, gap);
-        showToast({ text: t(DONE_KEYS[option.action], { name }), kind: 'undoable' });
-      } catch (error) {
-        console.error('Cannot edit the series', error);
-        showToast({ text: t(ERROR_KEYS[editErrorCode(error)]), kind: 'error' });
-      }
+      await edit(option);
     },
-    [close, gap, showToast, t],
+    [close, edit],
   );
 
   return { menu, open, close, choose };
