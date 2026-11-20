@@ -240,7 +240,12 @@ fn follow_pin(scan: &mut Scan, log: &ActionLog, from: &Path, to: &Path) {
 
 /// Sends `event` to all windows.
 pub(crate) fn announce(app: &AppHandle, event: &str) {
-    if let Err(err) = app.emit(event, ()) {
+    announce_with(app, event, ());
+}
+
+/// Sends `event` with `payload` to every window.
+pub(crate) fn announce_with(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
+    if let Err(err) = app.emit(event, payload) {
         log::warn!("cannot announce {event}: {err}");
     }
 }

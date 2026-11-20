@@ -19,6 +19,7 @@ pub mod raw;
 pub mod reject;
 pub mod scan;
 pub mod series;
+pub mod settings;
 pub mod takeout;
 pub mod thumbnail;
 pub mod tiff;

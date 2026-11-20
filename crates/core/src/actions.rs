@@ -390,6 +390,8 @@ const MIGRATIONS: &[&str] = &[
          series    INTEGER NULL,
          PRIMARY KEY (action_id, path)
      );",
+    // 7: the user's settings, by key (see `crate::settings`).
+    "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
 ];
 
 /// Applies the [`MIGRATIONS`] the database at `conn` does not have yet, in one

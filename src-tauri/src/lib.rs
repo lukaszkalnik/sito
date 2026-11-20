@@ -3,6 +3,7 @@
 mod about;
 mod accept;
 mod error;
+mod language;
 mod missing;
 mod navigation;
 mod protocol;
@@ -69,7 +70,9 @@ pub fn run() -> tauri::Result<()> {
             accept::get_accepted_ids,
             update::check_for_update,
             update::install_update,
-            update::open_release_page
+            update::open_release_page,
+            language::get_language,
+            language::set_language
         ])
         .run(tauri::generate_context!())
 }
@@ -103,8 +106,8 @@ fn with_e2e_driver(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri:
     builder
 }
 
-/// Registers the logger, opens the caches and the action log, and shows the
-/// main window with its menu.
+/// Registers the logger, opens the caches and the action log, loads the
+/// language, and shows the main window with its menu.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -121,7 +124,9 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(scan::photo_cache::PhotoCacheState::open(
         &scan::photo_cache::cache_file(&cache_dir),
     ));
-    app.manage(reject::Actions::new(open_action_log(app.handle())));
+    let log = open_action_log(app.handle());
+    app.manage(language::LanguageState::load(log.as_ref()));
+    app.manage(reject::Actions::new(log));
     // The main window is created hidden from the config.
     if let Some(main) = app.get_webview_window("main") {
         // Without the menu the app still works; only the licenses are out of reach.

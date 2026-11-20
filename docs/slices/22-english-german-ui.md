@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🚧 in progress
 ---
 
 # Slice 22 – English and German UI
 
-Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written and approved by the user the same day (all suggestions taken); next: implement step 1 of the plan.
+Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written and approved by the user the same day (all suggestions taken). Implementation started the same day; see [Progress](#progress).
 
 ## Idea
 
@@ -94,3 +94,7 @@ One commit per step, each with its tests and checks green.
 - The language is chosen in the „Ustawienia → Język” menu until slice 15's settings screen exists.
 - An existing rejected folder is reused, whatever its language; nothing is renamed on a switch.
 - English chosen on a non-English system formats dates and numbers as `en-GB`.
+
+## Progress
+
+- Step 1 (the language setting): done. Migration 7 adds the `settings` table (`crates/core/src/settings.rs`); `src-tauri/src/language.rs` holds `Language`, `LanguageChoice`, the locale rules (`language/locale.rs`) and the `get_language` / `set_language` commands with the `language-changed` event. Not used by the UI yet (step 3).
