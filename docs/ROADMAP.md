@@ -63,8 +63,8 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 61 | [Gap as a number input](slices/61-gap-number-input.md) | 🧪 |
 | 62 | [Undo series edits](slices/62-undo-series-edits.md) | 🧪 |
 | 59 | [Edit series in the viewer](slices/59-edit-series-in-viewer.md) | 🧪 |
-| 60 | [Select photos and drag them into series](slices/60-select-and-drag-photos.md) | 📝 |
 | 63 | [Series of one photo](slices/63-series-of-one.md) | 📝 |
+| 60 | [Select photos and drag them into series](slices/60-select-and-drag-photos.md) | 📝 |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
 | 17 | [Sharpness suggestion](slices/17-sharpness.md) | ⬜ |

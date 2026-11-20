@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 60 – Select photos and drag them into series
 
-Drafted on 2026-11-18 while testing [slice 14](14-edit-series.md); plan when the slice starts.
+Drafted on 2026-11-18 while testing [slice 14](14-edit-series.md); plan when the slice starts. Postponed on 2026-11-20 at the user's request: the user researches the UX on their own machine first, so plan it only once they bring it up again.
 
 ## Idea
 
@@ -46,3 +46,4 @@ Recommended: 2 with the modifiers of 1 as shortcuts (Ctrl/Cmd+click enters selec
 - What happens to a selection when the timeline changes (a refresh, an edit in another window): keep the ids still shown, drop the rest.
 - [Slice 59](59-edit-series-in-viewer.md) (edits in the viewer) is independent; selection stays a grid feature. It plans a shared `useEditSeries` hook (edit + toasts) to reuse here, and takes the keys P and W.
 - [Slice 62](62-undo-series-edits.md) makes edits undoable with „Cofnij”; a drag of several photos or „Połącz w serię” is logged as one edit, undone in one step.
+- Tauri's own file-drop handling (`dragDropEnabled`, on by default) blocks HTML5 drag & drop inside the webview on Windows; Sito takes no file drops, so turning it off in the window config is likely needed for the drag & drop approach.
