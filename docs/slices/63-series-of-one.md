@@ -4,7 +4,7 @@ status: 📝 concept drafted
 
 # Slice 63 – Series of one photo
 
-Drafted on 2026-11-20 in the second review of [slice 59](59-edit-series-in-viewer.md); plan when the slice starts.
+Drafted on 2026-11-20 in the second review of [slice 59](59-edit-series-in-viewer.md); plan when the slice starts. Postponed on 2026-11-20 at the user's request: the user experiments with the UX on their own machine first.
 
 ## Idea
 
