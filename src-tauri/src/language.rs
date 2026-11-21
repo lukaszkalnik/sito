@@ -12,6 +12,7 @@ use sito_core::actions::ActionLog;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
+use crate::menu::reinstall_menu;
 use crate::reject::{Actions, announce_with};
 
 /// Event sent to all windows when the language changes, with a
@@ -204,13 +205,15 @@ pub async fn set_language(
     off_main_thread(move || change_language(&app, choice)).await
 }
 
-/// Applies and saves `choice` and tells every window. A choice that cannot
-/// be saved still applies until the app closes.
+/// Applies and saves `choice`, rebuilds the menu in the language and tells
+/// every window. A choice that cannot be saved still applies until the app
+/// closes.
 pub fn change_language(app: &AppHandle, choice: LanguageChoice) -> LanguageDto {
     save_choice(app, choice);
     let state = app.state::<LanguageState>();
     state.set(choice);
     let current = state.current();
+    reinstall_menu(app);
     announce_with(app, LANGUAGE_CHANGED, current.clone());
     current
 }
