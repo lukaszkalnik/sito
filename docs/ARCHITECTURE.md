@@ -135,7 +135,7 @@ Most of Sito is the same on Windows and macOS. The differences sit in a few plac
 | [core/src/reject/exclusive.rs](../crates/core/src/reject/exclusive.rs): moving a file without replacing another | `MoveFileExW` from `kernel32` | `renamex_np` with `RENAME_EXCL`, through the `libc` crate; a check before a plain rename on volumes without it |
 | [core/src/trash.rs](../crates/core/src/trash.rs): the system trash (`trash` crate) | move and restore | move only; macOS has no restore API yet, so Undo skips these |
 | [src-tauri/src/reject/drive.rs](../src-tauri/src/reject/drive.rs): does the drive have a trash? | `GetDriveTypeW`: only fixed drives | always yes |
-| [src-tauri/src/about.rs](../src-tauri/src/about.rs): the app menu | a menu bar in the window | the menu bar at the top of the screen, with the app menu macOS expects |
+| [src-tauri/src/menu.rs](../src-tauri/src/menu.rs): the app menu | a menu bar in the window | the menu bar at the top of the screen, with the app menu macOS expects |
 
 Sito is built and tested only for Windows and macOS. One exception: `crates/core` must also compile on Linux, because the [fuzz tests](../fuzz/README.md) of its file parsers run on Linux in CI. So `exclusive.rs` has a Linux version of the move (`renameat2`) as well. Nothing tests it, and the app itself is never built for Linux.
 

@@ -1,9 +1,9 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
-mod about;
 mod accept;
 mod error;
 mod language;
+mod menu;
 mod missing;
 mod navigation;
 mod protocol;
@@ -46,7 +46,7 @@ pub fn run() -> tauri::Result<()> {
             window_fit::save_on_close(window, event);
             viewer::on_window_event(window, event);
         })
-        .on_menu_event(|app, event| about::on_menu_event(app, &event))
+        .on_menu_event(|app, event| menu::on_menu_event(app, &event))
         .manage(scan::state::AppState::default())
         .manage(viewer::ViewerState::default())
         .manage(update::UpdateState::default())
@@ -130,7 +130,7 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     // The main window is created hidden from the config.
     if let Some(main) = app.get_webview_window("main") {
         // Without the menu the app still works; only the licenses are out of reach.
-        if let Err(err) = about::install_menu(app.handle(), &main) {
+        if let Err(err) = menu::install_menu(app.handle(), &main) {
             log::warn!("cannot create the menu: {err}");
         }
         window_fit::show_placed(&main);

@@ -1,7 +1,7 @@
 import { getVersion } from '@tauri-apps/api/app';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
-/** Event of the menu item „Pomoc → Licencje…”. Mirrors `SHOW_LICENSES_EVENT` in `src-tauri/src/about.rs`. */
+/** Event of the menu item „Pomoc → Licencje…”. Mirrors `SHOW_LICENSES_EVENT` in `src-tauri/src/menu.rs`. */
 const SHOW_LICENSES_EVENT = 'about-show-licenses';
 /** The notices file the frontend build writes (`ui/build/thirdPartyNoticesPlugin.ts`). */
 export const NOTICES_URL = '/THIRD-PARTY-NOTICES.txt';
