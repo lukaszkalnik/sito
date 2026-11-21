@@ -9,6 +9,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use serde::{Deserialize, Serialize};
 use sito_core::actions::ActionLog;
+use sito_core::scan::RejectedDirName;
 use tauri::{AppHandle, Manager};
 
 use crate::error::{CommandError, off_main_thread};
@@ -20,6 +21,10 @@ use crate::reject::{Actions, announce_with};
 pub const LANGUAGE_CHANGED: &str = "language-changed";
 /// Key of the user's choice in the settings.
 const SETTING_KEY: &str = "language";
+/// Environment variable with a locale used instead of the system's, for the
+/// real-app tests and for trying a language without changing the system.
+/// Read only in debug builds.
+const SYSTEM_LOCALE_ENV: &str = "SITO_SYSTEM_LOCALE";
 
 /// A language of the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -52,6 +57,15 @@ impl Language {
         [Self::Polish, Self::English, Self::German]
             .into_iter()
             .find(|language| language.code().eq_ignore_ascii_case(code))
+    }
+
+    /// The name of a new rejected folder in this language.
+    pub const fn rejected_dir(self) -> RejectedDirName {
+        match self {
+            Self::Polish => RejectedDirName::ODRZUCONE,
+            Self::English => RejectedDirName::REJECTED,
+            Self::German => RejectedDirName::ABGELEHNT,
+        }
     }
 
     /// The language of the system locale `locale` (a BCP 47 tag such as
@@ -134,7 +148,7 @@ impl LanguageState {
     /// (the system language if none is saved or the log is not open).
     pub fn load(log: Option<&ActionLog>) -> Self {
         Self::new(
-            sys_locale::get_locale(),
+            system_locale(),
             log.map_or_else(LanguageChoice::default, saved_choice),
         )
     }
@@ -168,6 +182,15 @@ impl LanguageState {
     fn set(&self, choice: LanguageChoice) {
         *self.choice() = choice;
     }
+}
+
+/// The system locale, or in debug builds the one in [`SYSTEM_LOCALE_ENV`]
+/// if set.
+fn system_locale() -> Option<String> {
+    let overridden = cfg!(debug_assertions)
+        .then(|| std::env::var(SYSTEM_LOCALE_ENV).ok())
+        .flatten();
+    overridden.or_else(sys_locale::get_locale)
 }
 
 /// The choice saved in `log`, or the system language (with a warning) if
@@ -257,6 +280,13 @@ mod tests {
     fn posix_style_system_locales_are_understood() {
         assert_eq!(Language::of_system(Some("pl_PL.UTF-8")), Language::Polish);
         assert_eq!(Language::of_system(Some("DE")), Language::German);
+    }
+
+    #[test]
+    fn each_language_names_its_rejected_folder() {
+        assert_eq!(Language::Polish.rejected_dir().as_str(), "Odrzucone");
+        assert_eq!(Language::English.rejected_dir().as_str(), "Rejected");
+        assert_eq!(Language::German.rejected_dir().as_str(), "Abgelehnt");
     }
 
     #[test]

@@ -19,8 +19,12 @@ interface StateFolder {
  * alone keeps its state apart from the real Sito's.
  */
 export function appEnvironment(): Readonly<Record<string, string>> {
-  // The update check fails at once on a closed port, so no test reaches GitHub.
-  const env = { SITO_UPDATE_ENDPOINT: 'http://127.0.0.1:9/latest.json' };
+  const env = {
+    // The update check fails at once on a closed port, so no test reaches GitHub.
+    SITO_UPDATE_ENDPOINT: 'http://127.0.0.1:9/latest.json',
+    // The specs look for the Polish texts; the runners' systems are English.
+    SITO_SYSTEM_LOCALE: 'pl-PL',
+  };
   if (process.platform !== 'linux') return env;
   const root = mkdtempSync(join(tmpdir(), 'sito-e2e-state-'));
   return {
