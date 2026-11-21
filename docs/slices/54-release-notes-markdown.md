@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 ready for testing
 ---
 
 # Slice 54 – Formatted release notes in „Co nowego?”
 
-Since 2026-11-08; planned on 2026-11-21 (see [Plan](#plan)), waiting for the user's approval.
+Since 2026-11-08; planned and implemented on 2026-11-21 (see [Plan](#plan) and [Done](#done)); ready for testing. What it established is in [Updates](../domain/updates.md#release-notes).
 
 ## Idea
 
@@ -75,6 +75,29 @@ Own renderer for the subset (no dependency), links shown as their text only, and
 
 - Translated notes; the promo website's changelog ([slice 49](49-promo-website.md)).
 - Showing the notes after an update ([slice 42](42-zero-click-update.md)) reuses `ReleaseNotes.tsx` and the parser.
+
+## Done
+
+Implemented as planned, in a cloud session without the user's machine:
+
+- Rust: `src-tauri/src/update/notes.rs` (`notes_for`) keeps the sections newer than the running version; `semver` became a direct dependency (it was already in the tree through the updater).
+- UI: `releaseNotes.ts` (parser, `releaseDay`), `ReleaseNotes.tsx`, the dialog's region and styles; a `day` format in `ui/src/i18n/formats.ts`; `update.notesVersion` / `update.notesVersionDated` in all three languages.
+- Release: `release-notes.mjs --update-notes` (replaces `--changes-only`), the Release workflow, the manifest check (notes must start with the tag's heading), the sample notes of `local-update-manifest.mjs`.
+- Checked in the real app on Linux (WebKitGTK under Xvfb) with a local manifest offering 99.0.0 with the notes of 99.0.0, 0.16.0 (no date) and the real 0.15.1 and 0.15.0 sections: 99.0.0 and 0.16.0 are shown formatted, without links, 0.15.1 and 0.15.0 (not newer than the running 0.15.1) are not; in English and Polish; long notes (the older CHANGELOG sections renamed to 50.x) scroll with the wheel inside the dialog, which keeps its title and „Zamknij” in view; Escape closes it. Keys other than Escape did not reach the webview in that X session without a window manager, so keyboard scrolling is checked in the mocked e2e suite (Chromium) instead.
+
+### Fixes from the real-app check
+
+- The notes region collapsed to one line in WebKitGTK: as a flex item with `flex: 1` (a zero basis) in the auto-height dialog, WebKit sized the dialog from the region's minimum height. The region now takes its content's height up to its own maximum (`max-height: calc(85vh - 9rem)`) and scrolls past it. Chromium did not show the problem, so the mocked e2e tests could not catch it.
+- Opened again, the dialog showed the notes at the scroll position it was closed at (the dialog stays mounted). They now start at the top each time; the scroll is reset after `showModal()`, since a hidden dialog has no layout. Covered by the e2e test „scrolls long notes with the keyboard, from the top each time”.
+
+## Testing
+
+Still to test by the user, on Windows (and macOS when at hand):
+
+1. A debug build against a local manifest ([Releasing](../RELEASING.md#testing-an-update-locally)): „Co nowego?” shows the sample notes formatted, in the app's font, with „Wersja 99.0.0 · 1 grudnia 2026” and no link; the 0.0.1 section is not shown.
+2. The same in English and German (version heading „Version 99.0.0 · 1 December 2026” / „Version 99.0.0 · 1. Dezember 2026”).
+3. Long notes scroll, also with the keyboard after focusing them (Tab).
+4. The first release after this slice: its `latest.json` notes hold the sections since v0.15.0, and an installed 0.15.x shows them (as plain text, its old dialog).
 
 ## Related
 

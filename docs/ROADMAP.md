@@ -87,5 +87,5 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 50 | [macOS code signing and notarization](slices/50-macos-code-signing.md) | 📝 |
 | 51 | [Mac App Store](slices/51-mac-app-store.md) | 📝 |
 | 47 | [Windows code signing](slices/47-windows-code-signing.md) | 📝 |
-| 54 | [Formatted release notes in „Co nowego?”](slices/54-release-notes-markdown.md) | 📝 |
+| 54 | [Formatted release notes in „Co nowego?”](slices/54-release-notes-markdown.md) | 🧪 |
 | 60 | [Select photos and drag them into series](slices/60-select-and-drag-photos.md) | 📝 |
