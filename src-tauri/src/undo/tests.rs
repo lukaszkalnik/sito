@@ -1,7 +1,6 @@
 //! „Cofnij” over rejections and series edits, on real files in temp dirs.
 
 use std::fs;
-use std::path::Path;
 use std::time::Duration;
 
 use serde_json::json;
@@ -370,10 +369,9 @@ fn an_edit_of_a_parent_folder_is_not_offered_in_another_folder() {
 
     assert_eq!(undo_state(&actions, other.path()), UndoStateDto::Nothing);
     assert_eq!(undo_state(&actions, dir.path()), UndoStateDto::Available);
-    assert_eq!(
-        undo_state(&actions, Path::new("/")),
-        UndoStateDto::Available
-    );
+    // The root of the drive (`/`, or `D:\` on Windows) holds the folder too.
+    let root = dir.path().ancestors().last().unwrap();
+    assert_eq!(undo_state(&actions, root), UndoStateDto::Available);
 }
 
 #[test]
