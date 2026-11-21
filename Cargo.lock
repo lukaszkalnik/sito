@@ -3945,6 +3945,7 @@ version = "0.15.1"
 dependencies = [
  "chrono",
  "log",
+ "semver",
  "serde",
  "serde_json",
  "sito-core",

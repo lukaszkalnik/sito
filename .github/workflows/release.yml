@@ -71,15 +71,16 @@ jobs:
             exit 1
           fi
 
-      # The notes the app shows with the update (`latest.json`).
-      - name: Read the changes of the tag for the update manifest
+      # The notes the app shows with the update (`latest.json`): the changes
+      # of every version since the first one with the updater.
+      - name: Read the changes since the first updater version for the update manifest
         id: notes
         if: env.IS_TAG == 'true'
         shell: bash
         run: |
           {
             echo 'body<<SITO_NOTES_END'
-            node scripts/release-notes.mjs "$GITHUB_REF_NAME" --changes-only
+            node scripts/release-notes.mjs "$GITHUB_REF_NAME" --update-notes
             echo 'SITO_NOTES_END'
           } >> "$GITHUB_OUTPUT"
 
@@ -111,8 +112,9 @@ jobs:
         with:
           tagName: ${{ env.IS_TAG == 'true' && github.ref_name || '' }}
           releaseName: 'Sito ${{ github.ref_name }}'
-          # The changes alone, which also become the notes in `latest.json`;
-          # the release page gets the full notes when it is published.
+          # The changes since the first updater version, which also become the
+          # notes in `latest.json`; the release page gets the tag's full notes
+          # when it is published.
           releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           args: ${{ matrix.args }}

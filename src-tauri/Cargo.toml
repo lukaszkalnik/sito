@@ -26,6 +26,8 @@ tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
 tauri-plugin-opener = "2"
+# Compares the versions in the release notes with the running one (already used by the updater).
+semver = "1.0.28"
 # The system language, the default of the UI language.
 sys-locale = "0.3.2"
 # Embedded WebDriver server for the end-to-end tests on Windows and macOS (feature `e2e`).

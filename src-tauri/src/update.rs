@@ -5,6 +5,7 @@
 //! happens here, never in the webview.
 
 mod error;
+mod notes;
 mod release_page;
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -73,7 +74,8 @@ impl InstallKind {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     version: String,
-    /// The release notes, or `None` if the release has none.
+    /// The release notes of the versions newer than the running one, or
+    /// `None` if the release has none.
     notes: Option<String>,
     install: InstallKind,
 }
@@ -82,17 +84,10 @@ impl From<&Update> for UpdateInfo {
     fn from(update: &Update) -> Self {
         Self {
             version: update.version.clone(),
-            notes: notes_of(update.body.as_deref()),
+            notes: notes::notes_for(update.body.as_deref(), &update.current_version),
             install: InstallKind::CURRENT,
         }
     }
-}
-
-/// `body` as release notes: `None` if it is missing or blank.
-fn notes_of(body: Option<&str>) -> Option<String> {
-    body.map(str::trim)
-        .filter(|notes| !notes.is_empty())
-        .map(str::to_owned)
 }
 
 /// The answer of a check, as sent to the UI.
@@ -262,16 +257,6 @@ fn before_exit(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn blank_release_notes_are_no_notes() {
-        assert_eq!(notes_of(None), None);
-        assert_eq!(notes_of(Some("  \n")), None);
-        assert_eq!(
-            notes_of(Some("\n### New\n- Updates\n")),
-            Some("### New\n- Updates".to_owned())
-        );
-    }
 
     #[test]
     fn progress_is_sent_with_its_kind() {

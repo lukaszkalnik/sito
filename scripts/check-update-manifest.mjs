@@ -1,8 +1,8 @@
 // Checks the update manifest (`latest.json`) of a release before it is
 // published: the app's updater reads it from the newest published release,
 // so a manifest without a platform would leave that platform without updates.
-// Fails if the version does not match the tag or a platform has no download
-// URL or signature.
+// Fails if the version does not match the tag, the notes do not start with the
+// tag's CHANGELOG section, or a platform has no download URL or signature.
 // Usage: node scripts/check-update-manifest.mjs path/to/latest.json v0.15.0
 import { readFileSync } from 'node:fs';
 
@@ -18,6 +18,9 @@ const REQUIRED = [
   { name: 'macOS', matches: (key) => key.startsWith('darwin-') },
 ];
 
+/** The heading `## vX.Y.Z – date` of `tag`, the date optional. */
+const headingOf = (tag) => new RegExp(`^## ${tag.replace(/\./gu, '\\.')}(?:\\s.*)?$`, 'u');
+
 const manifest = JSON.parse(readFileSync(file, 'utf8'));
 const errors = [];
 if (manifest.version !== tag.replace(/^v/u, '')) {
@@ -25,6 +28,9 @@ if (manifest.version !== tag.replace(/^v/u, '')) {
 }
 if (typeof manifest.notes !== 'string' || manifest.notes.trim() === '') {
   errors.push('has no release notes');
+} else if (!headingOf(tag).test(manifest.notes.trimStart().split(/\r?\n/u)[0])) {
+  // The app shows the sections newer than the installed version, found by their headings.
+  errors.push(`notes do not start with the heading of ${tag}`);
 }
 const platforms = Object.entries(manifest.platforms ?? {});
 for (const [key, entry] of platforms) {

@@ -71,7 +71,7 @@ Put the contents of `sito-updater.key.pub` into `plugins.updater.pubkey` (the Re
 
 **Back up the private key and its password outside GitHub** (in 1Password): secrets cannot be read back. If the key is lost, installed apps can no longer update: generate a new pair, release with the new public key, and every user installs that release by hand once.
 
-**Update manifest:** with `bundle.createUpdaterArtifacts`, the build writes a `.sig` next to each installer and `tauri-action` uploads `latest.json` (version, the tag's CHANGELOG changes as notes, a signed download URL per platform) to the release. The publish job refuses a manifest without the tag's version, notes, or a signed Windows and macOS entry (`scripts/check-update-manifest.mjs`).
+**Update manifest:** with `bundle.createUpdaterArtifacts`, the build writes a `.sig` next to each installer and `tauri-action` uploads `latest.json` (version, a signed download URL per platform, and as notes the CHANGELOG sections from the tag back to v0.15.0, the first version with the updater, from `node scripts/release-notes.mjs vX.Y.Z --update-notes`; the app shows those newer than the installed version) to the release. The publish job refuses a manifest without the tag's version, notes starting with the tag's section, or a signed Windows and macOS entry (`scripts/check-update-manifest.mjs`).
 
 ## Testing an update locally
 
@@ -83,7 +83,7 @@ Put the contents of `sito-updater.key.pub` into `plugins.updater.pubkey` (the Re
    cd D:\Lukasz\tools\installers && python -m http.server 8000
    ```
 
-3. Start a debug build against it: `$env:SITO_UPDATE_ENDPOINT = 'http://localhost:8000/latest.json'; npm run tauri dev`. Only debug builds read this variable, and only they accept `http://`. The notice offers 99.0.0; installing runs the downloaded installer, which restarts the installed Sito.
+3. Start a debug build against it: `$env:SITO_UPDATE_ENDPOINT = 'http://localhost:8000/latest.json'; npm run tauri dev`. Only debug builds read this variable, and only they accept `http://`. The notice offers 99.0.0 and „Co nowego?” shows sample notes with every formatting the dialog knows; installing runs the downloaded installer, which restarts the installed Sito.
 
 ## Third-party notices
 

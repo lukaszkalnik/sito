@@ -13,10 +13,25 @@ if (!installer || !version) {
   process.exit(2);
 }
 
+// Two versions with every construct the in-app notes format, so a local test
+// shows the formatting.
+const notes = `## v${version} – 2026-12-01
+
+### New
+
+- **A local test update to ${version}.** It shows \`code\`, bold text and a link as its text. ([slice 54](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/54-release-notes-markdown.md))
+- A second item.
+
+## v0.0.1
+
+### Fixed
+
+- Shown only by a version older than 0.0.1, so never.`;
+
 const signature = readFileSync(`${installer}.sig`, 'utf8').trim();
 const manifest = {
   version,
-  notes: `Local test update to ${version}.`,
+  notes,
   pub_date: new Date().toISOString(),
   platforms: {
     'windows-x86_64': {
