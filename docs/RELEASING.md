@@ -32,7 +32,8 @@ Publishing is what ships the update: installed apps read `latest.json` of the ne
 
 The Release workflow holds the update signing key and publishes what every installed Sito offers as an update, so nothing in it may change unnoticed:
 
-- Every action in `.github/workflows/` is pinned to a full commit SHA, with its version in a comment (`# v7.0.1`). A tag can be moved by the action's owner (or by whoever takes the repository over); a commit cannot. `dtolnay/rust-toolchain` has no releases: it is pinned to a commit of its `master` branch and installs `toolchain: stable`.
+- Every action in `.github/workflows/` is pinned to a full commit SHA, with its version in a comment (`# v7.0.1`). A tag can be moved by the action's owner (or by whoever takes the repository over); a commit cannot.
+- Rust is installed with the `rustup` that comes with GitHub's runner images (`rustup toolchain install stable --profile minimal --no-self-update`, then `rustup default stable`), not with an action: one third-party action less runs before the signed build, and the toolchain action used before had no releases to pin to, so its `master` pin needed a manual bump (and failed zizmor's version check) whenever its branch moved. The workflows set `CARGO_INCREMENTAL: 0` themselves, which that action used to do.
 - Every workflow starts with `permissions: contents: read`; only the two release jobs get `contents: write`. Checkouts do not keep the token (`persist-credentials: false`).
 - The release build restores no cache and builds with `--locked`, so it is made from the sources and the committed lockfiles alone.
 - `zizmor` (the `workflows` job of CI) fails on a workflow that breaks these rules. Run it locally with `zizmor .github` (`brew install zizmor`). A finding that does not apply is silenced in `.github/zizmor.yml` with the reason.

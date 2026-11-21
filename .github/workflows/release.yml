@@ -15,6 +15,11 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CARGO_TERM_COLOR: always
+  # As in CI; set by the toolchain action this workflow used before.
+  CARGO_INCREMENTAL: 0
+
 jobs:
   build:
     name: Build (${{ matrix.os }})
@@ -78,10 +83,16 @@ jobs:
             echo 'SITO_NOTES_END'
           } >> "$GITHUB_OUTPUT"
 
-      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
-        with:
-          toolchain: stable
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      # rustup comes with the runner images (docs/RELEASING.md, Pinned actions).
+      - name: Install Rust stable
+        shell: bash
+        env:
+          TARGETS: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin x86_64-apple-darwin' || '' }}
+        run: |
+          targets=(); for t in $TARGETS; do targets+=(--target "$t"); done
+          rustup toolchain install stable --profile minimal --no-self-update "${targets[@]}"
+          rustup default stable
+          rustc +stable --version --verbose
       # No Rust or npm cache here: the signed build starts from the sources
       # and the lockfiles alone, so nothing a cache holds can end up in it.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
