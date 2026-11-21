@@ -144,42 +144,57 @@ test('keeps the bar one height at every width and for every photo', async ({ bro
   expect([...heights]).toHaveLength(1);
 });
 
-// English and German labels are longer than the Polish ones; accepted, „Zaakceptuj”
-// shows its widest label.
-for (const { info, unaccept, reject } of [
+// English and German labels are longer than the Polish ones; „Zaakceptuj” is
+// checked with both its labels, before and after accepting.
+const LABELLED = [
   {
     info: { language: 'en', locale: 'en-GB', choice: 'en' },
+    accept: 'Accept',
     unaccept: 'Unaccept',
     reject: 'Reject',
   },
   {
     info: { language: 'de', locale: 'de-DE', choice: 'de' },
+    accept: 'Akzeptieren',
     unaccept: 'Zurücknehmen',
     reject: 'Ablehnen',
   },
-] as const) {
-  for (const width of [BREAKPOINT, BREAKPOINT + 1, 900]) {
-    test(`keeps the bar apart with room for the info at ${width} px in ${info.language}`, async ({
-      page,
-    }, testInfo) => {
-      await open(page, width, TAKEOUT, [1], info);
-      await bar(page).screenshot({
-        path: testInfo.outputPath(`viewer-bar-${width}-${info.language}.png`),
-      });
-      const narrow = width <= BREAKPOINT;
-      const rejectBox = await page.getByRole('button', { name: reject, exact: true }).boundingBox();
-      if (narrow) expect(rejectBox?.width).toBeLessThanOrEqual(30);
-      else await expect(page.getByRole('button', { name: unaccept })).toBeVisible();
+] as const;
 
-      const boxes = await partBoxes(page);
-      const overlapping = boxes.flatMap((a, i) =>
-        boxes.slice(i + 1).flatMap((b) => (overlap(a, b) ? [[a.name, b.name]] : [])),
-      );
-      expect(overlapping).toEqual([]);
-      const scroll = await bar(page).evaluate((header) => [header.scrollWidth, header.clientWidth]);
-      expect(scroll[0]).toBeLessThanOrEqual(scroll[1]);
-      const infoBox = await page.locator('.viewer-info').boundingBox();
-      if (!narrow) expect(infoBox?.width).toBeGreaterThanOrEqual(300);
-    });
+for (const { info, accept, unaccept, reject } of LABELLED) {
+  for (const width of [BREAKPOINT, BREAKPOINT + 1, 900]) {
+    for (const accepted of [false, true]) {
+      const state = accepted ? 'accepted' : 'not accepted';
+      test(`keeps the bar apart with room for the info at ${width} px in ${info.language}, ${state}`, async ({
+        page,
+      }, testInfo) => {
+        await open(page, width, TAKEOUT, accepted ? [1] : [], info);
+        await bar(page).screenshot({
+          path: testInfo.outputPath(`viewer-bar-${width}-${info.language}-${accepted}.png`),
+        });
+        const narrow = width <= BREAKPOINT;
+        const rejectBox = await page
+          .getByRole('button', { name: reject, exact: true })
+          .boundingBox();
+        if (narrow) expect(rejectBox?.width).toBeLessThanOrEqual(30);
+        else {
+          const label = accepted ? unaccept : accept;
+          await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+        }
+
+        const boxes = await partBoxes(page);
+        const overlapping = boxes.flatMap((a, i) =>
+          boxes.slice(i + 1).flatMap((b) => (overlap(a, b) ? [[a.name, b.name]] : [])),
+        );
+        expect(overlapping).toEqual([]);
+        const scroll = await bar(page).evaluate((header) => [
+          header.scrollWidth,
+          header.clientWidth,
+        ]);
+        expect(scroll[0]).toBeLessThanOrEqual(scroll[1]);
+        const infoBox = await page.locator('.viewer-info').boundingBox();
+        if (!narrow) expect(infoBox?.width).toBeGreaterThanOrEqual(300);
+      });
+    }
   }
 }

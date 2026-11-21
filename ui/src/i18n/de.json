@@ -105,14 +105,14 @@
     "rejectedDirIsLink": "Der Ordner „Abgelehnt“ ist eine Verknüpfung zu einem anderen Ort. Entferne die Verknüpfung, um Fotos in den Ordner abzulehnen."
   },
   "accept": {
-    "button": "Annehmen",
+    "button": "Akzeptieren",
     "undoButton": "Zurücknehmen",
-    "hint": "Foto als angenommen markieren (A)",
-    "done": "{{name}} angenommen",
-    "undone": "{{name}} nicht mehr angenommen",
-    "badge": "Angenommen",
-    "stripItem": "{{name}} (angenommen)",
-    "failed": "Die Annahme des Fotos konnte nicht geändert werden."
+    "hint": "Foto als akzeptiert markieren (A)",
+    "done": "{{name}} akzeptiert",
+    "undone": "{{name}} nicht mehr akzeptiert",
+    "badge": "Akzeptiert",
+    "stripItem": "{{name}} (akzeptiert)",
+    "failed": "Die Akzeptanz des Fotos konnte nicht geändert werden."
   },
   "undo": {
     "button": "Rückgängig",

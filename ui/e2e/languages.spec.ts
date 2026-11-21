@@ -42,7 +42,7 @@ const LANGUAGES = [
     update: 'Sito-Update',
     whatsNew: 'Was ist neu?',
     reject: 'Ablehnen',
-    accept: 'Annehmen',
+    accept: 'Akzeptieren',
     unaccept: 'Zurücknehmen',
     rejected: 'IMG_00029.jpg → Abgelehnt',
     undo: 'Rückgängig',
