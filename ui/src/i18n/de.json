@@ -1,0 +1,199 @@
+{
+  "app": {
+    "title": "Sito",
+    "tagline": "Siebt Serien ähnlicher Fotos durch und schlägt vor, welche du behalten solltest."
+  },
+  "scan": {
+    "chooseFolder": "Fotoordner wählen",
+    "chooseAnother": "Anderen Ordner wählen",
+    "refreshing": "Suche nach Änderungen…",
+    "refresh": "Aktualisieren",
+    "refreshHint": "Ordner auf Änderungen prüfen (F5)",
+    "photosMissing": "Einige Fotos sind nicht mehr im geöffneten Ordner – sie wurden verschoben, umbenannt oder gelöscht.",
+    "folderMissing": "Der geöffnete Ordner ist nicht mehr auf dem Datenträger – er wurde umbenannt oder verschoben, oder das Laufwerk wurde getrennt.",
+    "completing": "Daten aus EXIF werden ergänzt: {{done, number}} von {{total, number}}.",
+    "folder": "Ordner: {{path}}",
+    "result": "{{photos}} gefunden.",
+    "short": "{{photos}} · {{series}}",
+    "noPhotos": "Keine Fotos gefunden.",
+    "photoCount_one": "{{count, number}} Foto",
+    "photoCount_other": "{{count, number}} Fotos",
+    "unreadable_one": "{{count, number}} Element konnte nicht gelesen werden.",
+    "unreadable_other": "{{count, number}} Elemente konnten nicht gelesen werden.",
+    "errors": {
+      "notFound": "Der gewählte Ordner wurde nicht gefunden.",
+      "notADirectory": "Der gewählte Pfad ist kein Ordner.",
+      "io": "Der gewählte Ordner konnte nicht gelesen werden.",
+      "internal": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut."
+    },
+    "searching": "Fotos werden gesucht… {{photos}} gefunden",
+    "reading": "Aufnahmedaten werden gelesen: {{done, number}} von {{total, number}}",
+    "withoutDate": "Ohne Aufnahmedatum: {{count, number}}."
+  },
+  "timeline": {
+    "loading": "Zeitleiste wird geladen…",
+    "loadError": "Die Zeitleiste konnte nicht geladen werden. Wähle den Ordner bitte erneut.",
+    "fileDate": "Dateidatum",
+    "fileDateHint": "Kein Datum in EXIF – das Änderungsdatum der Datei wird verwendet.",
+    "thumbnailError": "Die Miniatur konnte nicht geladen werden.",
+    "rootFolder": "Hauptordner",
+    "open": "{{name}} öffnen"
+  },
+  "format": {
+    "raw": "RAW",
+    "rawJpeg": "RAW+JPEG",
+    "tiff": "TIFF"
+  },
+  "view": {
+    "label": "Ansicht",
+    "series": "Serien",
+    "all": "Alle Fotos"
+  },
+  "series": {
+    "header": "{{photos}} · {{from}}–{{to}}",
+    "headerAt": "{{photos}} · {{time}}",
+    "withCamera": "{{header}} · {{camera}}",
+    "unknownCamera": "unbekannte Kamera",
+    "summary": "{{series}} ({{photos}}).",
+    "count_one": "{{count, number}} Serie",
+    "count_other": "{{count, number}} Serien",
+    "none": "Keine Fotoserien gefunden.",
+    "noneHint": "Wechsle zu „Alle Fotos“, um alle Fotos zu sehen."
+  },
+  "gap": {
+    "label": "Abstand in Serie",
+    "value": "{{seconds}} s",
+    "unit": "s",
+    "decrease": "Abstand verkürzen",
+    "increase": "Abstand verlängern",
+    "hint": "Fotos einer Kamera, die in diesem zeitlichen Abstand aufgenommen wurden, bilden eine Serie."
+  },
+  "viewer": {
+    "previous": "Vorheriges Foto",
+    "next": "Nächstes Foto",
+    "close": "Schließen",
+    "closeHint": "Schließen (Esc)",
+    "folder": "Ordner: {{path}}",
+    "folderLabel": "Ordner:",
+    "series": "Fotos der Serie",
+    "loadError": "Das Foto konnte nicht geladen werden.",
+    "photoMissing": "Dieses Foto ist nicht mehr im geöffneten Ordner – es wurde verschoben, umbenannt oder gelöscht.",
+    "folderMissing": "Der geöffnete Ordner ist nicht mehr auf dem Datenträger. Wähle ihn im Hauptfenster erneut.",
+    "scanReplaced": "Dieser Ordner ist im Hauptfenster nicht mehr geöffnet. Wähle ein Foto im Hauptfenster.",
+    "refreshFolder": "Ordner aktualisieren",
+    "loading": "Foto wird geladen…",
+    "empty": "Keine Fotos zum Anzeigen.",
+    "takeoutDate": "Datum aus Google Takeout",
+    "takeoutCorrected": "in Google Fotos korrigiertes Datum",
+    "zoomLevel": "Zoom",
+    "zoomFit": "Einpassen",
+    "resolution": "{{width}} × {{height}}",
+    "sizeMb": "{{size}} MB",
+    "sizeKb": "{{size}} kB",
+    "editSeries": "Serie bearbeiten",
+    "editSeriesHint": "Serie bearbeiten (Umschalt+F10)"
+  },
+  "reject": {
+    "button": "Ablehnen",
+    "hint": "Foto in den Unterordner „Abgelehnt“ verschieben (Entf)",
+    "done": "{{name}} → Abgelehnt",
+    "failed": "Das Foto konnte nicht abgelehnt werden.",
+    "photoMissing": "Dieses Foto ist nicht mehr im geöffneten Ordner – es wurde verschoben, umbenannt oder gelöscht.",
+    "hintTrash": "Foto in den Papierkorb verschieben (Entf)",
+    "doneTrash": "{{name}} → Papierkorb",
+    "noTrash": "Dieses Laufwerk hat keinen Papierkorb – wähle den Ordner „Abgelehnt“.",
+    "rejectedDirIsLink": "Der Ordner „Abgelehnt“ ist eine Verknüpfung zu einem anderen Ort. Entferne die Verknüpfung, um Fotos in den Ordner abzulehnen."
+  },
+  "accept": {
+    "button": "Annehmen",
+    "undoButton": "Zurücknehmen",
+    "hint": "Foto als angenommen markieren (A)",
+    "done": "{{name}} angenommen",
+    "undone": "{{name}} nicht mehr angenommen",
+    "badge": "Angenommen",
+    "stripItem": "{{name}} (angenommen)",
+    "failed": "Die Annahme des Fotos konnte nicht geändert werden."
+  },
+  "undo": {
+    "button": "Rückgängig",
+    "hint": "Letzte Änderung rückgängig machen (Strg+Z)",
+    "done": "{{name}} wiederhergestellt",
+    "doneRenamed": "{{name}} als {{restoredName}} wiederhergestellt – der Name war belegt.",
+    "occupied": "Rückgängig nicht möglich: Dort gibt es bereits eine Datei mit diesem Namen.",
+    "missing": "Rückgängig nicht möglich: Die Datei ist nicht mehr im Ordner „Abgelehnt“.",
+    "failed": "Die Ablehnung konnte nicht rückgängig gemacht werden.",
+    "missingFromTrash": "Rückgängig nicht möglich: Die Datei ist nicht mehr im Papierkorb.",
+    "trashUndoUnsupported": "Auf diesem System lässt sich das Verschieben in den Papierkorb nicht rückgängig machen – stelle das Foto von Hand aus dem Papierkorb wieder her.",
+    "edit": {
+      "cut": "Teilen der Serie rückgängig gemacht",
+      "remove": "Herausnehmen von {{name}} aus der Serie rückgängig gemacht",
+      "join": "Hinzufügen von {{name}} zur Serie rückgängig gemacht",
+      "ungroup": "Auflösen der Serie rückgängig gemacht",
+      "restore": "Wiederherstellen der automatischen Gruppierung rückgängig gemacht"
+    },
+    "editFailed": "Die Änderung der Serie konnte nicht rückgängig gemacht werden."
+  },
+  "destination": {
+    "label": "Abgelehnte Fotos in:",
+    "folder": "Ordner „Abgelehnt“",
+    "trash": "Papierkorb",
+    "confirmTitle": "Abgelehnte Fotos in den Papierkorb verschieben?",
+    "confirmText": "Die Fotos kommen in den Windows-Papierkorb. Sie lassen sich mit „Rückgängig“ oder aus dem Papierkorb wiederherstellen, solange er nicht geleert wurde.",
+    "cancel": "Abbrechen",
+    "confirm": "Ja, in den Papierkorb"
+  },
+  "about": {
+    "licenses": "Lizenzen",
+    "intro": "Sito {{version}} steht unter der MIT- oder der Apache-2.0-Lizenz. Unten stehen ihr Text und die Lizenzen der verwendeten Bibliotheken.",
+    "text": "Lizenztext",
+    "loading": "Lizenzen werden geladen…",
+    "loadError": "Die Lizenzen konnten nicht geladen werden.",
+    "close": "Schließen"
+  },
+  "update": {
+    "label": "Sito-Update",
+    "checking": "Suche nach Updates…",
+    "available": "Eine neue Version von Sito ist verfügbar: {{version}}.",
+    "manual": "Lade sie von der Release-Seite von Sito auf GitHub herunter.",
+    "install": "Installieren und neu starten",
+    "openPage": "Herunterladen",
+    "whatsNew": "Was ist neu?",
+    "notNow": "Nicht jetzt",
+    "downloading": "Update wird heruntergeladen…",
+    "downloadingPercent": "Update wird heruntergeladen… {{percent}}",
+    "installing": "Update wird installiert…",
+    "installFailed": "Das Update konnte nicht installiert werden. {{reason}}",
+    "openPageFailed": "Die Release-Seite konnte nicht geöffnet werden. {{reason}}",
+    "upToDate": "Du hast die neueste Version ({{version}}).",
+    "checkFailed": "Die Suche nach Updates ist fehlgeschlagen. {{reason}}",
+    "close": "Schließen",
+    "notesTitle": "Neu in Version {{version}}",
+    "notes": "Änderungen (auf Englisch)",
+    "errors": {
+      "network": "Keine Verbindung zu GitHub.",
+      "badSignature": "Die heruntergeladene Datei hat keine gültige Signatur von Sito.",
+      "noUpdate": "Kein Update gefunden.",
+      "unsupported": "Auf diesem System muss das Update von Hand installiert werden.",
+      "openFailed": "Das System hat den Browser nicht geöffnet.",
+      "internal": "Ein unerwarteter Fehler ist aufgetreten."
+    }
+  },
+  "seriesEdit": {
+    "menu": "Serie bearbeiten",
+    "cut": "Serie vor diesem Foto teilen",
+    "remove": "Aus der Serie nehmen",
+    "joinPrevious": "Zur vorherigen Serie hinzufügen",
+    "joinNext": "Zur nächsten Serie hinzufügen",
+    "ungroup": "Serie auflösen",
+    "restore": "Automatische Gruppierung wiederherstellen",
+    "cutDone": "Serie geteilt",
+    "removeDone": "{{name}} aus der Serie genommen",
+    "joinDone": "{{name}} zur Serie hinzugefügt",
+    "ungroupDone": "Serie aufgelöst",
+    "restoreDone": "Automatische Gruppierung wiederhergestellt",
+    "edited": "Serie von Hand bearbeitet – ändert sich nicht mit dem Abstand",
+    "seriesChanged": "Die Serie kann nicht geändert werden – sie hat sich inzwischen geändert.",
+    "failed": "Die Serie konnte nicht geändert werden.",
+    "pinned": "Von Hand aus einer Serie genommen – bildet mit dem Abstand keine Serie"
+  }
+}

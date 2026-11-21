@@ -1,15 +1,29 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { mockTauri } from './tauri-mock';
+import { mockTauri, type TauriMock } from './tauri-mock';
 
 // A long Polish path and a summary with every part, as on a real gallery.
 const FOLDER = 'C:\\Users\\Łukasz\\Pictures\\Skany z albumów rodzinnych\\Wakacje nad morzem';
 const SUMMARY = { scanId: 3, photosFound: 1461, unreadableEntries: 2, withoutDate: 17 };
 
+const POLISH: (typeof LANGUAGES)[number] = {
+  info: { language: 'pl', locale: 'pl-PL', choice: 'system' },
+  chooseFolder: 'Wybierz folder ze zdjęciami',
+};
+
 /** The smallest window width (`tauri.conf.json`), a small and a large laptop screen. */
 const WIDTHS = [900, 1280, 1440];
 
-async function open(page: Page, width: number) {
+/** The language of each run and its „Wybierz folder ze zdjęciami”. */
+const LANGUAGES: readonly { info: NonNullable<TauriMock['language']>; chooseFolder: string }[] = [
+  {
+    info: { language: 'en', locale: 'en-GB', choice: 'en' },
+    chooseFolder: 'Choose a photo folder',
+  },
+  { info: { language: 'de', locale: 'de-DE', choice: 'de' }, chooseFolder: 'Fotoordner wählen' },
+];
+
+async function open(page: Page, width: number, language = POLISH) {
   // The trash destination is shown bold, the widest look of the bar.
   await page.addInitScript(() => localStorage.setItem('sito.rejectDestination', 'trash'));
   await mockTauri(page, {
@@ -19,10 +33,11 @@ async function open(page: Page, width: number) {
     refresh: { summary: SUMMARY, afterMs: 1500 },
     timeline: { count: 1461, newest: '2024-06-01T12:00:00', stepSeconds: 600 },
     series: { every: 10, size: 3 },
+    language: language.info,
   });
   await page.setViewportSize({ width, height: 800 });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' }).click();
+  await page.getByRole('button', { name: language.chooseFolder }).click();
   await expect(page.getByTestId('timeline')).toBeVisible();
 }
 
@@ -98,6 +113,26 @@ for (const width of WIDTHS) {
       await expect(page.getByText('Sprawdzanie zmian…')).toHaveCount(0);
 
       expect((await bar(page).boundingBox())?.height).toBe(during);
+    });
+  });
+}
+
+// English and German labels are longer than the Polish ones.
+for (const language of LANGUAGES) {
+  test(`keeps the bar one row with its parts apart at 900 px in ${language.info.language}`, async ({
+    page,
+  }, testInfo) => {
+    await open(page, 900, language);
+    const boxes = await partBoxes(page);
+    const overlapping = boxes.flatMap((a, i) =>
+      boxes.slice(i + 1).flatMap((b) => (overlap(a, b) ? [[a.name, b.name]] : [])),
+    );
+    expect(overlapping).toEqual([]);
+    const scroll = await bar(page).evaluate((header) => [header.scrollWidth, header.clientWidth]);
+    expect(scroll[0]).toBeLessThanOrEqual(scroll[1]);
+    expect((await bar(page).boundingBox())?.height).toBeLessThan(70);
+    await bar(page).screenshot({
+      path: testInfo.outputPath(`bar-900-${language.info.language}.png`),
     });
   });
 }

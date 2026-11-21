@@ -1,0 +1,199 @@
+{
+  "app": {
+    "title": "Sito",
+    "tagline": "Sifts through series of similar photos and suggests which ones to keep."
+  },
+  "scan": {
+    "chooseFolder": "Choose a photo folder",
+    "chooseAnother": "Choose another folder",
+    "refreshing": "Checking for changes…",
+    "refresh": "Refresh",
+    "refreshHint": "Check the folder for changes (F5)",
+    "photosMissing": "Some photos are no longer in the open folder – they were moved, renamed or deleted.",
+    "folderMissing": "The open folder is no longer on the disk – it was renamed or moved, or the drive was disconnected.",
+    "completing": "Adding dates from EXIF: {{done, number}} of {{total, number}}.",
+    "folder": "Folder: {{path}}",
+    "result": "Found {{photos}}.",
+    "short": "{{photos}} · {{series}}",
+    "noPhotos": "No photos found.",
+    "photoCount_one": "{{count, number}} photo",
+    "photoCount_other": "{{count, number}} photos",
+    "unreadable_one": "{{count, number}} item could not be read.",
+    "unreadable_other": "{{count, number}} items could not be read.",
+    "errors": {
+      "notFound": "The chosen folder was not found.",
+      "notADirectory": "The chosen path is not a folder.",
+      "io": "The chosen folder could not be read.",
+      "internal": "Something unexpected went wrong. Please try again."
+    },
+    "searching": "Looking for photos… found {{photos}}",
+    "reading": "Reading dates: {{done, number}} of {{total, number}}",
+    "withoutDate": "Without a photo date: {{count, number}}."
+  },
+  "timeline": {
+    "loading": "Loading the timeline…",
+    "loadError": "The timeline could not be loaded. Try choosing the folder again.",
+    "fileDate": "file date",
+    "fileDateHint": "No date in EXIF – the file's modification date is used.",
+    "thumbnailError": "The thumbnail could not be loaded.",
+    "rootFolder": "main folder",
+    "open": "Open {{name}}"
+  },
+  "format": {
+    "raw": "RAW",
+    "rawJpeg": "RAW+JPEG",
+    "tiff": "TIFF"
+  },
+  "view": {
+    "label": "View",
+    "series": "Series",
+    "all": "All photos"
+  },
+  "series": {
+    "header": "{{photos}} · {{from}}–{{to}}",
+    "headerAt": "{{photos}} · {{time}}",
+    "withCamera": "{{header}} · {{camera}}",
+    "unknownCamera": "unknown camera",
+    "summary": "{{series}} ({{photos}}).",
+    "count_one": "{{count, number}} series",
+    "count_other": "{{count, number}} series",
+    "none": "No photo series found.",
+    "noneHint": "Switch to “All photos” to see every photo."
+  },
+  "gap": {
+    "label": "Gap in a series",
+    "value": "{{seconds}} s",
+    "unit": "s",
+    "decrease": "Shorten the gap",
+    "increase": "Lengthen the gap",
+    "hint": "Photos from one camera taken within this gap of each other form a series."
+  },
+  "viewer": {
+    "previous": "Previous photo",
+    "next": "Next photo",
+    "close": "Close",
+    "closeHint": "Close (Esc)",
+    "folder": "Folder: {{path}}",
+    "folderLabel": "Folder:",
+    "series": "Photos in the series",
+    "loadError": "The photo could not be loaded.",
+    "photoMissing": "This photo is no longer in the open folder – it was moved, renamed or deleted.",
+    "folderMissing": "The open folder is no longer on the disk. Choose it again in the main window.",
+    "scanReplaced": "This folder is no longer open in the main window. Choose a photo in the main window.",
+    "refreshFolder": "Refresh the folder",
+    "loading": "Loading the photo…",
+    "empty": "No photos to show.",
+    "takeoutDate": "date from Google Takeout",
+    "takeoutCorrected": "date corrected in Google Photos",
+    "zoomLevel": "Zoom",
+    "zoomFit": "Fit",
+    "resolution": "{{width}} × {{height}}",
+    "sizeMb": "{{size}} MB",
+    "sizeKb": "{{size}} kB",
+    "editSeries": "Edit series",
+    "editSeriesHint": "Edit series (Shift+F10)"
+  },
+  "reject": {
+    "button": "Reject",
+    "hint": "Move the photo into the “Rejected” subfolder (Delete)",
+    "done": "{{name}} → Rejected",
+    "failed": "The photo could not be rejected.",
+    "photoMissing": "This photo is no longer in the open folder – it was moved, renamed or deleted.",
+    "hintTrash": "Move the photo to the Recycle Bin (Delete)",
+    "doneTrash": "{{name}} → Recycle Bin",
+    "noTrash": "This drive has no Recycle Bin – choose the “Rejected” folder.",
+    "rejectedDirIsLink": "The “Rejected” folder is a shortcut to another place. Remove the shortcut to reject photos into the folder."
+  },
+  "accept": {
+    "button": "Accept",
+    "undoButton": "Unaccept",
+    "hint": "Mark the photo as accepted (A)",
+    "done": "Accepted {{name}}",
+    "undone": "Unaccepted {{name}}",
+    "badge": "Accepted",
+    "stripItem": "{{name}} (accepted)",
+    "failed": "The photo's acceptance could not be changed."
+  },
+  "undo": {
+    "button": "Undo",
+    "hint": "Undo the last change (Ctrl+Z)",
+    "done": "Restored {{name}}",
+    "doneRenamed": "Restored {{name}} as {{restoredName}} – the name was taken.",
+    "occupied": "Cannot undo: a file with this name is already there.",
+    "missing": "Cannot undo: the file is no longer in the Rejected folder.",
+    "failed": "The rejection could not be undone.",
+    "missingFromTrash": "Cannot undo: the file is no longer in the Recycle Bin.",
+    "trashUndoUnsupported": "On this system a move to the trash cannot be undone – restore the photo from the Trash by hand.",
+    "edit": {
+      "cut": "Undid splitting the series",
+      "remove": "Undid taking {{name}} out of the series",
+      "join": "Undid adding {{name}} to the series",
+      "ungroup": "Undid ungrouping the series",
+      "restore": "Undid restoring automatic grouping"
+    },
+    "editFailed": "The series change could not be undone."
+  },
+  "destination": {
+    "label": "Rejected photos to:",
+    "folder": "“Rejected” folder",
+    "trash": "Recycle Bin",
+    "confirmTitle": "Move rejected photos to the Recycle Bin?",
+    "confirmText": "Photos will go to the Windows Recycle Bin. They can be restored with “Undo” or from the Recycle Bin until it is emptied.",
+    "cancel": "Cancel",
+    "confirm": "Yes, to the Recycle Bin"
+  },
+  "about": {
+    "licenses": "Licenses",
+    "intro": "Sito {{version}} is available under the MIT or Apache 2.0 license. Below are its text and the licenses of the libraries it uses.",
+    "text": "License text",
+    "loading": "Loading the licenses…",
+    "loadError": "The licenses could not be loaded.",
+    "close": "Close"
+  },
+  "update": {
+    "label": "Sito update",
+    "checking": "Checking for updates…",
+    "available": "A new version of Sito is available: {{version}}.",
+    "manual": "Download it from Sito's releases page on GitHub.",
+    "install": "Install and restart",
+    "openPage": "Download",
+    "whatsNew": "What's new?",
+    "notNow": "Not now",
+    "downloading": "Downloading the update…",
+    "downloadingPercent": "Downloading the update… {{percent}}",
+    "installing": "Installing the update…",
+    "installFailed": "The update could not be installed. {{reason}}",
+    "openPageFailed": "The release page could not be opened. {{reason}}",
+    "upToDate": "You have the latest version ({{version}}).",
+    "checkFailed": "Could not check for updates. {{reason}}",
+    "close": "Close",
+    "notesTitle": "What's new in version {{version}}",
+    "notes": "Release notes",
+    "errors": {
+      "network": "No connection to GitHub.",
+      "badSignature": "The downloaded file does not have a valid Sito signature.",
+      "noUpdate": "No update found.",
+      "unsupported": "On this system the update has to be installed by hand.",
+      "openFailed": "The system did not open the browser.",
+      "internal": "Something unexpected went wrong."
+    }
+  },
+  "seriesEdit": {
+    "menu": "Series editing",
+    "cut": "Split the series before this photo",
+    "remove": "Take out of the series",
+    "joinPrevious": "Add to the previous series",
+    "joinNext": "Add to the next series",
+    "ungroup": "Ungroup the series",
+    "restore": "Restore automatic grouping",
+    "cutDone": "Series split",
+    "removeDone": "Took {{name}} out of the series",
+    "joinDone": "Added {{name}} to the series",
+    "ungroupDone": "Series ungrouped",
+    "restoreDone": "Automatic grouping restored",
+    "edited": "Series edited by hand – does not change with the gap",
+    "seriesChanged": "Cannot change the series – it changed in the meantime.",
+    "failed": "The series could not be changed.",
+    "pinned": "Taken out of a series by hand – does not join a series with the gap"
+  }
+}

@@ -2,6 +2,8 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
+import i18n from './i18n';
+
 // Testing Library only auto-cleans when Vitest globals are enabled.
 afterEach(() => {
   cleanup();
@@ -25,3 +27,8 @@ if (!('showModal' in HTMLDialogElement.prototype)) {
     },
   });
 }
+
+// A text without a translation fails the test that renders it.
+i18n.on('missingKey', (languages: readonly string[], _namespace: string, key: string) => {
+  throw new Error(`missing translation: ${key} (${languages.join(', ')})`);
+});

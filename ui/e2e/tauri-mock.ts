@@ -100,6 +100,8 @@ export interface TauriMock {
   openReleasePageError?: { code: string };
   /** What `check_photo_file` says is gone of a photo. Default: nothing (`null`). */
   vanished?: 'photo' | 'folder';
+  /** The language `get_language` returns. Default: Polish (`pl-PL`), following the system. */
+  language?: { language: 'pl' | 'en' | 'de'; locale: string; choice: string };
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -444,6 +446,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
             return null;
           case 'check_photo_file':
             return m.vanished ?? null;
+          case 'get_language':
+            return m.language ?? { language: 'pl', locale: 'pl-PL', choice: 'system' };
           case 'plugin:event|unlisten':
           case 'plugin:event|emit_to':
           case 'plugin:window|set_title':

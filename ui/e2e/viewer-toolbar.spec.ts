@@ -29,6 +29,7 @@ async function open(
   width: number,
   viewerEntry: TauriMock['viewerEntry'] = TAKEOUT,
   accepted: number[] = [],
+  language?: TauriMock['language'],
 ) {
   for (const protocol of ['photo', 'thumb']) {
     await page.route(`http://${protocol}.localhost/**`, (route) =>
@@ -44,6 +45,7 @@ async function open(
     viewerRequest: { id: 1, scanId: 5, mode: 'series', gap: 10 },
     viewerEntry,
     accepted,
+    language,
   });
   await page.setViewportSize({ width, height: 600 });
   await page.goto('/?window=viewer');
@@ -141,3 +143,43 @@ test('keeps the bar one height at every width and for every photo', async ({ bro
   }
   expect([...heights]).toHaveLength(1);
 });
+
+// English and German labels are longer than the Polish ones; accepted, „Zaakceptuj”
+// shows its widest label.
+for (const { info, unaccept, reject } of [
+  {
+    info: { language: 'en', locale: 'en-GB', choice: 'en' },
+    unaccept: 'Unaccept',
+    reject: 'Reject',
+  },
+  {
+    info: { language: 'de', locale: 'de-DE', choice: 'de' },
+    unaccept: 'Zurücknehmen',
+    reject: 'Ablehnen',
+  },
+] as const) {
+  for (const width of [BREAKPOINT, BREAKPOINT + 1, 900]) {
+    test(`keeps the bar apart with room for the info at ${width} px in ${info.language}`, async ({
+      page,
+    }, testInfo) => {
+      await open(page, width, TAKEOUT, [1], info);
+      await bar(page).screenshot({
+        path: testInfo.outputPath(`viewer-bar-${width}-${info.language}.png`),
+      });
+      const narrow = width <= BREAKPOINT;
+      const rejectBox = await page.getByRole('button', { name: reject, exact: true }).boundingBox();
+      if (narrow) expect(rejectBox?.width).toBeLessThanOrEqual(30);
+      else await expect(page.getByRole('button', { name: unaccept })).toBeVisible();
+
+      const boxes = await partBoxes(page);
+      const overlapping = boxes.flatMap((a, i) =>
+        boxes.slice(i + 1).flatMap((b) => (overlap(a, b) ? [[a.name, b.name]] : [])),
+      );
+      expect(overlapping).toEqual([]);
+      const scroll = await bar(page).evaluate((header) => [header.scrollWidth, header.clientWidth]);
+      expect(scroll[0]).toBeLessThanOrEqual(scroll[1]);
+      const infoBox = await page.locator('.viewer-info').boundingBox();
+      if (!narrow) expect(infoBox?.width).toBeGreaterThanOrEqual(300);
+    });
+  }
+}
