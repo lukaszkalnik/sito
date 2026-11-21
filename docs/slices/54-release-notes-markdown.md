@@ -31,13 +31,13 @@ Either way, **never render the notes as HTML** (`dangerouslySetInnerHTML`): they
 
 ## Plan
 
-Own renderer for the subset (no dependency), links open in the system browser through a Rust command that checks the address, and the dialog shows every version since the installed one.
+Own renderer for the subset (no dependency), links shown as their text only, and the dialog shows every version since the installed one.
 
 ### Decisions
 
-- **Links stay clickable.** They are the same links as on the GitHub release page, and the slice files are where the details are. A click goes to a new command, `open_github_page(url)`, which opens the address in the system browser only if it is a page of Sito's repository (`release_page::github_page`, already used for „Pobierz”); anything else is refused. The command uses the opener's free function like `open_release_page`, so the webview still gets no permission to open addresses and no capability changes. The UI shows a link only for an `https://github.com/lukaszkalnik/sito/…` address and renders any other link as its text, so a refused click cannot happen in normal use; the Rust check is the guarantee.
+- **Links are text only** (decided by the user on 2026-11-21): the in-app notes have no clickable links. A link `[slice 32](https://…)` is shown as its text, „slice 32”, in the normal text style; the address is dropped. Users who want more detail go to GitHub themselves. So the slice adds no command, no permission and no way to open an address from the notes.
 - **Skipped versions are shown.** The notes in `latest.json` become every CHANGELOG section from the tag back to v0.15.0 (the first version with the updater), each with its `## vX.Y.Z – date` heading. The Rust side keeps only the sections newer than the running version before sending the notes to the UI (`notes_of`, with the `semver` crate the updater already uses), so a user on 0.15.1 offered 0.17.0 sees 0.17.0 and 0.16.0. Notes without version headings (a local test manifest, an older release) pass unchanged. Installed versions up to this slice show the longer notes as plain text, which is acceptable.
-- **Language:** the notes stay English; the renderer knows nothing of the language. Only the dialog's own texts (title, version headings, the error) are translated.
+- **Language:** the notes stay English; the renderer knows nothing of the language. Only the dialog's own texts (title, version headings) are translated.
 
 ### Domain: `ui/src/features/update/releaseNotes.ts`
 
@@ -45,32 +45,31 @@ Own renderer for the subset (no dependency), links open in the system browser th
 
 - `ReleaseNotes = readonly NotesSection[]`; a section is `{ version: string | null; date: string | null; blocks }` (`null` for notes without version headings, a single section).
 - Blocks: `{ kind: 'heading'; inline }` (`###`), `{ kind: 'list'; items: readonly Inline[][] }` (`- ` items; an indented line continues the item), `{ kind: 'paragraph'; inline }` (other lines up to a blank line).
-- Inline: `text`, `bold` (whose content may hold `code` and `link`), `code` (taken literally), `link` (`{ text; url }`, `url` only when it is a repository page as above, otherwise the link is plain text).
+- Inline: `text`, `bold` (whose content may hold `code`), `code` (taken literally). A link `[text](url)` becomes the `text` it shows (inside bold too); the parser keeps no addresses, so the tree cannot carry one to the UI.
 - Anything it does not know stays text: an unclosed `**` or backtick, `[text](` without its `)`, `#`/`####` headings, a `## ` line that is not `vX.Y.Z`. CRLF line endings are accepted.
 
 ### Rust: `src-tauri/src/update.rs`
 
 - `notes_of(body, running)`: splits at `## v` headings and drops sections whose version is not newer than `running`; a heading whose version does not parse is kept. Unit tests: no headings, all newer, some older, equal to the running one, unparseable version, blank result (`None`).
-- `open_github_page(url: String)`: parses the address, refuses it with a new `UpdateError::NotAllowed` unless `github_page` accepts it, then opens it; a failed opening is `OpenFailed` as today. Registered in `lib.rs`; the error code gets its translations.
 
 ### UI
 
-- `ReleaseNotes.tsx` renders the tree with React elements only (never HTML strings): each version gets a heading „Wersja 0.16.0 · 12.11.2026” (date through `useFormats`; the heading is left out for a section without a version), `###` headings below it, lists, paragraphs, `<strong>`, `<code>` and links. A link is an `<a href>` (so it reads and focuses as a link) whose click and Enter call `openGithubPage` in `api.ts` instead of navigating.
-- `ReleaseNotesDialog.tsx`: the `<pre>` becomes a scrollable, focusable region in the app's font; inline code in the monospaced font on the tile background. A failed opening shows „Nie udało się otworzyć strony. System nie otworzył przeglądarki.” in the dialog, which stays open.
-- New strings in `pl.json`, `en.json`, `de.json` (version heading, link error).
+- `ReleaseNotes.tsx` renders the tree with React elements only (never HTML strings): each version gets a heading „Wersja 0.16.0 · 12.11.2026” (date through `useFormats`; the heading is left out for a section without a version), `###` headings below it, lists, paragraphs, `<strong>` and `<code>`. No `<a>` elements.
+- `ReleaseNotesDialog.tsx`: the `<pre>` becomes a scrollable, focusable region in the app's font; inline code in the monospaced font on the tile background.
+- New strings in `pl.json`, `en.json`, `de.json` (version heading).
 
 ### Release side
 
 - `scripts/release-notes.mjs`: `--changes-only` becomes `--update-notes`: the sections from the tag back to v0.15.0, headings included. The Release workflow passes the new flag; `check-update-manifest.mjs` also checks that the notes start with the tag's section.
-- `scripts/local-update-manifest.mjs` writes formatted sample notes (two versions, a list, bold, code, a link), so a local update test shows the formatting.
+- `scripts/local-update-manifest.mjs` writes formatted sample notes (two versions, a list, bold, code, a slice link), so a local update test shows the formatting.
 - `docs/RELEASING.md` and [Updates](../domain/updates.md) describe the new notes.
 
 ### Tests
 
-- Vitest: the parser (each block and inline kind, sizes 0/1/many, unclosed markers, unknown headings, links inside and outside the repository, CRLF, one real CHANGELOG section as a whole); the dialog (headings and lists by role, a click on a link calls `openGithubPage` with the address and does not navigate, a failed opening shows the error, Escape still closes).
-- Rust: `notes_of` and the address check, as above.
-- Mocked e2e (`ui/e2e/update.spec.ts`): the notes of two versions are shown formatted, a link click invokes `open_github_page`.
-- Real app, here on Linux: a debug build with `SITO_UPDATE_ENDPOINT` pointing at a local manifest with a `linux-x86_64` entry shows the offer; check the dialog's formatting with a screenshot (no browser is installed here, so a link click shows the error). The user checks it later on Windows/macOS (font, a link opening in the browser), and the release after this slice is the real test of the new `latest.json` notes.
+- Vitest: the parser (each block and inline kind, sizes 0/1/many, unclosed markers, unknown headings, links shown as their text and their addresses gone (also inside bold, and a link-like `[text]` without an address), CRLF, one real CHANGELOG section as a whole); the dialog (headings and lists by role, no link in the dialog and the link text shown, Escape still closes).
+- Rust: `notes_of`, as above.
+- Mocked e2e (`ui/e2e/update.spec.ts`): the notes of two versions are shown formatted, with no links.
+- Real app, here on Linux: a debug build with `SITO_UPDATE_ENDPOINT` pointing at a local manifest with a `linux-x86_64` entry shows the offer; check the dialog's formatting with a screenshot and that it has no links. The user checks it later on Windows/macOS (font, Polish and German dialog texts), and the release after this slice is the real test of the new `latest.json` notes.
 
 ### Out of scope
 
