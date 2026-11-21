@@ -62,4 +62,4 @@ Photos are cached by path, so a folder renamed or moved outside Sito would other
 - **Only unique matches count:** if two vanished photos or two new files share that identity, none of them is matched and they are read again. A photo without a modification time is never matched.
 - A match whose old path **still exists** is a copy: its cached metadata is reused (it is the same file), but it is not a move, so its accepted mark stays where it is.
 - Nothing is read for a moved photo: a renamed folder of 34,600 photos opens in the time of a folder walk. The cache stores it under its new path and forgets the old one once the scan is complete; a stopped scan matches it again next time.
-- Moves into or out of an `Odrzucone` folder are not treated as moves of the photo (they are Sito's own rejections and undos), though their metadata is reused.
+- Moves into or out of a rejected folder (`Odrzucone`, `Rejected`, `Abgelehnt`, see [Languages](languages.md#the-rejected-folder)) are not treated as moves of the photo (they are Sito's own rejections and undos), though their metadata is reused.

@@ -1,10 +1,10 @@
 ---
-status: 🚧 in progress
+status: 🧪 ready for testing
 ---
 
 # Slice 22 – English and German UI
 
-Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written and approved by the user the same day (all suggestions taken). Implementation started the same day; see [Progress](#progress).
+Brought forward on 2026-11-20 at the user's request, before [slice 15](15-settings.md); plan written and approved by the user the same day (all suggestions taken). Implemented on 2026-11-20/21 in a cloud session (see [Progress](#progress)); its knowledge moved to [Languages](../domain/languages.md). Ready for testing in the real app on the user's machine (see [Testing](#testing)); not tried in the real app yet.
 
 ## Idea
 
@@ -103,3 +103,4 @@ One commit per step, each with its tests and checks green.
 - Step 4 (the language menu): done. `src-tauri/src/menu.rs` (renamed from `about.rs`) builds „Ustawienia → Język” with „Język systemu”, „Polski”, „English”, „Deutsch” as check items (the current choice checked) before „Pomoc” on Windows, and in the app menu after „About” on macOS; labels per language in `menu/labels.rs`. Every switch (menu or `set_language`) rebuilds the menu. The macOS branch could not be compiled in the cloud container (no macOS SDK); CI checks it.
 - Step 5 (rejected folder per language): done. `RejectedDirName` in `crates/core/src/scan.rs` (`Odrzucone`, `Rejected`, `Abgelehnt`); scans and the cached timeline recognise all three in any letter case. `reject::prepare` takes the name of a new folder and reuses an existing rejected folder (the one of that name first, else the first by name; a link chosen this way is refused as before). The folder is found by its exact names, so on Linux a folder in another letter case is not reused (Windows and macOS find it in any case). `src-tauri` maps the language to the name (`Language::rejected_dir`). Messages name the folder of the current language through the translations. Pushed together with a fix for the real-app e2e suite, which since step 3 started the app in the runners' English (`SITO_SYSTEM_LOCALE`, debug builds only); that fix's commit came first by mistake and does not build alone.
 - Step 6 (installer and bundle languages): done. NSIS gets English, Polish and German (English first, so a system in another language gets English); Tauri's own English and German strings cover every string of our template (the same keys as `Polish.nsh`), so no own files were needed. `src-tauri/Info.plist` lists `CFBundleLocalizations` (pl, en, de). The bundle descriptions are English. The installer itself is built only by the Release workflow, so it is first checked on the next test build or release; the macOS default menu items are noted for [slice 23](23-macos-polish.md).
+- Step 7 (docs): done. [Languages](../domain/languages.md), linked from the index, [Rejecting](../domain/rejecting.md) and [Photos](../domain/photos.md); CLAUDE.md's language rules cover the three translation files.

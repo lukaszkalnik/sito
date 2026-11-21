@@ -8,11 +8,12 @@ Platforms: developed on Windows, macOS later.
 
 ## Language
 
-- **UI language: Polish.** All user-facing strings are in Polish.
+- **UI languages: Polish (the app's own), English and German** (see [docs/domain/languages.md](docs/domain/languages.md)). Every user-facing string exists in all three: `ui/src/i18n/pl.json`, `en.json`, `de.json` (a test checks keys, plural forms and placeholders), and the native menu's labels in `src-tauri/src/menu/labels.rs`. German texts written by Claude are reviewed by the user before a release. Unit tests and the mocked e2e tests run in Polish.
 - **Everything else is English:** code, identifiers, comments, commit messages, PR descriptions, docs and this file.
-- Never hardcode UI strings in components. Keep them in a translation file (e.g. `ui/src/i18n/pl.json`) via an i18n library such as i18next, so other languages can be added later.
+- Never hardcode UI strings in components. Keep them in the translation files via i18next.
 - **Polish plurals have three forms** (1 zdjęcie, 2 zdjęcia, 5 zdjęć). Always use proper plural rules (ICU / `Intl.PluralRules`), never `count === 1 ? a : b`.
-- Format dates and numbers with the `pl-PL` locale.
+- Format dates and numbers with the current locale, through `ui/src/i18n/formats.ts` (`useFormats`), never a fixed locale.
+- Each language uses its own quotation marks („…” Polish, “…” English, „…“ German).
 - Use correct Polish diacritics (ą, ć, ę, ł, ń, ó, ś, ź, ż) in UI text and make sure the chosen font renders them.
 
 ## Hard rules
@@ -114,7 +115,7 @@ Lints enforce part of them, so CI fails on a violation: clippy (`Cargo.toml`, `c
 
 ### Errors
 
-- Commands return **error codes** (serializable enums), not English messages; the UI maps every code to a translated message in `pl.json`.
+- Commands return **error codes** (serializable enums), not English messages; the UI maps every code to a translated message in the translation files.
 - Never swallow an error silently: show it to the user or log it.
 
 ### Security and privacy

@@ -19,7 +19,7 @@ What protects the user's photos and machine today. Sito's main input is untruste
 
 ## Moving files
 
-- A move never replaces a file, and `Odrzucone` must be a real folder, not a link: see [Rejecting](rejecting.md).
+- A move never replaces a file, and the rejected folder (`Odrzucone`) must be a real folder, not a link: see [Rejecting](rejecting.md).
 - Every statement of the action log and the photo cache (SQLite) uses bound parameters.
 
 ## Network and privacy
