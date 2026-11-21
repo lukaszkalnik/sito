@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged by Tauri into the app's Info.plist. The UI languages, so macOS
+     shows its own menu items in them and lists Sito under Language & Region. -->
+<plist version="1.0">
+<dict>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>pl</string>
+    <string>en</string>
+    <string>de</string>
+  </array>
+</dict>
+</plist>

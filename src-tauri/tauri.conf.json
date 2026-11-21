@@ -46,8 +46,8 @@
     "publisher": "Lukasz Kalnik",
     "copyright": "© 2026 Lukasz Kalnik",
     "category": "Photography",
-    "shortDescription": "Wybiera najlepsze zdjęcie z serii podobnych ujęć",
-    "longDescription": "Sito przesiewa galerię zdjęć, znajduje serie podobnych ujęć i podpowiada, które zdjęcie z każdej serii zostawić. Działa lokalnie, bez internetu.",
+    "shortDescription": "Picks the best photo of each series of similar shots",
+    "longDescription": "Sito sifts through a photo gallery, finds series of similar shots and suggests which photo of each series to keep. It works locally, without the internet.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -60,7 +60,9 @@
         "installMode": "currentUser",
         "template": "installer/installer.nsi",
         "languages": [
-          "Polish"
+          "English",
+          "Polish",
+          "German"
         ],
         "displayLanguageSelector": false,
         "customLanguageFiles": {
