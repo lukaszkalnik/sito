@@ -53,6 +53,9 @@ fn gallery() -> TempDir {
         "Odrzucone/IMG_0008.jpg",
         "Camera/2024/odrzucone/IMG_0009.jpg",
         "Camera/ODRZUCONE/deeper/IMG_0010.jpg",
+        // The rejected folder of every UI language.
+        "Rejected/IMG_0011.jpg",
+        "Camera/abgelehnt/IMG_0012.jpg",
     ] {
         touch(root, file);
     }
@@ -86,7 +89,16 @@ fn finds_jpegs_skips_hidden_and_nomedia_and_lists_rejected_apart() {
         .map(|f| f.path.file_name().unwrap().to_string_lossy().into_owned())
         .collect();
     rejected.sort();
-    assert_eq!(rejected, ["IMG_0008.jpg", "IMG_0009.jpg", "IMG_0010.jpg"]);
+    assert_eq!(
+        rejected,
+        [
+            "IMG_0008.jpg",
+            "IMG_0009.jpg",
+            "IMG_0010.jpg",
+            "IMG_0011.jpg",
+            "IMG_0012.jpg"
+        ]
+    );
     assert_eq!(result.unreadable_entries, 0);
 }
 

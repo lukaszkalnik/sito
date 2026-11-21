@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use super::Photo;
 use crate::moved::{FileIdentity, MovedPhoto, match_moved, unique_positions};
 use crate::photo_cache::{SharedCache, with_cache};
-use crate::scan::{FileStamp, FoundFile, REJECTED_DIR, StampedFile};
+use crate::scan::{FileStamp, FoundFile, StampedFile, is_rejected_dir_name};
 
 /// The found files of a scan, split by what the cache knows of them.
 #[derive(Debug, Default)]
@@ -144,12 +144,13 @@ fn push_move(moves: &mut Vec<MovedPhoto>, from: &Path, to: &Path) {
     });
 }
 
-/// Whether `path` is in a [`REJECTED_DIR`] folder.
+/// Whether `path` is in a rejected folder (of any name, see
+/// [`crate::scan::RejectedDirName`]).
 fn is_rejected(path: &Path) -> bool {
     path.parent()
         .and_then(Path::file_name)
         .and_then(|name| name.to_str())
-        .is_some_and(|name| name.eq_ignore_ascii_case(REJECTED_DIR))
+        .is_some_and(is_rejected_dir_name)
 }
 
 /// `photo` at the path of `file`, if its Takeout date file and RAW companion

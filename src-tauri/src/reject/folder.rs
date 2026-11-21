@@ -1,23 +1,26 @@
-//! Rejecting into the "Odrzucone" subfolder of the photo's folder, and
-//! moving the photo back from there.
+//! Rejecting into the rejected subfolder of the photo's folder, and moving
+//! the photo back from there.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use sito_core::actions::ActionLog;
 use sito_core::reject::{self, FileMove};
+use sito_core::scan::RejectedDirName;
 
 use super::{log_failed, move_failed};
 use crate::error::CommandError;
 
-/// Moves the photo at `path` and its other files into "Odrzucone", logging
-/// the move first. A folder created for it is added to `created_dirs`.
+/// Moves the photo at `path` and its other files into its folder's rejected
+/// folder (a new one is named `new_dir`), logging the move first. A folder
+/// created for it is added to `created_dirs`.
 pub(super) fn reject(
     log: &ActionLog,
     path: &Path,
+    new_dir: RejectedDirName,
     created_dirs: &mut HashSet<PathBuf>,
 ) -> Result<(), CommandError> {
-    let rejected = reject::prepare(path).map_err(move_failed)?;
+    let rejected = reject::prepare(path, new_dir).map_err(move_failed)?;
     // Logged before the move, so a crash in between never leaves an untracked
     // move; undo skips an entry whose photo never arrived.
     let action = log
@@ -40,7 +43,7 @@ pub(super) fn reject(
     Ok(())
 }
 
-/// Moves the photo at `to` in "Odrzucone" back to `from`, or under a free
+/// Moves the photo at `to` in a rejected folder back to `from`, or under a free
 /// name next to it if `from` is taken, and its other files `extra` back too;
 /// returns where the photo went. The folder is removed once empty only if
 /// it is in `created_dirs`.

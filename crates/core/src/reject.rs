@@ -1,5 +1,5 @@
-//! Moving rejected photos into the [`REJECTED_DIR`] subfolder of their own
-//! folder, and back, with every file that belongs to the photo (its Takeout
+//! Moving rejected photos into the rejected subfolder of their own folder
+//! (see [`RejectedDirName`]), and back, with every file that belongs to the photo (its Takeout
 //! date file, the RAW file of a RAW+JPEG pair and that file's date file).
 //! Files are only ever moved, never deleted or overwritten.
 
@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::scan::{REJECTED_DIR, is_photo};
+use crate::scan::{RejectedDirName, is_photo};
 
 mod exclusive;
 mod files;
@@ -20,7 +20,7 @@ pub use files::{Companion, PhotoFiles};
 /// with the photo by name wherever the photo is renamed to.
 const SIDECAR_SUFFIX: &str = ".supplemental-metadata.json";
 
-/// Error while moving a photo into or out of [`REJECTED_DIR`].
+/// Error while moving a photo into or out of its rejected folder.
 #[derive(Debug, Error)]
 pub enum RejectError {
     /// The photo is not inside a folder.
@@ -37,8 +37,8 @@ pub enum RejectError {
     /// or deleted outside Sito.
     #[error("{0} is gone")]
     PhotoGone(PathBuf),
-    /// The [`REJECTED_DIR`] folder is a symbolic link or a junction, so
-    /// photos moved into it would leave the gallery.
+    /// The rejected folder is a symbolic link or a junction, so photos moved
+    /// into it would leave the gallery.
     #[error("{0} is a link, not a folder")]
     RejectedDirIsLink(PathBuf),
     /// The file system refused the move.
@@ -59,7 +59,7 @@ pub enum RejectError {
 pub struct FileMove {
     /// Where the file was before the photo was rejected.
     pub from: PathBuf,
-    /// Where it is in the [`REJECTED_DIR`] folder.
+    /// Where it is in the rejected folder.
     pub to: PathBuf,
 }
 
@@ -68,8 +68,8 @@ pub struct FileMove {
 pub struct Rejected {
     /// Where the photo is now.
     pub path: PathBuf,
-    /// Whether the [`REJECTED_DIR`] folder was created for it (it did not
-    /// exist before).
+    /// Whether the rejected folder was created for it (it did not exist
+    /// before).
     pub created_dir: bool,
     /// The other files of the photo, moved along with it, in the order they
     /// are moved.
@@ -87,21 +87,25 @@ pub struct Restored {
     pub errors: Vec<RejectError>,
 }
 
-/// Moves the photo at `path` into the [`REJECTED_DIR`] subfolder of its
-/// folder: [`prepare`] followed by [`complete`].
+/// Moves the photo at `path` into the rejected subfolder of its folder:
+/// [`prepare`] followed by [`complete`].
 ///
 /// # Errors
 ///
 /// Returns an error if the folder cannot be created or a file cannot be moved.
-pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
-    let rejected = prepare(path)?;
+pub fn reject(path: &Path, new_dir: RejectedDirName) -> Result<Rejected, RejectError> {
+    let rejected = prepare(path, new_dir)?;
     complete(path, &rejected)?;
     Ok(rejected)
 }
 
-/// Creates the [`REJECTED_DIR`] subfolder of the folder of `path` if needed
-/// and picks where the photo and its other files go, without moving anything
-/// yet, so the move can be logged before it happens.
+/// Picks the rejected subfolder of the folder of `path`, creating it if
+/// needed, and where the photo and its other files go in it, without moving
+/// anything yet, so the move can be logged before it happens.
+///
+/// A rejected folder already there is used, whatever its name, so a folder
+/// never gets two of them: the one named `new_dir` if there is one, else the
+/// first by name. Only a folder without one gets a new one named `new_dir`.
 ///
 /// Files already there are kept: the photo is then named `<stem> (2).<ext>`,
 /// `(3)` and so on, and the RAW file of a RAW+JPEG pair gets the same number
@@ -114,14 +118,14 @@ pub fn reject(path: &Path) -> Result<Rejected, RejectError> {
 /// Returns [`RejectError::PhotoGone`] if there is no file at `path`, or an
 /// error if `path` has no folder or file name, the folder cannot be created,
 /// or it is a link ([`RejectError::RejectedDirIsLink`]).
-pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
+pub fn prepare(path: &Path, new_dir: RejectedDirName) -> Result<Rejected, RejectError> {
     if !path.is_file() {
         return Err(RejectError::PhotoGone(path.to_path_buf()));
     }
     let no_parent = || RejectError::NoParent(path.to_path_buf());
     let parent = path.parent().ok_or_else(no_parent)?;
     let name = path.file_name().ok_or_else(no_parent)?;
-    let dir = parent.join(REJECTED_DIR);
+    let dir = rejected_dir_in(parent, new_dir);
     let created_dir = ensure_rejected_dir(path, &dir)?;
 
     let files = PhotoFiles::find(path);
@@ -150,7 +154,27 @@ pub fn prepare(path: &Path) -> Result<Rejected, RejectError> {
     })
 }
 
-/// Creates the [`REJECTED_DIR`] folder `dir` for the photo at `path` unless
+/// The rejected folder of `parent`: an existing one (a folder or a link of
+/// a [`RejectedDirName`]), `new_dir` first, else the first by name; or a new
+/// one named `new_dir`. Only the exact names are looked for, so on a file
+/// system that tells letter cases apart (Linux) a folder named in another
+/// case is not reused; Windows and macOS find it in any case.
+fn rejected_dir_in(parent: &Path, new_dir: RejectedDirName) -> PathBuf {
+    let preferred = std::iter::once(new_dir);
+    let others = RejectedDirName::ALL
+        .into_iter()
+        .filter(|name| *name != new_dir);
+    preferred
+        .chain(others)
+        .map(|name| parent.join(name.as_str()))
+        .find(|dir| {
+            fs::symlink_metadata(dir)
+                .is_ok_and(|metadata| metadata.is_dir() || metadata.is_symlink())
+        })
+        .unwrap_or_else(|| parent.join(new_dir.as_str()))
+}
+
+/// Creates the rejected folder `dir` for the photo at `path` unless
 /// it is there; `true` if it was created. A symbolic link or a junction of
 /// that name is refused: it would take the photos to wherever it points.
 fn ensure_rejected_dir(path: &Path, dir: &Path) -> Result<bool, RejectError> {
@@ -180,8 +204,8 @@ fn sidecar_move(sidecar: Option<PathBuf>, target: &Path, dir: &Path) -> Option<F
 /// Moves the photo at `path` and its other files to where [`prepare`] put
 /// them. The other files go first and the photo last, so a failure never
 /// leaves the photo moved without them; after a failure, every file already
-/// moved goes back, and a [`REJECTED_DIR`] folder that `prepare` created is
-/// removed again while empty.
+/// moved goes back, and a rejected folder that `prepare` created is removed
+/// again while empty.
 ///
 /// # Errors
 ///
@@ -222,7 +246,7 @@ fn move_all(path: &Path, rejected: &Rejected) -> Result<(), RejectError> {
 }
 
 /// Undoes [`prepare`] for a photo that will not be moved: removes the
-/// [`REJECTED_DIR`] folder again if `prepare` created it and it is still empty.
+/// rejected folder again if `prepare` created it and it is still empty.
 pub fn abandon(rejected: &Rejected) {
     if rejected.created_dir {
         remove_if_empty(rejected.path.parent());
@@ -231,7 +255,7 @@ pub fn abandon(rejected: &Rejected) {
 
 /// Moves a rejected photo from `from` back to `to`, its path before it was
 /// rejected, and then its other files `extra` back to where they were. With
-/// `remove_empty_dir`, the [`REJECTED_DIR`] folder it was in is removed if
+/// `remove_empty_dir`, the rejected folder it was in is removed if
 /// that leaves it empty; a folder with other files stays.
 ///
 /// If another file has taken the original name of the photo or of its RAW

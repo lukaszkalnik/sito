@@ -142,21 +142,23 @@ fn a_copy_of_a_scanned_folder_is_not_read_and_not_a_move() {
 
 #[test]
 fn a_photo_moved_into_a_rejected_folder_is_not_listed_as_a_move() {
-    let root = TempDir::new().unwrap();
-    fill(root.path());
-    let cache = new_cache();
-    scan(root.path(), &cache);
+    for folder in ["Odrzucone", "Rejected", "abgelehnt"] {
+        let root = TempDir::new().unwrap();
+        fill(root.path());
+        let cache = new_cache();
+        scan(root.path(), &cache);
 
-    fs::create_dir(root.path().join("Odrzucone")).unwrap();
-    fs::rename(
-        root.path().join("no-exif.jpg"),
-        root.path().join("Odrzucone/no-exif.jpg"),
-    )
-    .unwrap();
-    let (rescan, read) = scan(root.path(), &cache);
+        fs::create_dir(root.path().join(folder)).unwrap();
+        fs::rename(
+            root.path().join("no-exif.jpg"),
+            root.path().join(folder).join("no-exif.jpg"),
+        )
+        .unwrap();
+        let (rescan, read) = scan(root.path(), &cache);
 
-    assert_eq!((rescan.moves, read), (vec![], 0));
-    assert_eq!(rescan.timeline.rejected.len(), 1);
+        assert_eq!((rescan.moves, read), (vec![], 0), "{folder}");
+        assert_eq!(rescan.timeline.rejected.len(), 1, "{folder}");
+    }
 }
 
 #[test]

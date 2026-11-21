@@ -12,9 +12,36 @@ use crate::takeout::{is_sidecar_candidate, pair_sidecars};
 /// File name that marks an Android folder as "not gallery media".
 const NOMEDIA_MARKER: &str = ".nomedia";
 
-/// Name of the folder rejected photos are moved into, next to where they were.
-/// Scans skip it (in any letter case), so rejected photos leave the timeline.
-pub const REJECTED_DIR: &str = "Odrzucone";
+/// A name of the folder rejected photos are moved into, next to where they
+/// were. Only the names in [`RejectedDirName::ALL`] exist, and scans skip a
+/// folder of any of them (in any letter case), so rejected photos leave the
+/// timeline whichever name their folder has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RejectedDirName(&'static str);
+
+impl RejectedDirName {
+    /// `Odrzucone`, Polish for "rejected".
+    pub const ODRZUCONE: Self = Self("Odrzucone");
+    /// `Rejected`.
+    pub const REJECTED: Self = Self("Rejected");
+    /// `Abgelehnt`, German for "rejected".
+    pub const ABGELEHNT: Self = Self("Abgelehnt");
+    /// Every name, in name order.
+    pub const ALL: [Self; 3] = [Self::ABGELEHNT, Self::ODRZUCONE, Self::REJECTED];
+
+    /// The folder name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        self.0
+    }
+}
+
+/// Whether `name` is one of the [`RejectedDirName`]s, in any letter case.
+pub(crate) fn is_rejected_dir_name(name: &str) -> bool {
+    RejectedDirName::ALL
+        .iter()
+        .any(|dir| name.eq_ignore_ascii_case(dir.as_str()))
+}
 
 /// Number of walked entries between two progress reports.
 const PROGRESS_INTERVAL: u64 = 500;
@@ -82,9 +109,9 @@ pub struct FoundFile {
 pub struct SearchResult {
     /// Photos found, in walk order (without rejected ones).
     pub photos: Vec<FoundFile>,
-    /// Photos inside [`REJECTED_DIR`] folders, in walk order. They are not
-    /// shown, but series are found including them, so a series keeps its
-    /// shape after its weaker shots were rejected.
+    /// Photos inside rejected folders ([`RejectedDirName`]), in walk order.
+    /// They are not shown, but series are found including them, so a series
+    /// keeps its shape after its weaker shots were rejected.
     pub rejected: Vec<FoundFile>,
     /// Files and folders visited.
     pub entries_seen: u64,
@@ -158,8 +185,8 @@ pub fn is_photo(path: &Path) -> bool {
 /// Recursively finds the photos under `root`.
 ///
 /// Hidden folders (name starting with `.`) and folders containing a `.nomedia`
-/// file are skipped. Photos inside [`REJECTED_DIR`] folders (in any letter
-/// case, at any depth below `root`) go to [`SearchResult::rejected`] instead
+/// file are skipped. Photos inside rejected folders (of any
+/// [`RejectedDirName`], in any letter case, at any depth below `root`) go to [`SearchResult::rejected`] instead
 /// of [`SearchResult::photos`]. Symbolic links are not followed. Entries that
 /// cannot be read are counted in [`SearchResult::unreadable_entries`] and do
 /// not abort the search.
@@ -393,17 +420,15 @@ fn is_skipped_dir(entry: &DirEntry) -> bool {
     entry.file_type().is_dir() && (is_hidden(entry) || entry.path().join(NOMEDIA_MARKER).exists())
 }
 
-/// Whether a folder between `root` and the file at `path` is a [`REJECTED_DIR`].
+/// Whether a folder between `root` and the file at `path` is a rejected
+/// folder (see [`RejectedDirName`]).
 pub(crate) fn is_in_rejected_dir(path: &Path, root: &Path) -> bool {
     path.strip_prefix(root)
         .ok()
         .and_then(Path::parent)
         .is_some_and(|dirs| {
-            dirs.components().any(|dir| {
-                dir.as_os_str()
-                    .to_str()
-                    .is_some_and(|name| name.eq_ignore_ascii_case(REJECTED_DIR))
-            })
+            dirs.components()
+                .any(|dir| dir.as_os_str().to_str().is_some_and(is_rejected_dir_name))
         })
 }
 
@@ -432,6 +457,31 @@ fn progress_of(result: &SearchResult) -> SearchProgress {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recognizes_every_rejected_folder_name_in_any_letter_case() {
+        for name in [
+            "Odrzucone",
+            "Rejected",
+            "Abgelehnt",
+            "odrzucone",
+            "REJECTED",
+            "abgelehnt",
+        ] {
+            assert!(is_rejected_dir_name(name), "{name}");
+        }
+        for name in ["Odrzucone2", "Reject", "", "Rejected "] {
+            assert!(!is_rejected_dir_name(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn rejected_folder_names_are_in_name_order() {
+        let names = RejectedDirName::ALL.map(RejectedDirName::as_str);
+        let mut sorted = names;
+        sorted.sort_unstable();
+        assert_eq!(names, sorted);
+    }
 
     #[test]
     fn recognizes_jpeg_extensions_case_insensitively() {

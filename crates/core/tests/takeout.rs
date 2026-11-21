@@ -8,12 +8,16 @@ use std::path::PathBuf;
 use chrono::{Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use sito_core::photo_cache::{PhotoCache, SharedCache};
 use sito_core::reject::{reject, restore};
+use sito_core::scan::RejectedDirName;
 use sito_core::takeout::TakeoutUse;
 use sito_core::timeline::{
     Completion, ExifInfo, Photo, ReadMode, TimeSource, build_timeline, build_timeline_cached,
     cached_timeline, complete_pending, read_photo,
 };
 use tempfile::TempDir;
+
+/// The folder name these tests reject into.
+const ODRZUCONE: RejectedDirName = RejectedDirName::ODRZUCONE;
 
 /// A copy of the Takeout album fixture (see fixtures/README.md).
 fn album() -> TempDir {
@@ -92,7 +96,7 @@ fn a_rejected_and_restored_photo_keeps_its_takeout_date() {
     let dir = album();
     let photo = dir.path().join("scan_1976.jpg");
 
-    let rejected = reject(&photo).unwrap();
+    let rejected = reject(&photo, ODRZUCONE).unwrap();
     let in_odrzucone = read_photo(&rejected.path).unwrap();
     restore(&rejected.path, &photo, &rejected.extra, true).unwrap();
     let back = read_photo(&photo).unwrap();

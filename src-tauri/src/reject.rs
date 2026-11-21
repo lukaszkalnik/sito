@@ -1,4 +1,4 @@
-//! Reject commands: move photos into the "Odrzucone" folder or the system
+//! Reject commands: move photos into the rejected folder or the system
 //! trash, and bring a rejected photo back (for „Cofnij”, see `undo`).
 
 mod drive;
@@ -15,11 +15,13 @@ use serde::{Deserialize, Serialize};
 use sito_core::actions::{ActionLog, LogError, Placement, RejectAction, Rejections};
 use sito_core::moved::MovedPhoto;
 use sito_core::reject::RejectError;
+use sito_core::scan::RejectedDirName;
 use sito_core::timeline::read_photo;
 use sito_core::trash::TrashRestore;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::error::{CommandError, off_main_thread};
+use crate::language::LanguageState;
 use crate::scan::state::{AppState, Scan};
 use trash::{Bin, SystemBin};
 
@@ -35,7 +37,7 @@ pub(crate) struct ActionsState {
     /// The action log, or `None` if its database could not be opened;
     /// rejecting is then refused, since it could not be undone.
     log: Option<ActionLog>,
-    /// "Odrzucone" folders created since the app started. Only these are
+    /// Rejected folders created since the app started. Only these are
     /// removed again once undo leaves them empty; folders that were there
     /// before stay.
     created_dirs: HashSet<PathBuf>,
@@ -78,14 +80,36 @@ impl ActionsState {
     }
 }
 
-/// Where a rejected photo goes.
+/// Where the user chose rejected photos to go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Destination {
-    /// The "Odrzucone" subfolder of the photo's folder.
+    /// The rejected subfolder of the photo's folder.
     Folder,
     /// The system trash.
     Trash,
+}
+
+/// Where a rejected photo goes, with the name of a rejected folder to
+/// create.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RejectTarget {
+    /// The rejected subfolder of the photo's folder: one already there, or a
+    /// new one with this name.
+    Folder(RejectedDirName),
+    /// The system trash.
+    Trash,
+}
+
+impl Destination {
+    /// The target of this destination when a new rejected folder is named
+    /// `new_dir`.
+    const fn target(self, new_dir: RejectedDirName) -> RejectTarget {
+        match self {
+            Self::Folder => RejectTarget::Folder(new_dir),
+            Self::Trash => RejectTarget::Trash,
+        }
+    }
 }
 
 /// A rejected photo.
@@ -135,7 +159,12 @@ pub async fn reject_photo(
         let state = app.state::<AppState>();
         let mut scan = state.scan();
         let scan = scan.as_mut().ok_or(CommandError::Internal)?;
-        let rejected = reject_in(scan, &mut actions, id, destination)?;
+        let new_dir = app
+            .state::<LanguageState>()
+            .current()
+            .language
+            .rejected_dir();
+        let rejected = reject_in(scan, &mut actions, id, destination.target(new_dir))?;
         announce(&app, TIMELINE_CHANGED);
         Ok(rejected)
     })
@@ -147,7 +176,7 @@ pub(crate) fn reject_in(
     scan: &mut Scan,
     actions: &mut ActionsState,
     id: usize,
-    destination: Destination,
+    target: RejectTarget,
 ) -> Result<RejectedDto, CommandError> {
     let log = actions.log.as_ref().ok_or(CommandError::Internal)?;
     let path = scan.photo(id).ok_or(CommandError::Internal)?.path.clone();
@@ -156,9 +185,11 @@ pub(crate) fn reject_in(
         return Err(CommandError::PhotoMissing);
     }
 
-    match destination {
-        Destination::Folder => folder::reject(log, &path, &mut actions.created_dirs)?,
-        Destination::Trash => trash::reject(log, actions.bin.as_ref(), &path)?,
+    match target {
+        RejectTarget::Folder(new_dir) => {
+            folder::reject(log, &path, new_dir, &mut actions.created_dirs)?;
+        }
+        RejectTarget::Trash => trash::reject(log, actions.bin.as_ref(), &path)?,
     }
     scan.remove(id);
     Ok(RejectedDto {
@@ -286,6 +317,8 @@ pub(crate) mod tests {
     /// The two fixture photos 5 s apart, which form the only series.
     pub(crate) const NEWER: &str = "pixel_2024-06-01_12-00-05.jpg";
     pub(crate) const OLDER: &str = "pixel_2024-06-01_12-00-00.jpg";
+    /// Rejecting into `Odrzucone` unless the folder has another rejected folder.
+    pub(crate) const FOLDER: RejectTarget = RejectTarget::Folder(RejectedDirName::ODRZUCONE);
 
     /// Undoes the newest action, which must be a rejection (or nothing).
     fn undo_in(
@@ -355,7 +388,7 @@ pub(crate) mod tests {
         let mut actions = started(&db);
         let id = id_of(&scan, NEWER);
 
-        let rejected = reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        let rejected = reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
 
         assert_eq!(rejected.name, NEWER);
         assert!(!dir.path().join(NEWER).exists());
@@ -383,7 +416,7 @@ pub(crate) mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let id = id_of(&scan, NEWER);
 
-        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
         undo_in(&mut scan, &actions).unwrap().unwrap();
 
         assert!(dir.path().join(NEWER).exists());
@@ -398,7 +431,7 @@ pub(crate) mod tests {
             let mut scan = scan(dir.path());
             let mut actions = started(&db);
             let id = id_of(&scan, NEWER);
-            reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+            reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
         }
 
         // Restart: a new scan finds the rejected photo in "Odrzucone".
@@ -426,8 +459,8 @@ pub(crate) mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let older = id_of(&scan, OLDER);
         let newer = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
-        reject_in(&mut scan, &mut actions, newer, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, older, FOLDER).unwrap();
+        reject_in(&mut scan, &mut actions, newer, FOLDER).unwrap();
         // Someone moved the newest rejected photo away.
         fs::remove_file(dir.path().join("Odrzucone").join(NEWER)).unwrap();
 
@@ -466,7 +499,7 @@ pub(crate) mod tests {
         let id = id_of(&scan, NEWER);
 
         assert_eq!(
-            reject_in(&mut scan, &mut actions, id, Destination::Folder),
+            reject_in(&mut scan, &mut actions, id, FOLDER),
             Err(CommandError::Internal)
         );
         assert!(dir.path().join(NEWER).exists());
@@ -531,7 +564,7 @@ pub(crate) mod tests {
         let mut actions = started_with_bin(&db, FakeBin::new(bin.path()));
         let id = id_of(&scan, NEWER);
 
-        let rejected = reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+        let rejected = reject_in(&mut scan, &mut actions, id, RejectTarget::Trash).unwrap();
 
         assert_eq!(rejected.name, NEWER);
         assert!(!dir.path().join(NEWER).exists());
@@ -556,7 +589,7 @@ pub(crate) mod tests {
             let mut scan = scan(dir.path());
             let mut actions = started_with_bin(&db, FakeBin::new(bin.path()));
             let id = id_of(&scan, NEWER);
-            reject_in(&mut scan, &mut actions, id, Destination::Trash).unwrap();
+            reject_in(&mut scan, &mut actions, id, RejectTarget::Trash).unwrap();
         }
 
         let mut scan = scan(dir.path());
@@ -579,7 +612,7 @@ pub(crate) mod tests {
         let id = id_of(&scan, NEWER);
 
         assert_eq!(
-            reject_in(&mut scan, &mut actions, id, Destination::Trash),
+            reject_in(&mut scan, &mut actions, id, RejectTarget::Trash),
             Err(CommandError::NoTrash)
         );
         assert!(dir.path().join(NEWER).exists());
@@ -595,8 +628,8 @@ pub(crate) mod tests {
         let mut actions = started_with_bin(&bin.path().join("sito.db"), FakeBin::new(bin.path()));
         let older = id_of(&scan, OLDER);
         let newer = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
-        reject_in(&mut scan, &mut actions, newer, Destination::Trash).unwrap();
+        reject_in(&mut scan, &mut actions, older, FOLDER).unwrap();
+        reject_in(&mut scan, &mut actions, newer, RejectTarget::Trash).unwrap();
         // The trash was emptied.
         fs::remove_file(bin.path().join(NEWER)).unwrap();
 
@@ -621,8 +654,8 @@ pub(crate) mod tests {
         let root = scan.timeline.root.clone();
         let older = id_of(&scan, OLDER);
         let newer = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, older, Destination::Folder).unwrap();
-        reject_in(&mut scan, &mut actions, newer, Destination::Trash).unwrap();
+        reject_in(&mut scan, &mut actions, older, FOLDER).unwrap();
+        reject_in(&mut scan, &mut actions, newer, RejectTarget::Trash).unwrap();
         assert_eq!(undo_state(&actions, &root), UndoStateDto::Available);
 
         let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
@@ -645,11 +678,49 @@ pub(crate) mod tests {
         assert_eq!(undo_state(&actions, &root), UndoStateDto::Nothing);
 
         let id = id_of(&scan, NEWER);
-        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
         assert_eq!(undo_state(&actions, &root), UndoStateDto::Available);
 
         undo_in(&mut scan, &actions).unwrap();
         assert_eq!(undo_state(&actions, &root), UndoStateDto::Nothing);
+    }
+
+    #[test]
+    fn a_rejection_after_a_language_switch_goes_into_the_same_folder() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let mut actions = started(&dir.path().join("sito.db"));
+        let older = id_of(&scan, OLDER);
+        let newer = id_of(&scan, NEWER);
+        let english = RejectTarget::Folder(RejectedDirName::REJECTED);
+
+        reject_in(&mut scan, &mut actions, older, FOLDER).unwrap();
+        reject_in(&mut scan, &mut actions, newer, english).unwrap();
+
+        assert!(dir.path().join("Odrzucone").join(OLDER).exists());
+        assert!(dir.path().join("Odrzucone").join(NEWER).exists());
+        assert!(!dir.path().join("Rejected").exists());
+        assert_eq!(undo_in(&mut scan, &actions).unwrap().unwrap().name, NEWER);
+        assert_eq!(undo_in(&mut scan, &actions).unwrap().unwrap().name, OLDER);
+        assert!(dir.path().join(OLDER).exists() && dir.path().join(NEWER).exists());
+        // Created by this session and empty again: removed.
+        assert!(!dir.path().join("Odrzucone").exists());
+    }
+
+    #[test]
+    fn a_new_rejected_folder_is_named_in_the_language_and_removed_on_undo() {
+        let dir = gallery();
+        let mut scan = scan(dir.path());
+        let mut actions = started(&dir.path().join("sito.db"));
+        let id = id_of(&scan, NEWER);
+
+        let german = RejectTarget::Folder(RejectedDirName::ABGELEHNT);
+        reject_in(&mut scan, &mut actions, id, german).unwrap();
+
+        assert!(dir.path().join("Abgelehnt").join(NEWER).exists());
+        undo_in(&mut scan, &actions).unwrap();
+        assert!(dir.path().join(NEWER).exists());
+        assert!(!dir.path().join("Abgelehnt").exists());
     }
 
     #[test]
@@ -662,6 +733,13 @@ pub(crate) mod tests {
             serde_json::from_value::<Destination>(json!("trash")).unwrap(),
             Destination::Trash
         );
+    }
+
+    #[test]
+    fn the_folder_destination_names_a_new_folder_and_the_trash_does_not() {
+        let name = RejectedDirName::ABGELEHNT;
+        assert_eq!(Destination::Folder.target(name), RejectTarget::Folder(name));
+        assert_eq!(Destination::Trash.target(name), RejectTarget::Trash);
     }
 
     #[test]
@@ -687,7 +765,7 @@ pub(crate) mod tests {
     /// Rejects `OLDER` to `first` and `NEWER` to `second`, then undoes twice.
     /// Undo takes no destination: each rejection comes back the way it went,
     /// whatever destination is chosen meanwhile.
-    fn reject_both_ways_and_undo(first: Destination, second: Destination) {
+    fn reject_both_ways_and_undo(first: RejectTarget, second: RejectTarget) {
         let dir = gallery();
         let bin = TempDir::new().unwrap();
         let mut scan = scan(dir.path());
@@ -696,9 +774,9 @@ pub(crate) mod tests {
         let newer = id_of(&scan, NEWER);
         reject_in(&mut scan, &mut actions, older, first).unwrap();
         reject_in(&mut scan, &mut actions, newer, second).unwrap();
-        let place_of = |destination, name| match destination {
-            Destination::Folder => dir.path().join("Odrzucone").join(name),
-            Destination::Trash => bin.path().join(name),
+        let place_of = |target, name| match target {
+            RejectTarget::Folder(folder) => dir.path().join(folder.as_str()).join(name),
+            RejectTarget::Trash => bin.path().join(name),
         };
         assert!(place_of(first, OLDER).exists());
         assert!(place_of(second, NEWER).exists());
@@ -741,7 +819,7 @@ pub(crate) mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let id = id_of(&scan, NEWER);
         set_mark(&scan, &actions, NEWER, AcceptChange::Accepted);
-        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
         set_mark(&scan, &actions, OLDER, AcceptChange::Accepted);
         assert_eq!(accepted_names(&scan, &actions), [OLDER]);
 
@@ -768,7 +846,7 @@ pub(crate) mod tests {
         let mut actions = started(&dir.path().join("sito.db"));
         let id = id_of(&scan, NEWER);
         set_mark(&scan, &actions, NEWER, AcceptChange::Accepted);
-        reject_in(&mut scan, &mut actions, id, Destination::Folder).unwrap();
+        reject_in(&mut scan, &mut actions, id, FOLDER).unwrap();
         fs::write(dir.path().join(NEWER), "another file").unwrap();
 
         let undone = undo_in(&mut scan, &actions).unwrap().unwrap();
@@ -793,7 +871,7 @@ pub(crate) mod tests {
         let id = id_of(&scan, NEWER);
         fs::rename(dir.path().join(NEWER), dir.path().join("renamed.jpg")).unwrap();
 
-        for destination in [Destination::Folder, Destination::Trash] {
+        for destination in [FOLDER, RejectTarget::Trash] {
             assert_eq!(
                 reject_in(&mut scan, &mut actions, id, destination),
                 Err(CommandError::PhotoMissing)
@@ -823,11 +901,11 @@ pub(crate) mod tests {
 
     #[test]
     fn undoes_a_trash_rejection_and_then_a_folder_one() {
-        reject_both_ways_and_undo(Destination::Folder, Destination::Trash);
+        reject_both_ways_and_undo(FOLDER, RejectTarget::Trash);
     }
 
     #[test]
     fn undoes_a_folder_rejection_and_then_a_trash_one() {
-        reject_both_ways_and_undo(Destination::Trash, Destination::Folder);
+        reject_both_ways_and_undo(RejectTarget::Trash, FOLDER);
     }
 }

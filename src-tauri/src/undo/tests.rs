@@ -9,8 +9,8 @@ use sito_core::series::{DEFAULT_MAX_GAP, Grouping};
 use tempfile::TempDir;
 
 use super::*;
-use crate::reject::tests::{NEWER, OLDER, gallery, id_of, scan, started};
-use crate::reject::{Destination, file_name, reject_in};
+use crate::reject::tests::{FOLDER, NEWER, OLDER, gallery, id_of, scan, started};
+use crate::reject::{file_name, reject_in};
 use crate::series::edit::{EditDto, EditKindDto, edit_in};
 
 /// A copy of [`OLDER`] (same time, so in its series, after it by name).
@@ -252,13 +252,13 @@ fn edits_and_rejections_share_one_history() {
 
     // An edit, then a rejection of a photo of that series.
     edit(&mut scan, &actions, EditDto::Remove { photo: older });
-    reject_in(&mut scan, &mut actions, copy, Destination::Folder).unwrap();
+    reject_in(&mut scan, &mut actions, copy, FOLDER).unwrap();
     assert_eq!(undo_reject_in(&mut scan, &actions).name, COPY);
     assert_eq!(undo_edit_in(&mut scan, &actions).name, OLDER);
     assert_eq!(series(&scan), names(ORIGINAL));
 
     // A rejection, then an edit of its series.
-    reject_in(&mut scan, &mut actions, copy, Destination::Folder).unwrap();
+    reject_in(&mut scan, &mut actions, copy, FOLDER).unwrap();
     edit(&mut scan, &actions, EditDto::Ungroup { photo: older });
     assert_eq!(undo_edit_in(&mut scan, &actions).edit, EditKindDto::Ungroup);
     assert_eq!(undo_reject_in(&mut scan, &actions).name, COPY);
@@ -274,7 +274,7 @@ fn an_edit_of_a_series_with_a_rejected_photo_undoes_around_it() {
     let mut actions = started(&dir.path().join("sito.db"));
     let older = id_of(&scan, OLDER);
     let copy = id_of(&scan, COPY);
-    reject_in(&mut scan, &mut actions, copy, Destination::Folder).unwrap();
+    reject_in(&mut scan, &mut actions, copy, FOLDER).unwrap();
 
     edit(&mut scan, &actions, EditDto::Ungroup { photo: older });
     let undone = undo_edit_in(&mut scan, &actions);
@@ -333,7 +333,7 @@ fn an_edit_undoes_a_photo_restored_under_a_new_name() {
     let mut actions = started(&dir.path().join("sito.db"));
     let copy = id_of(&scan, COPY);
     edit(&mut scan, &actions, EditDto::Remove { photo: copy });
-    reject_in(&mut scan, &mut actions, copy, Destination::Folder).unwrap();
+    reject_in(&mut scan, &mut actions, copy, FOLDER).unwrap();
     fs::write(dir.path().join(COPY), "another file").unwrap();
     let restored = undo_reject_in(&mut scan, &actions);
     let renamed = restored.restored_name.unwrap();
