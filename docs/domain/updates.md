@@ -27,11 +27,19 @@ A card at the bottom right of the main window, over the start screen and the gri
 | „Pobierz” (macOS) | opens the release page of the offered version (`…/releases/tag/v0.15.0`) in the system browser; the offer stays |
 | Release page did not open | the offer again, with „Nie udało się otworzyć strony wydania. System nie otworzył przeglądarki.” |
 | „Nie teraz” | hidden until the next start or the next check from the menu |
-| „Co nowego?” | a dialog with the release notes: the release's CHANGELOG section, in English, as plain text |
+| „Co nowego?” | a dialog with the release notes of every version newer than the installed one, newest first, in English, formatted (see [Release notes](#release-notes)) |
 | Installing | „Pobieranie aktualizacji… 45%” (without a percentage when the size is unknown), then „Instalowanie aktualizacji…”; no buttons |
 | Install failed | the offer again, with the reason (no connection, wrong signature, unexpected error) |
 | Check from the menu, no update | „Masz najnowszą wersję (0.14.0).” with „Zamknij” |
 | Check from the menu failed | „Nie udało się sprawdzić aktualizacji.” with the reason and „Zamknij” |
+
+## Release notes
+
+- A release carries the CHANGELOG sections of every version since 0.15.0, the first with the updater ([Releasing](../RELEASING.md#update-signing-key)). Sito shows those newer than the installed version, so a user who skipped versions sees what changed in all of them. Notes without version headings are shown whole.
+- Each version has a heading with its number and release day („Wersja 0.16.0 · 25 listopada 2026”, the day in the UI's language), followed by its New / Improved / Fixed headings, lists, paragraphs, bold text and inline code, in the app's font.
+- **No links:** a link shows only its text („slice 32”), without its address; whoever wants more detail looks at the release on GitHub. Anything else the formatting does not know (other headings, unclosed `**` or backticks) stays plain text.
+- The notes come over the network unchecked (only the installer is signature-checked), so they are never inserted as HTML: Sito parses them itself and builds the dialog from its own elements.
+- The notes stay English in every UI language; only the dialog's own texts are translated.
 
 ## Installing
 

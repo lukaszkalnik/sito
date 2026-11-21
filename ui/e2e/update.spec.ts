@@ -46,6 +46,68 @@ test('offers a newer version at the start, shows its notes and installs it', asy
   await expect(page.getByRole('button', { name: 'Wybierz folder ze zdjęciami' })).toBeEnabled();
 });
 
+test('shows the notes of every new version formatted, without links', async ({ page }) => {
+  const notes = [
+    '## v0.17.0 – 2026-12-01',
+    '',
+    '### New',
+    '',
+    '- **Formatted notes.** With `code`. ([slice 54](https://github.com/lukaszkalnik/sito/blob/main/docs/slices/54-release-notes-markdown.md))',
+    '',
+    '## v0.16.0 – 2026-11-25',
+    '',
+    '### Fixed',
+    '',
+    '- A fix',
+  ].join('\n');
+  await mockTauri(page, { ...startScreen, update: { version: '0.17.0', notes, install: 'inApp' } });
+  await page.goto('/');
+
+  await page
+    .getByRole('region', { name: 'Aktualizacja Sito' })
+    .getByRole('button', { name: 'Co nowego?' })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Co nowego w wersji 0.17.0' });
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveText([
+    'Wersja 0.17.0 · 1 grudnia 2026',
+    'Wersja 0.16.0 · 25 listopada 2026',
+  ]);
+  await expect(dialog.getByRole('heading', { level: 4 })).toHaveText(['New', 'Fixed']);
+  await expect(dialog.getByRole('listitem')).toHaveText([
+    'Formatted notes. With code. (slice 54)',
+    'A fix',
+  ]);
+  await expect(dialog.locator('strong')).toHaveText('Formatted notes.');
+  await expect(dialog.getByRole('link')).toHaveCount(0);
+});
+
+test('scrolls long notes with the keyboard, from the top each time', async ({ page }) => {
+  const items = Array.from({ length: 60 }, (_, index) => `- Change ${index + 1}`);
+  const notes = ['## v0.17.0 – 2026-12-01', '', '### New', '', ...items].join('\n');
+  await mockTauri(page, { ...startScreen, update: { version: '0.17.0', notes, install: 'inApp' } });
+  await page.goto('/');
+
+  await page
+    .getByRole('region', { name: 'Aktualizacja Sito' })
+    .getByRole('button', { name: 'Co nowego?' })
+    .click();
+  const dialog = page.getByRole('dialog', { name: 'Co nowego w wersji 0.17.0' });
+  const region = dialog.getByRole('region', { name: 'Opis zmian (po angielsku)' });
+  // The notes scroll inside the dialog, which keeps its title and button in view.
+  await expect(dialog.getByRole('button', { name: 'Zamknij' })).toBeInViewport();
+  await expect(dialog.getByText('Change 60')).not.toBeInViewport();
+
+  await region.focus();
+  await page.keyboard.press('End');
+  await expect(dialog.getByText('Change 60')).toBeInViewport();
+
+  // Opened again, the notes start at the top.
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Co nowego?' }).click();
+  await expect(dialog.getByText('Change 1', { exact: true })).toBeInViewport();
+  await expect(dialog.getByText('Change 60')).not.toBeInViewport();
+});
+
 test('shows nothing at the start when this is the newest version', async ({ page }) => {
   await mockTauri(page, startScreen);
   await page.goto('/');

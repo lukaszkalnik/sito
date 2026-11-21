@@ -7,7 +7,10 @@ export type InstallKind = 'inApp' | 'manual';
 /** A newer version found by the check. Mirrors `UpdateInfo`. */
 export interface UpdateInfo {
   readonly version: string;
-  /** The release notes (English, plain text), if the release has any. */
+  /**
+   * The release notes of the versions newer than the running one (English,
+   * the Markdown subset of `CHANGELOG.md`), if the release has any.
+   */
   readonly notes: string | null;
   readonly install: InstallKind;
 }

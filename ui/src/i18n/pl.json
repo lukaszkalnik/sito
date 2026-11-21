@@ -175,6 +175,8 @@
     "close": "Zamknij",
     "notesTitle": "Co nowego w wersji {{version}}",
     "notes": "Opis zmian (po angielsku)",
+    "notesVersion": "Wersja {{version}}",
+    "notesVersionDated": "Wersja {{version}} · {{date}}",
     "errors": {
       "network": "Brak połączenia z GitHubem.",
       "badSignature": "Pobrany plik nie ma prawidłowego podpisu Sito.",

@@ -169,6 +169,8 @@
     "close": "Close",
     "notesTitle": "What's new in version {{version}}",
     "notes": "Release notes",
+    "notesVersion": "Version {{version}}",
+    "notesVersionDated": "Version {{version}} · {{date}}",
     "errors": {
       "network": "No connection to GitHub.",
       "badSignature": "The downloaded file does not have a valid Sito signature.",

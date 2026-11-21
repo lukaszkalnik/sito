@@ -23,15 +23,62 @@
 }
 
 .release-notes-text {
-  flex: 1;
+  /* As tall as the notes up to its own maximum, then it scrolls. Shrinking it
+     as a flex item instead collapsed it to one line in WebKitGTK, which sized
+     the dialog from the region's minimum height. The rest of the 85vh is the
+     title, the button and the gaps. */
+  flex: none;
+  max-height: calc(85vh - 9rem);
   margin: 0;
   padding: 0.75rem;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--tile-bg);
-  font-size: 0.85rem;
-  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+/* The version headings divide the notes; the headings below them are small. */
+.release-notes-section + .release-notes-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.release-notes-text :is(h3, h4) {
+  margin: 0.75rem 0 0.25rem;
+}
+
+.release-notes-section > :first-child {
+  margin-top: 0;
+}
+
+.release-notes-text h3 {
+  font-size: 1.05rem;
+}
+
+.release-notes-text h4 {
+  font-size: 0.95rem;
+}
+
+.release-notes-text :is(p, ul) {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.release-notes-text ul {
+  padding-left: 1.25rem;
+}
+
+.release-notes-text li + li {
+  margin-top: 0.35rem;
+}
+
+.release-notes-text code {
+  padding: 0 0.2em;
+  border-radius: 3px;
+  background: var(--bg);
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
 }
 
 .release-notes > button {

@@ -9,14 +9,15 @@ const JUNE_1 = new Date(2024, 5, 1);
 
 describe('formatsFor', () => {
   it.each([
-    ['pl-PL', 'sobota, 1 czerwca 2024', '50%', '12 346', '5472', '7,5'],
-    ['en-GB', 'Saturday, 1 June 2024', '50%', '12,346', '5,472', '7.5'],
-    ['en-US', 'Saturday, June 1, 2024', '50%', '12,346', '5,472', '7.5'],
-    ['de-DE', 'Samstag, 1. Juni 2024', '50 %', '12.346', '5.472', '7,5'],
-  ])('formats in %s', (locale, day, percent, large, small, decimal) => {
+    ['pl-PL', 'sobota, 1 czerwca 2024', '1 czerwca 2024', '50%', '12 346', '5472', '7,5'],
+    ['en-GB', 'Saturday, 1 June 2024', '1 June 2024', '50%', '12,346', '5,472', '7.5'],
+    ['en-US', 'Saturday, June 1, 2024', 'June 1, 2024', '50%', '12,346', '5,472', '7.5'],
+    ['de-DE', 'Samstag, 1. Juni 2024', '1. Juni 2024', '50 %', '12.346', '5.472', '7,5'],
+  ])('formats in %s', (locale, longDay, day, percent, large, small, decimal) => {
     const formats = formatsFor(locale);
     expect(formats.locale).toBe(locale);
-    expect(formats.longDay(JUNE_1)).toBe(day);
+    expect(formats.longDay(JUNE_1)).toBe(longDay);
+    expect(formats.day(JUNE_1)).toBe(day);
     expect(spaces(formats.percent(0.5))).toBe(percent);
     expect(spaces(formats.whole(12_345.6))).toBe(large);
     expect(spaces(formats.whole(5472))).toBe(small);

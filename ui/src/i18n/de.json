@@ -169,6 +169,8 @@
     "close": "Schließen",
     "notesTitle": "Neu in Version {{version}}",
     "notes": "Änderungen (auf Englisch)",
+    "notesVersion": "Version {{version}}",
+    "notesVersionDated": "Version {{version}} · {{date}}",
     "errors": {
       "network": "Keine Verbindung zu GitHub.",
       "badSignature": "Die heruntergeladene Datei hat keine gültige Signatur von Sito.",

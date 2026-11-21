@@ -6,6 +6,8 @@ export interface Formats {
   readonly locale: string;
   /** A day with its weekday, e.g. „sobota, 1 czerwca 2024”, “Saturday, 1 June 2024”. */
   readonly longDay: (date: Date) => string;
+  /** A day without its weekday, e.g. „1 czerwca 2024”, “1 June 2024”. */
+  readonly day: (date: Date) => string;
   /** A fraction as a whole percentage, e.g. `0.5` → „50%”. */
   readonly percent: (fraction: number) => string;
   /** A number rounded to a whole number, grouped as the locale groups it. */
@@ -40,6 +42,7 @@ function buildFormats(locale: string): Formats {
     month: 'long',
     year: 'numeric',
   });
+  const day = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 });
   const whole = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
   const oneDecimal = new Intl.NumberFormat(locale, {
@@ -49,6 +52,7 @@ function buildFormats(locale: string): Formats {
   return {
     locale,
     longDay: (date) => longDay.format(date),
+    day: (date) => day.format(date),
     percent: (fraction) => percent.format(fraction),
     whole: (value) => whole.format(value),
     oneDecimal: (value) => oneDecimal.format(value),
