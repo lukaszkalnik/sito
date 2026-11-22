@@ -18,10 +18,21 @@ use std::path::Path;
 #[cfg(windows)]
 const DRIVE_FIXED: u32 = 3;
 
+/// `DRIVE_REMOTE` from `fileapi.h`.
+#[cfg(windows)]
+const DRIVE_REMOTE: u32 = 4;
+
 /// Whether files in `folder` go into a trash they can be restored from.
 #[cfg(windows)]
 pub fn has_trash(folder: &Path) -> bool {
     drive_type(folder) == Some(DRIVE_FIXED)
+}
+
+/// Whether `folder` is on a network drive (a mapped drive or a `\\server`
+/// share).
+#[cfg(windows)]
+pub fn is_network(folder: &Path) -> bool {
+    drive_type(folder) == Some(DRIVE_REMOTE)
 }
 
 /// The `GetDriveTypeW` type of the drive of `folder`.
@@ -50,6 +61,13 @@ pub fn has_trash(_folder: &Path) -> bool {
     true
 }
 
+/// Whether `folder` is on a network drive. Sito only tells on Windows,
+/// where the cache may move to another drive.
+#[cfg(not(windows))]
+pub fn is_network(_folder: &Path) -> bool {
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -58,6 +76,11 @@ mod tests {
     fn the_temp_folder_has_a_trash() {
         // The temp folder is on the system's own (fixed) drive.
         assert!(has_trash(&std::env::temp_dir()));
+    }
+
+    #[test]
+    fn the_temp_folder_is_not_on_a_network_drive() {
+        assert!(!is_network(&std::env::temp_dir()));
     }
 
     #[cfg(windows)]

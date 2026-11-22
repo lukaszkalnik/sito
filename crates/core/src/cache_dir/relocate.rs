@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use super::{NO_MEDIA_FILE, PHOTO_CACHE_FILE, THUMBNAILS_DIR, thumbnails_dir};
+use super::{CACHE_SUBFOLDER, NO_MEDIA_FILE, PHOTO_CACHE_FILE, THUMBNAILS_DIR, thumbnails_dir};
 use crate::thumbnail::thumbnail_files;
 
 /// How a cache was moved.
@@ -78,9 +78,9 @@ fn plain_copy(from: &Path, to: &Path) -> io::Result<u64> {
 }
 
 /// Moves the cache in folder `from` (its thumbnails and photo cache, see
-/// [`super`]) into folder `to`, creating it and putting a
-/// [`NO_MEDIA_FILE`] into it. The photo cache must be closed and nothing
-/// may write thumbnails meanwhile.
+/// [`super`]) into folder `to`, creating it, and putting a
+/// [`NO_MEDIA_FILE`] into it if it is a [`CACHE_SUBFOLDER`]. The photo
+/// cache must be closed and nothing may write thumbnails meanwhile.
 ///
 /// On the same drive (and with no thumbnail folder in `to` yet) the folder
 /// is renamed, which is instant. Otherwise every file is copied and checked
@@ -148,7 +148,8 @@ struct Created {
     no_media: bool,
 }
 
-/// Creates the folder `to` and its [`NO_MEDIA_FILE`] where missing.
+/// Creates the folder `to` and, in a [`CACHE_SUBFOLDER`], its
+/// [`NO_MEDIA_FILE`], where missing.
 fn prepare_target(to: &Path) -> Result<Created, MoveError> {
     let not_writable = |source| MoveError::NotWritable {
         path: to.to_path_buf(),
@@ -157,7 +158,7 @@ fn prepare_target(to: &Path) -> Result<Created, MoveError> {
     let dir = !to.is_dir();
     fs::create_dir_all(to).map_err(not_writable)?;
     let path = to.join(NO_MEDIA_FILE);
-    let no_media = !path.exists();
+    let no_media = to.file_name().is_some_and(|name| name == CACHE_SUBFOLDER) && !path.exists();
     if no_media {
         fs::write(&path, b"").map_err(not_writable)?;
     }

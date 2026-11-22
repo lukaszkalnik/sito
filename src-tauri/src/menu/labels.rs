@@ -18,6 +18,8 @@ pub struct MenuLabels {
     pub language: &'static str,
     /// The choice to follow the system language.
     pub system_language: &'static str,
+    /// Shows the cache settings.
+    pub cache: &'static str,
 }
 
 impl MenuLabels {
@@ -31,6 +33,7 @@ impl MenuLabels {
                 settings: "Ustawienia",
                 language: "Język",
                 system_language: "Język systemu",
+                cache: "Pamięć podręczna…",
             },
             Language::English => Self {
                 help: "Help",
@@ -39,6 +42,7 @@ impl MenuLabels {
                 settings: "Settings",
                 language: "Language",
                 system_language: "System Language",
+                cache: "Cache…",
             },
             Language::German => Self {
                 help: "Hilfe",
@@ -47,6 +51,7 @@ impl MenuLabels {
                 settings: "Einstellungen",
                 language: "Sprache",
                 system_language: "Systemsprache",
+                cache: "Zwischenspeicher…",
             },
         }
     }
@@ -68,8 +73,9 @@ mod tests {
 
     const LANGUAGES: [Language; 3] = [Language::Polish, Language::English, Language::German];
 
-    fn all(labels: MenuLabels) -> [&'static str; 6] {
+    fn all(labels: MenuLabels) -> [&'static str; 7] {
         [
+            labels.cache,
             labels.help,
             labels.licenses,
             labels.check_for_updates,
@@ -103,6 +109,7 @@ mod tests {
         for language in LANGUAGES {
             let labels = MenuLabels::of(language);
             assert!(labels.licenses.ends_with('…'), "{language:?}");
+            assert!(labels.cache.ends_with('…'), "{language:?}");
             assert!(labels.check_for_updates.ends_with('…'), "{language:?}");
         }
     }

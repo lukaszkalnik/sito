@@ -10,9 +10,9 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager, State};
 
 use crate::accept;
+use crate::cache_settings::{self, gate::CacheGate};
 use crate::error::{CommandError, off_main_thread};
 use crate::series;
-use crate::thumbnails::Thumbnails;
 use photo_cache::PhotoCacheState;
 use state::AppState;
 
@@ -216,9 +216,7 @@ pub async fn start_scan(
     state: State<'_, AppState>,
 ) -> Result<ScanSummaryDto, CommandError> {
     let (opening, generation) = state.begin_opening();
-    if path.is_dir()
-        && let Some(cached) = app.state::<PhotoCacheState>().cached_timeline(&path)
-    {
+    if let Some(cached) = cached_timeline(&app, &path) {
         let mut summary = ScanSummaryDto::new(0, &cached);
         summary.scan_id = state
             .set_timeline(opening, cached)
@@ -232,6 +230,8 @@ pub async fn start_scan(
     let scanner = app.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let should_stop = || !scanner.state::<AppState>().is_latest_opening(opening);
+        let gate = scanner.state::<CacheGate>();
+        let _share = gate.scan();
         scanner
             .state::<PhotoCacheState>()
             .scan(&path, should_stop, |progress| {
@@ -253,7 +253,7 @@ pub async fn start_scan(
                 .ok_or(CommandError::Superseded)?;
             series::edit::load_pins(&app, summary.scan_id);
             completion::complete_in_background(app.clone(), root, summary.scan_id, generation);
-            clean_thumbnails_in_background(app);
+            cache_settings::clean_thumbnails_in_background(app);
             Ok(summary)
         }
         Ok(Err(ScanError::Stopped)) => Err(CommandError::Superseded),
@@ -268,11 +268,14 @@ pub async fn start_scan(
     }
 }
 
-pub(crate) fn clean_thumbnails_in_background(app: AppHandle) {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.state::<PhotoCacheState>()
-            .clean_thumbnails(&app.state::<Thumbnails>());
-    });
+/// The timeline of the folder `path` as last scanned, if the photo cache
+/// knows it (waiting while the cache moves).
+fn cached_timeline(app: &AppHandle, path: &Path) -> Option<Timeline> {
+    if !path.is_dir() {
+        return None;
+    }
+    let _share = app.state::<CacheGate>().inner().work();
+    app.state::<PhotoCacheState>().cached_timeline(path)
 }
 
 /// Returns the timeline of the last finished scan (empty if none). Built off

@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod accept;
+mod cache_settings;
 mod drive;
 mod error;
 mod language;
@@ -28,7 +29,7 @@ use tauri::Manager;
 /// Returns an error if the application fails to start.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> tauri::Result<()> {
-    with_protocols(with_e2e_driver(tauri::Builder::default()))
+    with_commands(with_protocols(with_e2e_driver(tauri::Builder::default())))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(navigation::init())
@@ -52,30 +53,44 @@ pub fn run() -> tauri::Result<()> {
         .manage(viewer::ViewerState::default())
         .manage(update::UpdateState::default())
         .manage(missing::Reported::default())
+        .manage(cache_settings::gate::CacheGate::default())
         .setup(|app| setup(app))
-        .invoke_handler(tauri::generate_handler![
-            scan::start_scan,
-            scan::get_timeline,
-            scan::refresh::refresh_folder,
-            missing::check_photo_file,
-            series::get_series,
-            series::edit::edit_series,
-            viewer::open_viewer,
-            viewer::current_viewer_request,
-            viewer::page::get_viewer_photo,
-            reject::reject_photo,
-            undo::undo,
-            undo::get_undo_state,
-            accept::accept_photo,
-            accept::unaccept_photo,
-            accept::get_accepted_ids,
-            update::check_for_update,
-            update::install_update,
-            update::open_release_page,
-            language::get_language,
-            language::set_language
-        ])
         .run(tauri::generate_context!())
+}
+
+/// Registers the commands the windows call.
+fn with_commands(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder.invoke_handler(tauri::generate_handler![
+        scan::start_scan,
+        scan::get_timeline,
+        scan::refresh::refresh_folder,
+        missing::check_photo_file,
+        series::get_series,
+        series::edit::edit_series,
+        viewer::open_viewer,
+        viewer::current_viewer_request,
+        viewer::page::get_viewer_photo,
+        reject::reject_photo,
+        undo::undo,
+        undo::get_undo_state,
+        accept::accept_photo,
+        accept::unaccept_photo,
+        accept::get_accepted_ids,
+        update::check_for_update,
+        update::install_update,
+        update::open_release_page,
+        language::get_language,
+        language::set_language,
+        cache_settings::get_cache_settings,
+        cache_settings::measure_cache,
+        cache_settings::set_thumbnail_limit,
+        cache_settings::clear_thumbnails,
+        cache_settings::clear_photo_data,
+        cache_settings::reveal_cache_folder,
+        cache_settings::relocation::check_cache_folder,
+        cache_settings::relocation::move_cache,
+        cache_settings::relocation::cancel_cache_move
+    ])
 }
 
 /// Registers the `thumb:` and `photo:` protocols that serve images to the
@@ -107,8 +122,9 @@ fn with_e2e_driver(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri:
     builder
 }
 
-/// Registers the logger, opens the caches and the action log, loads the
-/// language, and shows the main window with its menu.
+/// Registers the logger, opens the action log and the caches (where the
+/// settings in the log put them), loads the language, and shows the main
+/// window with its menu.
 fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(debug_assertions) {
         app.handle().plugin(
@@ -117,15 +133,19 @@ fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 .build(),
         )?;
     }
-    let cache_dir = app_cache_dir(app.handle());
-    app.manage(thumbnails::Thumbnails::new(cache_dir.join("thumbnails"))?);
+    let log = open_action_log(app.handle());
+    let cache = cache_settings::CacheSettings::load(log.as_ref(), app_cache_dir(app.handle()));
+    let cache_dir = cache.dir();
+    app.manage(thumbnails::Thumbnails::new(
+        sito_core::cache_dir::thumbnails_dir(&cache_dir),
+    )?);
     if let Err(err) = std::fs::create_dir_all(&cache_dir) {
         log::warn!("cannot create {}: {err}", cache_dir.display());
     }
     app.manage(scan::photo_cache::PhotoCacheState::open(
-        &scan::photo_cache::cache_file(&cache_dir),
+        &sito_core::cache_dir::photo_cache_file(&cache_dir),
     ));
-    let log = open_action_log(app.handle());
+    app.manage(cache);
     app.manage(language::LanguageState::load(log.as_ref()));
     app.manage(reject::Actions::new(log));
     // The main window is created hidden from the config.

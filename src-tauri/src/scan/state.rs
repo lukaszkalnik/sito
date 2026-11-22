@@ -310,6 +310,12 @@ impl AppState {
         Generation(self.generations.fetch_add(1, Ordering::SeqCst) + 1)
     }
 
+    /// The generation of the latest opening or refresh, for background work
+    /// started again after a pause.
+    pub fn latest_generation(&self) -> Generation {
+        Generation(self.generations.load(Ordering::SeqCst))
+    }
+
     /// Whether no folder has been opened or refreshed since `generation`.
     pub fn is_latest(&self, generation: Generation) -> bool {
         self.generations.load(Ordering::SeqCst) == generation.0

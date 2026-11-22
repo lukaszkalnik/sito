@@ -1,5 +1,6 @@
 //! The app menu, in the UI language: „Ustawienia → Język”, which chooses the
-//! language, and „Pomoc → Sprawdź aktualizacje…” and „Pomoc → Licencje…”,
+//! language, „Ustawienia → Pamięć podręczna…”, which shows the cache
+//! settings in the main window, and „Pomoc → Sprawdź aktualizacje…” and „Pomoc → Licencje…”,
 //! which check for a newer version and show the third-party notices in the
 //! main window. It is rebuilt when the language changes.
 
@@ -14,10 +15,14 @@ use labels::{MenuLabels, own_name};
 
 /// Event that tells the main window to show the licenses dialog.
 pub const SHOW_LICENSES_EVENT: &str = "about-show-licenses";
+/// Event that tells the main window to show the cache settings.
+pub const SHOW_CACHE_SETTINGS_EVENT: &str = "settings-show-cache";
 /// Label of the window that shows the licenses and the update notice.
 const MAIN_LABEL: &str = "main";
 /// Menu id of „Licencje…”.
 const LICENSES_ID: &str = "licenses";
+/// Menu id of „Pamięć podręczna…”.
+const CACHE_SETTINGS_ID: &str = "cache-settings";
 /// Menu id of „Sprawdź aktualizacje…”.
 const CHECK_FOR_UPDATES_ID: &str = "check-for-updates";
 /// Menu ids of the language choices, in the order the menu shows them.
@@ -33,6 +38,8 @@ const LANGUAGE_IDS: [(&str, LanguageChoice); 4] = [
 enum MenuAction {
     /// Show the third-party notices.
     ShowLicenses,
+    /// Show the cache settings.
+    ShowCacheSettings,
     /// Check for a newer version and say what was found.
     CheckForUpdates,
     /// Use this language.
@@ -45,6 +52,7 @@ impl MenuAction {
     fn of(id: &str) -> Option<Self> {
         match id {
             LICENSES_ID => Some(Self::ShowLicenses),
+            CACHE_SETTINGS_ID => Some(Self::ShowCacheSettings),
             CHECK_FOR_UPDATES_ID => Some(Self::CheckForUpdates),
             _ => LANGUAGE_IDS
                 .iter()
@@ -56,7 +64,7 @@ impl MenuAction {
 
 /// The menu items Sito adds.
 struct SitoItems {
-    /// „Ustawienia” with its „Język” submenu.
+    /// „Ustawienia” with its „Język” submenu and „Pamięć podręczna…”.
     settings: Submenu<Wry>,
     /// „Sprawdź aktualizacje…” and „Licencje…”, for the Help menu.
     help: [MenuItem<Wry>; 2],
@@ -89,8 +97,8 @@ pub fn install_menu(app: &AppHandle, main: &WebviewWindow) -> tauri::Result<()> 
     set_menu(app, main, &labels, &items)
 }
 
-/// „Ustawienia → Język” with a checked item for each choice; `choice` is
-/// checked.
+/// „Ustawienia” with „Język” (a checked item for each choice; `choice` is
+/// checked) and „Pamięć podręczna…”.
 fn settings_menu(
     app: &AppHandle,
     labels: &MenuLabels,
@@ -107,7 +115,8 @@ fn settings_menu(
         })
         .collect::<tauri::Result<Vec<_>>>()?;
     let language = Submenu::with_items(app, labels.language, true, &as_items(&choices))?;
-    Submenu::with_items(app, labels.settings, true, &[&language])
+    let cache = MenuItem::with_id(app, CACHE_SETTINGS_ID, labels.cache, true, None::<&str>)?;
+    Submenu::with_items(app, labels.settings, true, &[&language, &cache])
 }
 
 fn as_items<T: IsMenuItem<Wry>>(items: &[T]) -> Vec<&dyn IsMenuItem<Wry>> {
@@ -165,6 +174,7 @@ pub fn on_menu_event(app: &AppHandle, event: &MenuEvent) {
     };
     let event = match action {
         MenuAction::ShowLicenses => SHOW_LICENSES_EVENT,
+        MenuAction::ShowCacheSettings => SHOW_CACHE_SETTINGS_EVENT,
         MenuAction::CheckForUpdates => CHECK_REQUESTED_EVENT,
         MenuAction::SetLanguage(choice) => {
             let app = app.clone();
@@ -196,6 +206,14 @@ mod tests {
     #[test]
     fn licenses_item_shows_the_licenses() {
         assert_eq!(MenuAction::of(LICENSES_ID), Some(MenuAction::ShowLicenses));
+    }
+
+    #[test]
+    fn cache_item_shows_the_cache_settings() {
+        assert_eq!(
+            MenuAction::of(CACHE_SETTINGS_ID),
+            Some(MenuAction::ShowCacheSettings)
+        );
     }
 
     #[test]

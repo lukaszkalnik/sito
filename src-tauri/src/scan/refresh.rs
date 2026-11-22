@@ -11,10 +11,10 @@ use super::photo_cache::PhotoCacheState;
 use super::state::{AppState, Generation};
 use super::{SCAN_REFRESHED, ScanSummaryDto, completion};
 use crate::accept;
+use crate::cache_settings::{self, gate::CacheGate};
 use crate::missing::{self, Vanished};
 use crate::reject::TIMELINE_CHANGED;
 use crate::series;
-use crate::thumbnails::Thumbnails;
 
 /// Event with the scan id when a background refresh of it starts.
 pub const SCAN_REFRESHING: &str = "scan-refreshing";
@@ -54,9 +54,12 @@ pub(super) fn refresh_in_background(
 ) {
     tauri::async_runtime::spawn_blocking(move || {
         let should_stop = || !app.state::<AppState>().is_latest(generation);
-        let result = app
-            .state::<PhotoCacheState>()
-            .scan(&path, should_stop, |_| {});
+        let result = {
+            let gate = app.state::<CacheGate>();
+            let _share = gate.scan();
+            app.state::<PhotoCacheState>()
+                .scan(&path, should_stop, |_| {})
+        };
         let folder_gone = matches!(result, Err(ScanError::NotFound(_)));
         let summary = match result {
             Err(ScanError::Stopped) => {
@@ -81,8 +84,7 @@ pub(super) fn refresh_in_background(
             missing::announce(&app, scan_id, Vanished::Folder);
             return;
         }
-        app.state::<PhotoCacheState>()
-            .clean_thumbnails(&app.state::<Thumbnails>());
+        cache_settings::clean_thumbnails(&app);
         completion::complete_in_background(app, path, scan_id, generation);
     });
 }

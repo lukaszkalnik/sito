@@ -12,6 +12,7 @@ use sito_core::timeline::Photo;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::cache_settings::gate::CacheGate;
 use crate::missing::{self, Vanished};
 use crate::protocol::{error_response, jpeg_response, parse_request};
 use crate::scan::state::AppState;
@@ -33,8 +34,11 @@ pub fn handle<R: Runtime>(
         responder.respond(error_response(StatusCode::NOT_FOUND));
         return;
     };
-    let cache = app.state::<Thumbnails>().cache().clone();
     tauri::async_runtime::spawn_blocking(move || {
+        // Waits while the cache is moved, then uses its new place.
+        let gate = app.state::<CacheGate>();
+        let _share = gate.work();
+        let cache = app.state::<Thumbnails>().cache();
         let vanished = || missing::check(&app, scan_id, &photo);
         responder.respond(read_photo(&photo, &cache, vanished));
     });

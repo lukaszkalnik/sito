@@ -223,7 +223,10 @@ fn an_empty_cache_moves_as_well() {
         MoveOutcome::Renamed
     );
     assert_eq!(copy_all(&from, &to).unwrap(), MoveOutcome::Copied);
-    assert_eq!(files_in(&to), [PathBuf::from(NO_MEDIA_FILE)]);
+    assert_eq!(files_in(&to), Vec::<PathBuf>::new());
+    let chosen = root.path().join("Sito-cache");
+    copy_all(&from, &chosen).unwrap();
+    assert_eq!(files_in(&chosen), [PathBuf::from(NO_MEDIA_FILE)]);
 }
 
 #[test]
@@ -246,7 +249,7 @@ fn non_ascii_and_long_paths_move() {
         move_cache(&to, &back, || false, |_| {}).unwrap(),
         MoveOutcome::Renamed
     );
-    assert_eq!(files_in(&back), with_no_media(cache_files(2)));
+    assert_eq!(files_in(&back), cache_files(2));
 }
 
 #[test]
@@ -265,7 +268,7 @@ fn a_cache_left_in_the_target_is_merged_into() {
         MoveOutcome::Copied
     );
 
-    assert_eq!(files_in(&to), with_no_media(cache_files(3)));
+    assert_eq!(files_in(&to), cache_files(3));
     assert_eq!(fs::read(to.join(thumb(0))).unwrap(), b"thumbnail 0");
     assert_eq!(fs::read(to.join(thumb(2))).unwrap(), b"thumbnail 2");
     assert_eq!(fs::read(photo_cache_file(&to)).unwrap(), b"photo data");

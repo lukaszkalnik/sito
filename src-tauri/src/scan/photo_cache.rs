@@ -1,18 +1,14 @@
 //! The cache of photo metadata shared by scans, and cleaning the thumbnail
 //! cache with it.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use sito_core::photo_cache::{PhotoCache, SharedCache};
+use sito_core::photo_cache::{CacheError, PhotoCache, SharedCache};
 use sito_core::scan::ScanError;
 use sito_core::timeline::{self, CachedScan, Photo, ReadMode, Timeline, TimelineProgress};
 
 use crate::thumbnails::Thumbnails;
-
-/// Largest size of the thumbnail cache, in bytes; older thumbnails are
-/// removed beyond it. Slice 15 turns it into a setting.
-pub const THUMBNAIL_CACHE_LIMIT: u64 = 500 * 1024 * 1024;
 
 /// The cached photos of a folder whose EXIF is still pending.
 #[derive(Debug, Default)]
@@ -29,19 +25,32 @@ pub struct Pending {
 pub struct PhotoCacheState(SharedCache);
 
 impl PhotoCacheState {
-    /// Opens the cache in `file`. A damaged file is deleted and created anew:
-    /// it only holds what can be read from the photos again.
+    /// Opens the cache in `file` (see [`open_cache`]).
     pub fn open(file: &Path) -> Self {
-        let cache = PhotoCache::open(file).or_else(|err| {
-            log::warn!("photo cache unusable, starting a new one: {err}");
-            let _ = std::fs::remove_file(file);
-            PhotoCache::open(file)
-        });
-        Self(Mutex::new(
-            cache
-                .map_err(|err| log::warn!("no photo cache: {err}"))
-                .ok(),
-        ))
+        Self(Mutex::new(open_cache(file)))
+    }
+
+    /// Closes the cache file, so it can be moved; scans read every photo
+    /// until [`Self::reopen`].
+    pub fn close(&self) {
+        *self.lock() = None;
+    }
+
+    /// Opens the cache in `file` in place of the one in use, as
+    /// [`Self::open`] does.
+    pub fn reopen(&self, file: &Path) {
+        let cache = open_cache(file);
+        *self.lock() = cache;
+    }
+
+    /// Removes every cached photo: every folder is read in full on its next
+    /// scan. Without a cache there is nothing to remove.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be written.
+    pub fn clear(&self) -> Result<(), CacheError> {
+        self.lock().as_mut().map_or(Ok(()), PhotoCache::clear)
     }
 
     fn lock(&self) -> MutexGuard<'_, Option<PhotoCache>> {
@@ -115,27 +124,37 @@ impl PhotoCacheState {
     }
 
     /// Removes thumbnails of photos no longer in the cache and keeps the
-    /// thumbnail cache under [`THUMBNAIL_CACHE_LIMIT`].
-    pub fn clean_thumbnails(&self, thumbnails: &Thumbnails) {
+    /// thumbnail cache under `limit` bytes.
+    pub fn clean_thumbnails(&self, thumbnails: &Thumbnails, limit: u64) {
         // Without the list of known photos every thumbnail would look orphaned.
         let Some(Ok(needed)) = self.lock().as_ref().map(PhotoCache::all) else {
             return;
         };
-        match thumbnails.cache().clean(&needed, THUMBNAIL_CACHE_LIMIT) {
+        match thumbnails.cache().clean(&needed, limit) {
             Ok(report) => log::info!("thumbnail cache cleaned: {report:?}"),
             Err(err) => log::warn!("cannot clean the thumbnail cache: {err}"),
         }
     }
 }
 
-/// Where the photo cache lives: next to the thumbnail cache.
-pub fn cache_file(cache_dir: &Path) -> PathBuf {
-    cache_dir.join("photos.db")
+/// The cache in `file`, or `None` if it cannot be opened. A damaged file is
+/// deleted and created anew: it only holds what can be read from the photos
+/// again.
+fn open_cache(file: &Path) -> Option<PhotoCache> {
+    PhotoCache::open(file)
+        .or_else(|err| {
+            log::warn!("photo cache unusable, starting a new one: {err}");
+            let _ = std::fs::remove_file(file);
+            PhotoCache::open(file)
+        })
+        .map_err(|err| log::warn!("no photo cache: {err}"))
+        .ok()
 }
 
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::path::PathBuf;
 
     use tempfile::TempDir;
 
@@ -156,7 +175,7 @@ mod tests {
     fn a_damaged_cache_file_is_replaced_by_a_working_one() {
         let dir = gallery();
         let cache_dir = TempDir::new().unwrap();
-        let file = cache_file(cache_dir.path());
+        let file = sito_core::cache_dir::photo_cache_file(cache_dir.path());
         fs::write(&file, b"not a database").unwrap();
 
         let state = PhotoCacheState::open(&file);
@@ -165,5 +184,37 @@ mod tests {
 
         let cached = state.cached_timeline(dir.path()).unwrap();
         assert_eq!(cached.photos, scanned.photos);
+    }
+
+    #[test]
+    fn a_closed_cache_reopened_elsewhere_knows_what_was_moved_there() {
+        let dir = gallery();
+        let (old, new) = (TempDir::new().unwrap(), TempDir::new().unwrap());
+        let file = sito_core::cache_dir::photo_cache_file(old.path());
+        let state = PhotoCacheState::open(&file);
+        state.scan(dir.path(), || false, |_| {}).unwrap();
+
+        state.close();
+        assert!(state.cached_timeline(dir.path()).is_none());
+        let moved = sito_core::cache_dir::photo_cache_file(new.path());
+        fs::rename(&file, &moved).unwrap();
+        state.reopen(&moved);
+
+        assert!(state.cached_timeline(dir.path()).is_some());
+    }
+
+    #[test]
+    fn a_cleared_cache_knows_no_folder_and_keeps_working() {
+        let dir = gallery();
+        let cache_dir = TempDir::new().unwrap();
+        let state =
+            PhotoCacheState::open(&sito_core::cache_dir::photo_cache_file(cache_dir.path()));
+        state.scan(dir.path(), || false, |_| {}).unwrap();
+
+        state.clear().unwrap();
+
+        assert!(state.cached_timeline(dir.path()).is_none());
+        state.scan(dir.path(), || false, |_| {}).unwrap();
+        assert!(state.cached_timeline(dir.path()).is_some());
     }
 }

@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use super::photo_cache::{Pending, PhotoCacheState};
 use super::state::{AppState, Generation};
 use super::{SCAN_REFRESHED, ScanSummaryDto};
+use crate::cache_settings::gate::CacheGate;
 use crate::reject::TIMELINE_CHANGED;
 use crate::throttle::Throttle;
 
@@ -39,10 +40,13 @@ pub struct CompletingDto {
 
 /// Reads the pending EXIF of the photos of `root` (shown as scan `scan_id`)
 /// on a blocking thread, updating that scan as it goes. Stops when another
-/// folder is opened after `generation`, so the two do not share the disk;
-/// the photos not read yet stay pending in the cache.
+/// folder is opened after `generation`, so the two do not share the disk,
+/// and when the cache is to be moved or emptied (which starts it again
+/// afterwards); the photos not read yet stay pending in the cache.
 pub fn complete_in_background(app: AppHandle, root: PathBuf, scan_id: u64, generation: Generation) {
     tauri::async_runtime::spawn_blocking(move || {
+        let gate = app.state::<CacheGate>();
+        let _share = gate.work();
         let pending = app.state::<PhotoCacheState>().pending(&root);
         if pending.photos.is_empty() {
             return;
@@ -72,6 +76,7 @@ fn progress(scan_id: u64, already_read: usize, done: usize, total: usize) -> Com
 fn complete(app: &AppHandle, pending: &Pending, scan_id: u64, generation: Generation) {
     let cache = app.state::<PhotoCacheState>();
     let state = app.state::<AppState>();
+    let gate = app.state::<CacheGate>();
     let mut unapplied: Vec<Photo> = Vec::new();
     let mut throttle = Throttle::new(UPDATE_EVERY, Instant::now());
     let mut progress_throttle = Throttle::new(PROGRESS_EVERY, Instant::now());
@@ -102,13 +107,21 @@ fn complete(app: &AppHandle, pending: &Pending, scan_id: u64, generation: Genera
             }
         },
         report,
-        || !state.is_current(scan_id) || !state.is_latest(generation),
+        || !state.is_current(scan_id) || !state.is_latest(generation) || gate.is_closing(),
     );
     match completion {
         Completion::Finished if state.update_photos(scan_id, &unapplied) => {
             announce_finished(app, scan_id);
         }
-        // Stopped because another scan replaced this one: nothing to show.
+        // Stopped for the cache: what was read is cached and no longer
+        // pending, so a pass started again would leave it out of the shown
+        // timeline.
+        Completion::Stopped
+            if !unapplied.is_empty() && state.update_photos(scan_id, &unapplied) =>
+        {
+            emit(app, TIMELINE_CHANGED, ());
+        }
+        // Another scan replaced this one: nothing to show.
         Completion::Finished | Completion::Stopped => {}
     }
 }

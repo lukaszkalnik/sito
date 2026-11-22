@@ -4,12 +4,14 @@
 //! `http://thumb.localhost/<photo id>?scan=<scan id>` (Windows).
 
 use std::path::PathBuf;
+use std::sync::{PoisonError, RwLock};
 
 use sito_core::thumbnail::ThumbnailCache;
 use sito_core::timeline::Photo;
 use tauri::http::{Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::cache_settings::gate::CacheGate;
 use crate::missing::{self, Vanished};
 use crate::protocol::{error_response, jpeg_response, parse_request};
 use crate::scan::state::AppState;
@@ -27,7 +29,7 @@ const WORKERS: usize = 2;
 /// Renders and caches thumbnails off the main thread.
 #[derive(Debug)]
 pub struct Thumbnails {
-    cache: ThumbnailCache,
+    cache: RwLock<ThumbnailCache>,
     pool: WorkerPool,
 }
 
@@ -40,14 +42,22 @@ impl Thumbnails {
     pub fn new(cache_dir: PathBuf) -> std::io::Result<Self> {
         let pool = WorkerPool::new(WORKERS, "thumbnail")?;
         Ok(Self {
-            cache: ThumbnailCache::new(cache_dir),
+            cache: RwLock::new(ThumbnailCache::new(cache_dir)),
             pool,
         })
     }
 
-    /// The thumbnail cache on disk.
-    pub fn cache(&self) -> &ThumbnailCache {
-        &self.cache
+    /// The thumbnail cache on disk, where it is now.
+    pub fn cache(&self) -> ThumbnailCache {
+        self.cache
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Uses the thumbnail cache in `dir` from now on.
+    pub fn move_to(&self, dir: PathBuf) {
+        *self.cache.write().unwrap_or_else(PoisonError::into_inner) = ThumbnailCache::new(dir);
     }
 }
 
@@ -71,9 +81,12 @@ pub fn handle<R: Runtime>(
         return;
     };
 
-    let cache = thumbnails.cache.clone();
     let app = app.clone();
     thumbnails.pool.spawn(move || {
+        // Waits while the cache is moved, then renders into its new place.
+        let gate = app.state::<CacheGate>();
+        let _share = gate.work();
+        let cache = app.state::<Thumbnails>().cache();
         let still_shown = || app.state::<AppState>().is_current(scan_id);
         let vanished = || missing::check(&app, scan_id, &photo);
         responder.respond(thumbnail_response(&cache, &photo, still_shown, vanished));
