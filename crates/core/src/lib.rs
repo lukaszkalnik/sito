@@ -7,6 +7,7 @@
 
 pub mod accept;
 pub mod actions;
+pub mod cache_dir;
 pub mod decode;
 pub mod dimensions;
 pub mod display;
