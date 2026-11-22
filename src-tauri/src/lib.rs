@@ -1,6 +1,7 @@
 //! Thin Tauri layer: exposes `sito-core` to the UI as commands and events.
 
 mod accept;
+mod drive;
 mod error;
 mod language;
 mod menu;

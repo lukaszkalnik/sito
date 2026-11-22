@@ -7,7 +7,7 @@ use sito_core::actions::ActionLog;
 use sito_core::reject::PhotoFiles;
 use sito_core::trash::{self, RestoredFromTrash, TRASH_RESTORE, TrashError, TrashRestore};
 
-use super::{drive, log_failed};
+use super::log_failed;
 use crate::error::CommandError;
 
 /// The system trash, behind a trait so tests never touch the real one.
@@ -29,7 +29,7 @@ pub(super) struct SystemBin;
 
 impl Bin for SystemBin {
     fn has_trash(&self, folder: &Path) -> bool {
-        drive::has_trash(folder)
+        crate::drive::has_trash(folder)
     }
 
     fn put(&self, files: &[PathBuf]) -> Result<(), TrashError> {

@@ -1,7 +1,6 @@
 //! Reject commands: move photos into the rejected folder or the system
 //! trash, and bring a rejected photo back (for „Cofnij”, see `undo`).
 
-mod drive;
 #[cfg(test)]
 mod fake_bin;
 mod folder;

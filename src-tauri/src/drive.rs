@@ -1,4 +1,5 @@
-//! Whether a folder's drive has a trash.
+//! What kind of drive a folder is on: whether it has a trash, whether it is
+//! a network drive.
 //!
 //! On Windows, removable and network drives have no Recycle Bin: moving a
 //! file "to the trash" there deletes it for good. Only fixed drives qualify.
@@ -13,13 +14,20 @@
 
 use std::path::Path;
 
+/// `DRIVE_FIXED` from `fileapi.h`.
+#[cfg(windows)]
+const DRIVE_FIXED: u32 = 3;
+
 /// Whether files in `folder` go into a trash they can be restored from.
 #[cfg(windows)]
-pub(super) fn has_trash(folder: &Path) -> bool {
-    use std::os::windows::ffi::OsStrExt;
+pub fn has_trash(folder: &Path) -> bool {
+    drive_type(folder) == Some(DRIVE_FIXED)
+}
 
-    /// `DRIVE_FIXED` from `fileapi.h`.
-    const DRIVE_FIXED: u32 = 3;
+/// The `GetDriveTypeW` type of the drive of `folder`.
+#[cfg(windows)]
+fn drive_type(folder: &Path) -> Option<u32> {
+    use std::os::windows::ffi::OsStrExt;
 
     #[link(name = "kernel32")]
     unsafe extern "system" {
@@ -28,20 +36,17 @@ pub(super) fn has_trash(folder: &Path) -> bool {
 
     // The last ancestor is the drive's root (`C:\`, `\\server\share\`), the
     // form the call expects.
-    let Some(root) = folder.ancestors().last() else {
-        return false;
-    };
+    let root = folder.ancestors().last()?;
     let root: Vec<u16> = root.as_os_str().encode_wide().chain([0]).collect();
     // SAFETY: `root` is a NUL-terminated UTF-16 string that outlives the call,
     // which only reads it.
-    let drive_type = unsafe { GetDriveTypeW(root.as_ptr()) };
-    drive_type == DRIVE_FIXED
+    Some(unsafe { GetDriveTypeW(root.as_ptr()) })
 }
 
 /// Whether files in `folder` go into a trash they can be restored from:
 /// macOS keeps a trash on every writable volume.
 #[cfg(not(windows))]
-pub(super) fn has_trash(_folder: &Path) -> bool {
+pub fn has_trash(_folder: &Path) -> bool {
     true
 }
 
