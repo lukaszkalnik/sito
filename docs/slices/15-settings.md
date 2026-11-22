@@ -4,7 +4,7 @@ status: 📝 planned
 
 # Slice 15 – Settings: cache location and size
 
-Planned on 2026-11-22 in a cloud session (Linux container); waiting for the user's review, see [Open questions](#open-questions). The user decided on 2026-11-22 that choosing the cache location is **Windows only**.
+Planned on 2026-11-22 in a cloud session (Linux container); the user decided that choosing the cache location is **Windows only** and answered the open questions the same day ([Decisions](#decisions)).
 
 ## Idea
 
@@ -30,7 +30,7 @@ All of it can be rebuilt from the photos, so it may be emptied or moved at any t
 
 ### Size
 
-- **„Miejsce na miniatury”** (thumbnail space): a dropdown of 250 MB, 500 MB (default), 1 GB, 2 GB, 5 GB, 10 GB. It limits `thumbnails/` as today; a smaller value cleans the cache right away, in the background.
+- **„Miejsce na miniatury”** (thumbnail space): a number input in MB (default 500), any whole number from 50 up; an empty or smaller value is clamped to 50 when the field is left, like the gap input. It limits `thumbnails/` as today; a smaller value cleans the cache right away, in the background. A value above the drive's free space is allowed (the cache simply fills what there is).
 - **In use now:** „Miniatury: 412 MB · Dane zdjęć: 18 MB” (file sizes in the locale's format, as in the viewer). Measured when the dialog opens, in the background (a spinner until then; a large cache folder takes a moment to sum up).
 
 ### Emptying
@@ -41,14 +41,15 @@ All of it can be rebuilt from the photos, so it may be emptied or moved at any t
 
 ### Location (Windows only)
 
-- **„Folder pamięci podręcznej”** shows the current folder (cut in the middle like the main window's path, full path as tooltip), with **„Zmień…”** (a folder picker) and, when not the default, **„Przywróć domyślny”**. On macOS only the folder is shown, without buttons, with „Otwórz w Finderze”? (open question 3).
+- **„Folder pamięci podręcznej”** shows the current folder (cut in the middle like the main window's path, full path as tooltip), with **„Zmień…”** (a folder picker) and, when not the default, **„Przywróć domyślny”**. On macOS (and Linux) the folder is shown with **„Pokaż w Finderze”** (Linux: „Pokaż w menedżerze plików”), opened from the Rust side, and without „Zmień…”.
 - **The chosen folder gets a subfolder `Sito-cache`** (e.g. `D:\Cache\Sito-cache`), so emptying and moving never touch anything else in the chosen folder. The subfolder gets a `.nomedia` file, so a scan of a folder above it never shows thumbnails as photos ([Photos](../domain/photos.md#the-galleries)).
-- **Refused folders,** each with its own message: not writable; inside a folder that is open in Sito (a scan would walk it); the current cache folder or a folder inside it; a symbolic link or junction (like rejected folders, [Security](../domain/security.md)). A network drive is allowed but warned about („Pamięć podręczna na dysku sieciowym może spowolnić Sito.”, open question 4).
+- **Refused folders,** each with its own message: not writable; inside a folder that is open in Sito (a scan would walk it); the current cache folder or a folder inside it; a symbolic link or junction (like rejected folders, [Security](../domain/security.md)). A network drive is allowed with a warning in the confirmation („Pamięć podręczna na dysku sieciowym może spowolnić Sito.”).
 - **Moving:** after the user confirms („Przenieść pamięć podręczną (412 MB) do D:\Cache\Sito-cache?”), Sito stops its background work (thumbnail rendering, the EXIF pass, refreshes, later the analysis pass of slice 17), closes `photos.db`, and moves the cache:
   - on the same drive by renaming the folder (instant);
   - to another drive by copying every file, checking each copy (size and BLAKE3 hash, as for moves of photos across drives), then switching over, and only then removing the old copy. The old copy is Sito's own cache, not the user's files, so it is removed (the „never delete” rule is about the gallery).
   - Progress in the dialog („Przenoszenie: 1234 z 41 000 plików”), cancellable until the switch. A failure or cancel leaves the old cache in use and removes the partial copy; the error is shown.
   - Then the cache reopens at the new place and background work goes on. The grid stays as it is throughout (thumbnails already shown stay; new ones wait for the move).
+- **A `Sito-cache` that already holds a cache** (e.g. used before, then moved back to the default) is used as it is: the moved files overwrite files of the same name there, without a warning (it is all rebuildable cache), and other cache files there stay and count toward the limit. `photos.db` is replaced by the one being moved.
 - **The setting** is kept in the action log's settings (key `cache_dir`), not in the cache itself, so it survives emptying.
 - **The folder is gone on start** (drive D: removed, folder deleted): Sito uses the default folder for this session and the bar's pill says „Folder pamięci podręcznej D:\Cache\Sito-cache jest niedostępny – Sito używa folderu domyślnego.” The setting stays, so the next start with the drive back uses it again; the dialog offers „Przywróć domyślny”. Nothing is copied back and forth.
 
@@ -65,27 +66,29 @@ All of it can be rebuilt from the photos, so it may be emptied or moved at any t
 
 Cases, listed before writing them:
 
-- **Rules (unit):** allowed and refused folders (not writable, inside an open folder, equal to or inside the current cache, a symlink or junction, the default folder itself); the subfolder name; a chosen folder that already has a `Sito-cache` with a cache in it (open question 5).
-- **Move (unit, temp dirs):** rename on one file system; copy-verify-switch on a forced copy path (as the cross-drive photo moves are tested); a failing copy (read-only target, a file that changes during the copy) leaves the old cache in use and no partial copy; cancel before the switch; progress counts; non-ASCII and long paths; an empty cache; the `.nomedia` file.
+- **Rules (unit):** allowed and refused folders (not writable, inside an open folder, equal to or inside the current cache, a symlink or junction, the default folder itself); the subfolder name.
+- **Move (unit, temp dirs):** rename on one file system; copy-verify-switch on a forced copy path (as the cross-drive photo moves are tested); a failing copy (read-only target, a file that changes during the copy) leaves the old cache in use and no partial copy; cancel before the switch; progress counts; non-ASCII and long paths; an empty cache; the `.nomedia` file; a target `Sito-cache` that already holds a cache (same-named files overwritten, others kept, `photos.db` replaced).
 - **Size and emptying (unit):** a lower limit removes the oldest thumbnails; `clear` removes only cache-named files; emptying `photos.db` leaves an empty, working cache; sizes summed correctly.
 - **Start (unit/integration in `src-tauri`):** a chosen folder that exists is used; a missing one falls back to the default and reports it; the setting stays.
-- **UI (Vitest):** the dialog in all three languages (file sizes per locale); macOS without location buttons; confirmations; the move's progress, cancel and errors; „Wyczyść dane zdjęć” disabled during a scan.
+- **UI (Vitest):** the dialog in all three languages (file sizes per locale); the size input (typing, clamping to 50, applying); macOS with „Pokaż w Finderze” and without „Zmień…”; the network-drive warning; confirmations; the move's progress, cancel and errors; „Wyczyść dane zdjęć” disabled during a scan.
 - **Mocked e2e (Playwright):** open the dialog from the menu event, change the limit, empty thumbnails (tiles load again), move the cache with progress, the fallback notice.
-- **Real app (`e2e-app/`, one spec, Linux in the container and Windows in CI):** move the cache to another folder while a gallery from `fixtures/` is open, check on disk that the cache is in the new folder and gone from the old one, restart, the folder opens from the moved cache without reading the photos again; restore the default. The location spec runs on Windows and Linux only (the dialog has no location on macOS; on Linux it is enabled only in the e2e build to test the move, open question 6).
+- **Real app (`e2e-app/`, one spec, Windows only, run in CI's Windows job):** move the cache to another folder while a gallery from `fixtures/` is open, check on disk that the cache is in the new folder and gone from the old one, restart, the folder opens from the moved cache without reading the photos again; restore the default.
 
 ## Testing without and with the user's machine
 
-- **In the container:** everything above on Linux; moving across file systems with a tmpfs mount if the container allows it, otherwise through the forced copy path.
+- **In the container:** everything above except the real-app spec, which only CI's Windows job runs; the move itself is covered by core tests on Linux (across file systems with a tmpfs mount if the container allows it, otherwise through the forced copy path).
 - **On the user's machine (Windows):** move the cache from C: to D: with the Takeout's cache (several hundred MB, tens of thousands of files) and time it; check that Sito still starts instantly and the Takeout opens from the moved cache; unplug or rename the folder and start Sito (fallback notice); restore the default. On macOS later: the dialog without location.
 
-## Open questions
+## Decisions
 
-1. **Where the settings open:** a dialog in the main window from „Ustawienia → Pamięć podręczna…” (planned), or a settings window of its own (more room for later settings, one more window to place and restore)?
-2. **Size steps:** 250 MB – 10 GB as listed, or a free number?
-3. **macOS:** show the cache folder with „Pokaż w Finderze”, or not show the folder at all?
-4. **Network drives** as the cache folder: allowed with a warning (planned), or refused?
-5. **A chosen folder that already holds a Sito cache** (e.g. moved there before, then back to the default): use it as it is, or empty it first? Planned: use it if its version matches, as a cache would be used anyway.
-6. **Linux:** the location setting is hidden there like on macOS; the real-app spec turns it on in the e2e build only, so the move is tested in the container and in CI. Fine, or test the move on Windows CI only?
+Answered by the user on 2026-11-22:
+
+1. **A dialog** in the main window, opened from „Ustawienia → Pamięć podręczna…”.
+2. **Any number in MB** for the thumbnail space (from 50 up).
+3. **macOS shows the cache folder** with a button that opens it in Finder.
+4. **Network drives are allowed,** with a warning.
+5. **A folder that already holds a Sito cache is used as it is;** moved files overwrite same-named ones without a warning.
+6. **The real-app test of the move runs on Windows only.**
 
 ## Related
 
