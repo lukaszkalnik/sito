@@ -239,6 +239,7 @@ pub struct CacheSize {
 ///
 /// Returns an error if the thumbnail folder exists but cannot be listed.
 pub fn cache_size(dir: &Path) -> io::Result<CacheSize> {
+    let dir = &crate::long_path::verbatim(dir)?;
     let thumbnails = thumbnail_files(&thumbnails_dir(dir))?
         .iter()
         .map(|file| file.len)
@@ -260,6 +261,7 @@ pub fn cache_size(dir: &Path) -> io::Result<CacheSize> {
 /// Returns an error if a cache file exists but cannot be removed; files
 /// removed before it stay removed.
 pub fn remove_cache(dir: &Path) -> io::Result<()> {
+    let dir = &crate::long_path::verbatim(dir)?;
     let thumbnails = thumbnails_dir(dir);
     for file in thumbnail_files(&thumbnails)? {
         fs::remove_file(&file.path)?;

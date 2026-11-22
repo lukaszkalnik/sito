@@ -49,6 +49,20 @@ fn with_no_media(mut files: Vec<PathBuf>) -> Vec<PathBuf> {
     files
 }
 
+/// Copies the cache as [`move_cache`] does across drives, long paths included.
+fn move_cache_copying(from: &Path, to: &Path) {
+    let long = |path: &Path| crate::long_path::verbatim(path).unwrap();
+    move_with(
+        &long(from),
+        &long(to),
+        Strategy::Copy,
+        plain_copy,
+        &|| false,
+        |_| {},
+    )
+    .unwrap();
+}
+
 fn copy_all(from: &Path, to: &Path) -> Result<MoveOutcome, MoveError> {
     move_with(from, to, Strategy::Copy, plain_copy, &|| false, |_| {})
 }
@@ -240,8 +254,10 @@ fn non_ascii_and_long_paths_move() {
     assert!(to.as_os_str().len() > 300);
     write_cache(&from, 2);
 
-    copy_all(&from, &to).unwrap();
-    assert_eq!(files_in(&to), with_no_media(cache_files(2)));
+    move_cache_copying(&from, &to);
+    // Listed in the long form, as the move works with it.
+    let long = crate::long_path::verbatim(&to).unwrap();
+    assert_eq!(files_in(&long), with_no_media(cache_files(2)));
     remove_cache(&from).unwrap();
 
     let back = root.path().join("z powrotem – żółw");

@@ -12,6 +12,7 @@ pub mod decode;
 pub mod dimensions;
 pub mod display;
 mod limited_read;
+mod long_path;
 pub mod metadata;
 pub mod moved;
 pub mod navigation;

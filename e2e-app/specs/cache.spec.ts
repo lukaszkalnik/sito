@@ -89,6 +89,27 @@ function holdsCache(dir: string): boolean {
   );
 }
 
+/** What `dir` holds, for a failure message. */
+function listing(dir: string): string {
+  return existsSync(dir) ? readdirSync(dir, { recursive: true }).join(', ') : 'nothing';
+}
+
+/** Waits until every thumbnail in the grid has loaded and `dir` holds a cache. */
+async function waitForCacheIn(dir: string): Promise<void> {
+  for (const name of SERIES_ORDER) await waitForTile(name);
+  await browser.waitUntil(
+    async () =>
+      browser.execute(() => {
+        const images = [...document.querySelectorAll('img')] as HTMLImageElement[];
+        return images.length > 0 && images.every((image) => image.naturalWidth > 0);
+      }),
+    { timeoutMsg: 'the thumbnails did not load' },
+  );
+  await browser.waitUntil(() => holdsCache(dir), {
+    timeoutMsg: `no cache in ${dir}: ${listing(dir)}`,
+  });
+}
+
 /** Whether `dir` holds anything of a cache. */
 function holdsAnyCache(dir: string): boolean {
   return existsSync(join(dir, 'photos.db')) || existsSync(join(dir, 'thumbnails'));
@@ -100,14 +121,13 @@ function holdsAnyCache(dir: string): boolean {
     const gallery = makeGallery();
     await openFolder(gallery.dir);
     await expectCounts(EXPECTED.photos, EXPECTED.series);
-    for (const name of SERIES_ORDER) await waitForTile(name);
-    expect(holdsCache(DEFAULT_DIR)).toBe(true);
+    await waitForCacheIn(DEFAULT_DIR);
 
     const chosen = mkdtempSync(join(tmpdir(), 'sito-e2e-cache-'));
     const target = join(chosen, 'Sito-cache');
     expect(await moveCache(chosen)).toBe(target);
 
-    expect(holdsCache(target)).toBe(true);
+    expect(holdsCache(target) ? 'cache' : listing(target)).toBe('cache');
     expect(existsSync(join(target, '.nomedia'))).toBe(true);
     expect(holdsAnyCache(DEFAULT_DIR)).toBe(false);
     await expectDialogShows(target);
@@ -118,8 +138,7 @@ function holdsAnyCache(dir: string): boolean {
     await startAgain();
     await switchToWindow('main');
     await expectCounts(EXPECTED.photos, EXPECTED.series);
-    for (const name of SERIES_ORDER) await waitForTile(name);
-    expect(holdsCache(target)).toBe(true);
+    await waitForCacheIn(target);
     expect(holdsAnyCache(DEFAULT_DIR)).toBe(false);
 
     expect(await moveCache(null)).toBe(DEFAULT_DIR);

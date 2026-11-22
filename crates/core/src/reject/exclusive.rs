@@ -129,10 +129,9 @@ fn c_path(path: &Path) -> io::Result<std::ffi::CString> {
 mod wide {
     //! Paths as the wide strings the Windows calls take.
 
-    use std::ffi::OsString;
     use std::io;
     use std::os::windows::ffi::OsStrExt;
-    use std::path::{Component, Path, Prefix};
+    use std::path::Path;
 
     /// `path` as a NUL-terminated UTF-16 string in its verbatim form
     /// (`\\?\C:\...`, `\\?\UNC\server\share\...`), which is not limited to
@@ -142,32 +141,8 @@ mod wide {
     ///
     /// Returns an error if the path is empty or contains a NUL.
     pub(super) fn verbatim(path: &Path) -> io::Result<Vec<u16>> {
-        // Verbatim paths are taken literally, so make it absolute and
-        // resolve `.` and `..` first.
-        let absolute = std::path::absolute(path)?;
-        let mut components = absolute.components();
-        let mut text = OsString::new();
-        match components.next() {
-            Some(Component::Prefix(prefix)) => match prefix.kind() {
-                Prefix::Disk(_) => {
-                    text.push(r"\\?\");
-                    text.push(prefix.as_os_str());
-                }
-                Prefix::UNC(server, share) => {
-                    text.push(r"\\?\UNC\");
-                    text.push(server);
-                    text.push(r"\");
-                    text.push(share);
-                }
-                Prefix::Verbatim(_)
-                | Prefix::VerbatimUNC(..)
-                | Prefix::VerbatimDisk(_)
-                | Prefix::DeviceNS(_) => text.push(prefix.as_os_str()),
-            },
-            Some(_) | None => text.push(absolute.as_os_str()),
-        }
-        text.push(components.as_path().as_os_str());
-        let wide: Vec<u16> = text.encode_wide().collect();
+        let text = crate::long_path::verbatim(path)?;
+        let wide: Vec<u16> = text.as_os_str().encode_wide().collect();
         if wide.contains(&0) {
             return Err(io::Error::from(io::ErrorKind::InvalidInput));
         }

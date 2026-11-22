@@ -98,9 +98,15 @@ pub fn move_cache(
     should_stop: impl Fn() -> bool,
     on_progress: impl FnMut(MoveProgress),
 ) -> Result<MoveOutcome, MoveError> {
+    let long = |path: &Path| {
+        crate::long_path::verbatim(path).map_err(|source| MoveError::Io {
+            path: path.to_path_buf(),
+            source,
+        })
+    };
     move_with(
-        from,
-        to,
+        &long(from)?,
+        &long(to)?,
         Strategy::Auto,
         plain_copy,
         &should_stop,
@@ -108,6 +114,7 @@ pub fn move_cache(
     )
 }
 
+/// [`move_cache`] with paths in their long form.
 fn move_with(
     from: &Path,
     to: &Path,
