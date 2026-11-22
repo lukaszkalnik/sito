@@ -13,4 +13,5 @@ What Sito works on and how it behaves **today**, independent of how the code is 
 | [Updates](updates.md) | Checking for a newer version, the update notice, installing it, what goes over the network |
 | [Security](security.md) | What protects the photos and the machine: webview limits, parser and size limits, safe moves, the release pipeline |
 | [Languages](languages.md) | Polish, English and German: which one is shown, the „Ustawienia → Język” menu, dates and numbers per locale, the rejected folder's name |
+| [Cache](cache.md) | What the cache holds (thumbnails, photo data), its size limit, emptying it, and moving it to another folder (Windows) |
 | [Licenses](licenses.md) | Sito's license and the third-party notices shown in the app |

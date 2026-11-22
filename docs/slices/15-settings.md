@@ -1,10 +1,10 @@
 ---
-status: 📝 planned
+status: 🧪 testing
 ---
 
 # Slice 15 – Settings: cache location and size
 
-Planned on 2026-11-22 in a cloud session (Linux container); the user decided that choosing the cache location is **Windows only** and answered the open questions the same day ([Decisions](#decisions)).
+Planned on 2026-11-22 in a cloud session (Linux container); the user decided that choosing the cache location is **Windows only** and answered the open questions the same day ([Decisions](#decisions)). Implemented on 2026-11-22 in a cloud session; what it established is in [Cache](../domain/cache.md). Waiting for the user's test on Windows ([Status](#status)).
 
 ## Idea
 
@@ -99,3 +99,22 @@ Answered by the user on 2026-11-22:
 ## Try
 
 Move the cache to another drive and check Sito still starts instantly.
+
+## Status
+
+Implemented on 2026-11-22 (cloud session, Linux container): core (`cache_dir`, `ThumbnailCache::clear`, `PhotoCache::clear`), the Tauri commands with the cache gate (`src-tauri/src/cache_settings.rs`, `cache_settings/`), the menu item, the dialog (`ui/src/features/settings/`), mocked e2e (`ui/e2e/cache-settings.spec.ts`) and the Windows-only real-app spec (`e2e-app/specs/cache.spec.ts`, which calls the move command directly, as the folder picker is native).
+
+Deviations from the plan:
+
+- The fallback notice is a corner notice at the bottom left (like the update notice), not a pill in the bar, so it also shows on the start screen.
+- While a folder is scanned or refreshed the cache does not move (the buttons are disabled, the command answers „busy”); only the EXIF pass is stopped and resumed. A scan of a large folder takes minutes, and a refresh stopped halfway would leave the UI waiting for it.
+- „Wyczyść miniatury” does not reload the tiles already shown; they stay on screen and the others are rendered again as needed.
+- Moving back to the default folder writes no `.nomedia` there (only a `Sito-cache` gets one).
+
+Still to test on the user's Windows machine:
+
+1. Move the cache from C: to D: with the Takeout's cache (several hundred MB, tens of thousands of files): time the copy, watch the progress and „Anuluj” once, then let it finish; check that `D:\…\Sito-cache` holds `thumbnails\` and `photos.db` and that `%LOCALAPPDATA%\io.github.lukaszkalnik.sito\` no longer does (its `EBWebView` stays).
+2. Restart Sito: it starts as fast as before and the Takeout opens from the moved cache at once (no „Wczytywanie…” of all photos).
+3. Fallback: close Sito, rename the `Sito-cache` folder (or unplug the drive), start Sito: the notice „Folder pamięci podręcznej … jest niedostępny – Sito używa folderu domyślnego.” appears; rename it back and restart: the chosen folder is used again.
+4. „Przywróć domyślny” moves the cache back to C:, and the `Sito-cache` folder on D: is gone.
+5. The rest of the dialog: the limit (e.g. 100 MB cleans the thumbnails down at once), „Wyczyść miniatury”, „Wyczyść dane zdjęć” (disabled during the EXIF pass), the network-drive warning if a network share is at hand, and the German texts.

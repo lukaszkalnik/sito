@@ -67,7 +67,7 @@ Nothing watches the disk: Sito notices changes when the user asks for a refresh,
   2. then, while nothing visible waits, the tiles the grid renders ahead off screen (4 rows above and below), nearest to the screen first. Loading ahead stops there.
 - A tile takes its turn only after it has been rendered for 150 ms, so tiles that only fly past during fast scrolling never load. A tile that scrolls away before its turn never loads either.
 - Thumbnails once shown appear at once when their tile comes back. After another folder is opened, thumbnails still queued for the previous one are dropped.
-- Thumbnails are cached on disk (up to 500 MB, oldest removed first) and kept when the photo cache is emptied.
+- Thumbnails are cached on disk (500 MB by default, oldest removed first; see [Cache](cache.md)) and kept when the photo cache is emptied.
 
 ## Viewer
 

@@ -38,5 +38,5 @@ What protects the user's photos and machine today. Sito's main input is untruste
 ## Known gaps
 
 - The installers are not code-signed yet ([slice 47](../slices/47-windows-code-signing.md), [slice 50](../slices/50-macos-code-signing.md)).
-- Thumbnails of photos stay in the cache folder until it is cleaned ([slice 15](../slices/15-settings.md)).
+- Thumbnails of photos stay in the cache folder until it is cleaned or emptied with „Wyczyść miniatury” ([Cache](cache.md)). A cache moved to another drive is copied and verified before the old copy is removed, and a chosen cache folder that is a link is refused.
 - On macOS volumes without an exclusive rename (exFAT and FAT cards, some network shares), a move checks the target and then renames, with a short gap in between ([Rejecting](rejecting.md)).
