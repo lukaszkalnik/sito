@@ -260,3 +260,30 @@ fn a_photo_with_pending_exif_gets_an_upright_thumbnail() {
     assert_eq!(from_pending, from_read);
     assert_ne!(from_pending, sideways);
 }
+
+#[test]
+fn clear_removes_every_thumbnail_and_display_image_and_nothing_else() {
+    let photos_dir = TempDir::new().unwrap();
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path());
+    let photos = cached_photos(photos_dir.path(), &cache, 3);
+    cache.display_jpeg_for(&photos[0]).unwrap();
+    let foreign = cache_dir.path().join("ab").join("holiday.jpg");
+    fs::create_dir_all(foreign.parent().unwrap()).unwrap();
+    fs::write(&foreign, b"keep me").unwrap();
+
+    assert_eq!(cache.clear().unwrap(), 4);
+
+    assert_eq!(files_in(cache_dir.path()), [foreign]);
+    // Rendered again on demand.
+    cache.get_or_create(&photos[0]).unwrap();
+    assert!(cache.path_for(&photos[0]).exists());
+}
+
+#[test]
+fn clear_of_a_cache_never_written_removes_nothing() {
+    let cache_dir = TempDir::new().unwrap();
+    let cache = ThumbnailCache::new(cache_dir.path().join("thumbnails"));
+
+    assert_eq!(cache.clear().unwrap(), 0);
+}

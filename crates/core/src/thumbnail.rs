@@ -162,32 +162,14 @@ impl ThumbnailCache {
             .collect();
         let mut report = CleanReport::default();
         let mut kept = Vec::new();
-        let subfolders = match fs::read_dir(&self.dir) {
-            Ok(entries) => entries,
-            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(report),
-            Err(err) => return Err(err),
-        };
-        for subfolder in subfolders.flatten() {
-            let Ok(files) = fs::read_dir(subfolder.path()) else {
+        for file in thumbnail_files(&self.dir)? {
+            if !needed.contains(&file.path) {
+                if fs::remove_file(&file.path).is_ok() {
+                    report.orphans_removed += 1;
+                }
                 continue;
-            };
-            for file in files.flatten() {
-                let path = file.path();
-                if !is_thumbnail_file(&path) {
-                    continue;
-                }
-                let Ok(meta) = file.metadata() else {
-                    continue;
-                };
-                if !needed.contains(&path) {
-                    if fs::remove_file(&path).is_ok() {
-                        report.orphans_removed += 1;
-                    }
-                    continue;
-                }
-                let age = meta.modified().unwrap_or(UNIX_EPOCH);
-                kept.push((age, meta.len(), path));
             }
+            kept.push((file.modified, file.len, file.path));
         }
 
         let mut total: u64 = kept.iter().map(|(_, len, _)| len).sum();
@@ -204,6 +186,58 @@ impl ThumbnailCache {
         report.bytes_left = total;
         Ok(report)
     }
+
+    /// Removes every cached thumbnail and display image; they are rendered
+    /// again when needed. Only files named like cached thumbnails are
+    /// touched. Returns how many were removed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache folder cannot be listed. Files that
+    /// cannot be removed are skipped.
+    pub fn clear(&self) -> io::Result<usize> {
+        Ok(self.clean(&[], 0)?.orphans_removed)
+    }
+}
+
+/// A file of the thumbnail cache.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ThumbnailFile {
+    /// Where it is.
+    pub path: PathBuf,
+    /// Its size in bytes.
+    pub len: u64,
+    /// When it was last written.
+    pub modified: std::time::SystemTime,
+}
+
+/// The files in the thumbnail cache folder `dir` named like cached
+/// thumbnails, in no particular order; none if `dir` does not exist.
+/// Subfolders and files that cannot be read are skipped.
+///
+/// # Errors
+///
+/// Returns an error if `dir` exists but cannot be listed.
+pub(crate) fn thumbnail_files(dir: &Path) -> io::Result<Vec<ThumbnailFile>> {
+    let subfolders = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(err) => return Err(err),
+    };
+    Ok(subfolders
+        .flatten()
+        .filter_map(|subfolder| fs::read_dir(subfolder.path()).ok())
+        .flat_map(Iterator::flatten)
+        .filter(|file| is_thumbnail_file(&file.path()))
+        .filter_map(|file| {
+            let meta = file.metadata().ok()?;
+            Some(ThumbnailFile {
+                path: file.path(),
+                len: meta.len(),
+                modified: meta.modified().unwrap_or(UNIX_EPOCH),
+            })
+        })
+        .collect())
 }
 
 /// What [`ThumbnailCache::clean`] removed.

@@ -303,6 +303,17 @@ impl PhotoCache {
         transaction.commit()?;
         Ok(())
     }
+
+    /// Removes every cached photo and gives the freed space back to the
+    /// system; every folder is then read in full on its next scan.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the cache cannot be written.
+    pub fn clear(&mut self) -> Result<(), CacheError> {
+        self.conn.execute_batch("DELETE FROM photos; VACUUM;")?;
+        Ok(())
+    }
 }
 
 /// A stored file reference: path, size and modification time.

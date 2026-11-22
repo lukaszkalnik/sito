@@ -410,3 +410,22 @@ fn a_damaged_cache_file_is_reported() {
 
     assert!(PhotoCache::open(&file).is_err());
 }
+
+#[test]
+fn a_cleared_cache_knows_no_photo_and_keeps_working() {
+    let dir = gallery();
+    let cache_dir = TempDir::new().unwrap();
+    let file = cache_dir.path().join("photos.db");
+    let mut cache = PhotoCache::open(&file).unwrap();
+    scan(dir.path(), &mut cache);
+    assert_ne!(cache.all().unwrap().len(), 0);
+
+    cache.clear().unwrap();
+
+    assert_eq!(cache.all().unwrap().len(), 0);
+    let read_again = scan_reading(dir.path(), &mut cache);
+    assert!(read_again > 0);
+    assert_eq!(scan_reading(dir.path(), &mut cache), 0);
+    drop(cache);
+    assert_ne!(PhotoCache::open(&file).unwrap().all().unwrap().len(), 0);
+}
