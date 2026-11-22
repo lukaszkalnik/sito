@@ -66,7 +66,7 @@ Every slice has its own file, `docs/slices/NN-name.md`, from the moment it is ad
 | 22 | [English and German UI](slices/22-english-german-ui.md) | 🧪 |
 | 15 | [Settings: cache location and size](slices/15-settings.md) | ⬜ |
 | 16 | [Show and restore rejected photos](slices/16-show-rejected.md) | ⬜ |
-| 17 | [Sharpness suggestion](slices/17-sharpness.md) | 📝 |
+| 17 | [Blurry photos in series](slices/17-sharpness.md) | 📝 |
 | 63 | [Series of one photo](slices/63-series-of-one.md) | 📝 |
 | 18 | [Exposure and weights](slices/18-exposure-weights.md) | ⬜ |
 | 44 | [Mark out-of-focus photos](slices/44-out-of-focus.md) | 📝 |
