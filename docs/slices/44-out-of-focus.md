@@ -10,7 +10,7 @@ Since 2026-11-07; plan when the slice starts.
 
 Asked by the user on 2026-11-07: Sito marks photos that are out of focus or blurred (missed focus, camera shake, a moving subject), so the user can find and reject them quickly.
 
-Unlike [slice 17](17-sharpness.md), which compares photos **within a series** to suggest the sharpest one, this mark is **per photo** and applies to every photo of the folder, also to single shots that belong to no series. The app only marks; the user decides.
+[Slice 17](17-sharpness.md) (planned 2026-11-22) builds the absolute sharpness measure and the „Nieostre” mark for photos **in series** (in the viewer, plus a mark on series headers where no photo is sharp). This slice extends the mark to **every photo** of the folder, also single shots that belong to no series, and adds it to grid tiles. The app only marks; the user decides.
 
 ## Candidate behaviour
 
