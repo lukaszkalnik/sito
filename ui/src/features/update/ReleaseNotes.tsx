@@ -8,7 +8,7 @@ import {
   type Block,
   type Inline,
   type NotesSection,
-} from './releaseNotes';
+} from './notesTree';
 
 // The notes are parsed once per render and never reorder, so the position of
 // a block or a run is a stable key for it.

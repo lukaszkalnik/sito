@@ -6,7 +6,7 @@ import {
   type Block,
   type Inline,
   type NotesSection,
-} from './releaseNotes';
+} from './notesTree';
 
 const text = (value: string): Inline => ({ kind: 'text', text: value });
 const code = (value: string): Inline => ({ kind: 'code', text: value });
