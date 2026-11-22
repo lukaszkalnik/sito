@@ -1,0 +1,116 @@
+.cache-settings {
+  width: min(36rem, 90vw);
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.cache-settings[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.cache-settings::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.cache-settings h2,
+.cache-settings h3,
+.cache-settings p {
+  margin: 0;
+}
+
+.cache-settings h3 {
+  font-size: 0.95rem;
+}
+
+.cache-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cache-limit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cache-limit input {
+  width: 6rem;
+}
+
+.cache-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cache-usage,
+.cache-progress p {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cache-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cache-hint {
+  opacity: 0.8;
+  font-size: 0.85rem;
+}
+
+.cache-folder {
+  max-width: 100%;
+}
+
+.cache-confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--tile-bg);
+}
+
+.cache-warning,
+.cache-settings [role='alert'] {
+  color: var(--danger);
+}
+
+.cache-spinner {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid var(--border);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: cache-spin 0.8s linear infinite;
+}
+
+@keyframes cache-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cache-close {
+  align-self: flex-end;
+}
+
+/* Bottom left, so it never covers the update notice at the bottom right. */
+.cache-fallback-area {
+  right: auto;
+  left: 1rem;
+}

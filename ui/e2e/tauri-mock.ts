@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test';
 
+import { mockCache, type CacheMock } from './cache-mock';
+
 type Progress =
   { phase: 'searching'; found: number } | { phase: 'reading'; done: number; total: number };
 
@@ -102,6 +104,12 @@ export interface TauriMock {
   vanished?: 'photo' | 'folder';
   /** The language `get_language` returns. Default: Polish (`pl-PL`), following the system. */
   language?: { language: 'pl' | 'en' | 'de'; locale: string; choice: string };
+  /**
+   * The cache settings: `get_cache_settings` returns `settings` (default:
+   * Windows, the default folder, 500 MB), `measure_cache` the `size` in bytes,
+   * and `move_cache` streams `moveProgress`, `stepMs` apart, then resolves.
+   */
+  cache?: CacheMock;
 }
 
 /** Commands the page invoked, with their arguments, for assertions. */
@@ -131,6 +139,7 @@ export async function emitTauriEvent(
  * browser against canned command results instead of the Rust backend.
  */
 export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
+  await mockCache(page, mock.cache);
   await page.addInitScript((m: TauriMock) => {
     const callbacks = new Map<number, (payload: unknown) => void>();
     let nextId = 1;
@@ -330,6 +339,10 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
         callbacks.delete(id);
       },
       async invoke(cmd: string, args: Record<string, unknown>) {
+        const cached = (
+          window as unknown as { __cacheCommand: (cmd: string, args: unknown) => unknown }
+        ).__cacheCommand(cmd, args);
+        if (cached !== undefined) return cached;
         switch (cmd) {
           case 'plugin:dialog|open':
             return m.pickedFolder;
@@ -473,6 +486,8 @@ export async function mockTauri(page: Page, mock: TauriMock): Promise<void> {
     };
 
     Object.defineProperty(window, '__TAURI_INTERNALS__', { value: internals });
+    // Used by the cache mock to answer through channels.
+    Object.defineProperty(window, '__tauriCallbacks', { value: callbacks });
     // Used by `emitTauriEvent`.
     Object.defineProperty(window, '__emitTauriEvent', { value: emit });
     // Used by `unlisten` of the event API.

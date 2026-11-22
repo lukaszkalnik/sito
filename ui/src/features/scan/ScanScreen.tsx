@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import type { ScanProgress, ScanSummary } from './api';
+import { CacheSettingsPanel } from '../settings/CacheSettingsPanel';
 import { TimelineView } from '../timeline/TimelineView';
+import { backgroundWork } from './backgroundWork';
 import type { Completing, Missing, ScanState } from './scanReducer';
 import { useScan } from './useScan';
 import './ScanScreen.css';
@@ -27,8 +29,21 @@ function ProgressText({ progress }: { progress: ScanProgress }) {
 }
 
 export function ScanScreen() {
-  const { t } = useTranslation();
   const { state, chooseAndScan, refresh } = useScan();
+  return (
+    <>
+      <ScanContent state={state} chooseAndScan={chooseAndScan} refresh={refresh} />
+      <CacheSettingsPanel work={backgroundWork(state)} />
+    </>
+  );
+}
+
+function ScanContent({
+  state,
+  chooseAndScan,
+  refresh,
+}: { state: ScanState } & Omit<ReturnType<typeof useScan>, 'state'>) {
+  const { t } = useTranslation();
 
   const busy = state.status === 'picking' || state.status === 'scanning';
   const finished = finishedScan(state);
