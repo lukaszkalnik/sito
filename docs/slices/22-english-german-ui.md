@@ -69,7 +69,7 @@ Alternative: only follow the system language, with no choice in the app. Simpler
 ### Out of scope
 
 - The release notes in „Co nowego?” stay English (they come from `CHANGELOG.md`, which is English); [slice 54](54-release-notes-markdown.md) formats them.
-- The app name per language ([slice 53](53-rename-fotosito.md): PhotoSieve / FotoSito) is that slice's; this slice keeps the translation of the name in the translation files, so slice 53 only changes values.
+- The app's new name is [slice 53](53-rename-photosieve.md)'s: one English name, PhotoSieve, for every language (decided on 2026-11-22; the per-language names FotoSito and FotoSieb were dropped). This slice keeps the name in the translation files (`app.title`, the same value in all three), so slice 53 only changes that value.
 - More languages: adding one is a new JSON file, a menu table entry and a rejected folder name.
 
 ## Plan
