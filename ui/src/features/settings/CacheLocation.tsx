@@ -138,7 +138,10 @@ export function CacheLocation({
   const { t } = useTranslation();
   return (
     <section className="cache-section" aria-labelledby="cache-folder-title">
-      <h3 id="cache-folder-title">{t('cache.folder')}</h3>
+      {/* Not a heading: the grid's series headers are the page's h3. */}
+      <p id="cache-folder-title" className="cache-caption">
+        {t('cache.folder')}
+      </p>
       <CutPath path={settings.folder} className="cache-folder" />
       {settings.platform === 'windows' ? (
         <>

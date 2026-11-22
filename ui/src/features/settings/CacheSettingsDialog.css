@@ -18,13 +18,13 @@
 }
 
 .cache-settings h2,
-.cache-settings h3,
 .cache-settings p {
   margin: 0;
 }
 
-.cache-settings h3 {
+.cache-caption {
   font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .cache-section {
