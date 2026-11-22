@@ -111,6 +111,8 @@ Deviations from the plan:
 - „Wyczyść miniatury” does not reload the tiles already shown; they stay on screen and the others are rendered again as needed.
 - Moving back to the default folder writes no `.nomedia` there (only a `Sito-cache` gets one).
 
+Caught by CI after pushing, and fixed: cache folders with paths over 260 characters failed on Windows (the move now uses verbatim paths, shared with the exclusive move in `crates/core/src/long_path.rs`); the dialog's `h3` was counted as a series by the real-app specs (now a plain caption). On the way, `main` was also unblocked: the release-notes parser `releaseNotes.ts` clashed in case with `ReleaseNotes.tsx` on Windows and macOS (renamed to `notesTree.ts`), and `url` was updated to 2.5.9 for RUSTSEC-2026-0592.
+
 Still to test on the user's Windows machine:
 
 1. Move the cache from C: to D: with the Takeout's cache (several hundred MB, tens of thousands of files): time the copy, watch the progress and „Anuluj” once, then let it finish; check that `D:\…\Sito-cache` holds `thumbnails\` and `photos.db` and that `%LOCALAPPDATA%\io.github.lukaszkalnik.sito\` no longer does (its `EBWebView` stays).
