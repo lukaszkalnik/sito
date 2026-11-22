@@ -35,6 +35,13 @@ async function summary(): Promise<string> {
   return (await status.isExisting()) ? ((await status.getAttribute('title')) ?? '') : '';
 }
 
+/**
+ * CSS selector of the series headers: the h3 elements of the main window's
+ * grid. Only inside the grid, as other parts of the window (dialogs kept in
+ * the page while closed) may have headings of their own.
+ */
+const SERIES_HEADER_SELECTOR = '[data-testid="timeline"] h3';
+
 /** Waits until the main window shows `photos` photos (in `series` series, if given). */
 export async function expectCounts(photos: number, series?: number): Promise<void> {
   const found = t('scan.result', { photos: plural('scan.photoCount', photos) });
@@ -43,10 +50,10 @@ export async function expectCounts(photos: number, series?: number): Promise<voi
   });
   if (series === undefined) return;
   // Counted by hand: WebKitWebDriver reports a stale element instead of a
-  // result while the grid re-renders. Series headers are the grid's h3.
+  // result while the grid re-renders.
   await browser.waitUntil(
     async () =>
-      (await $$('h3')
+      (await $$(SERIES_HEADER_SELECTOR)
         .length.then(Number)
         .catch(() => -1)) === series,
     { timeoutMsg: `the main window does not show ${series} series` },

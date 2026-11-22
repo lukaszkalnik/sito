@@ -138,7 +138,6 @@ export function CacheLocation({
   const { t } = useTranslation();
   return (
     <section className="cache-section" aria-labelledby="cache-folder-title">
-      {/* Not a heading: the grid's series headers are the page's h3. */}
       <p id="cache-folder-title" className="cache-caption">
         {t('cache.folder')}
       </p>
